@@ -1,73 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Feedback Form</title>
-
-  <!-- Tailwind CSS -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Page</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center">
 
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <!-- Header -->
+  <header class="w-full bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto flex justify-between items-center px-4">
+      <h1 class="text-xl font-bold">Feedback / Complaints</h1>
+      <!-- Back Button -->
+      <a href="https://purinekaka70-svg.github.io/Ummeats/">
+        <button class="bg-white text-green-600 px-4 py-2 rounded hover:bg-gray-200">
+          ← Back to Ummeats
+        </button>
+      </a>
+    </div>
+  </header>
 
-  <!-- Feedback Card -->
-  <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
+  <!-- Feedback Form -->
+  <main class="flex-1 w-full flex justify-center items-start p-4">
+    <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
 
-    <h2 class="text-2xl font-bold text-center text-green-700 mb-4">
-      💬 Give Us Your Feedback
-    </h2>
+      <h2 class="text-2xl font-bold text-center text-green-700 mb-4">
+        💬 Give Us Your Feedback
+      </h2>
 
-    <p class="text-center text-gray-600 mb-6">
-      Karibu! Write your feedback below.
-    </p>
+      <form id="feedbackForm">
+        <div class="mb-4">
+          <label class="block font-semibold mb-2">Your Name</label>
+          <input type="text" id="name" required
+            class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
+            placeholder="Enter your name">
+        </div>
 
-    <!-- Feedback Form -->
-    <form id="feedbackForm">
+        <div class="mb-4">
+          <label class="block font-semibold mb-2">Email</label>
+          <input type="email" id="email" required
+            class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
+            placeholder="Enter your email">
+        </div>
 
-      <!-- Name -->
-      <div class="mb-4">
-        <label class="block font-semibold mb-2">Your Name</label>
-        <input type="text" id="name" required
-          class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
-          placeholder="Enter your name">
-      </div>
+        <div class="mb-4">
+          <label class="block font-semibold mb-2">Your Feedback</label>
+          <textarea id="message" rows="4" required
+            class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
+            placeholder="Write your feedback here..."></textarea>
+        </div>
 
-      <!-- Email -->
-      <div class="mb-4">
-        <label class="block font-semibold mb-2">Email</label>
-        <input type="email" id="email" required
-          class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
-          placeholder="Enter your email">
-      </div>
+        <button type="submit"
+          class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl transition">
+          Submit Feedback 
+        </button>
+      </form>
 
-      <!-- Message -->
-      <div class="mb-4">
-        <label class="block font-semibold mb-2">Your Feedback</label>
-        <textarea id="message" rows="4" required
-          class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
-          placeholder="Write feedback here..."></textarea>
-      </div>
+      <p id="status" class="text-center mt-4 font-semibold"></p>
+    </div>
+  </main>
 
-      <!-- Button -->
-      <button type="submit"
-        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl transition">
-        Submit Feedback 
-      </button>
-
-    </form>
-
-    <!-- Status -->
-    <p id="status" class="text-center mt-4 font-semibold"></p>
-
-  </div>
-
-  <!--  FIREBASE + FIRESTORE SCRIPT -->
+  <!-- Firebase Scripts -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    /* ---------- FIREBASE CONFIG (your keys) ---------- */
+    /* ---------- FIREBASE CONFIG ---------- */
     const firebaseConfig = {
       apiKey: "AIzaSyApi2RjwEXEW2mTwCMiYERKUNAYL8Toddk",
       authDomain: "tamuexpress-26e4a.firebaseapp.com",
@@ -77,49 +76,42 @@
       appId: "1:202068792631:web:8a9b97028ebd7a45af76b2"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
-
-    // Initialize Firestore Database
     const db = getFirestore(app);
-
-    //  Collection Name: feedbacks
     const feedbackCollection = collection(db, "feedbacks");
 
-    // Form Submit
     const form = document.getElementById("feedbackForm");
     const status = document.getElementById("status");
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      // Get Values
       const name = document.getElementById("name").value;
       const email = document.getElementById("email").value;
       const message = document.getElementById("message").value;
 
       try {
-        // Save Feedback to Firestore
         await addDoc(feedbackCollection, {
-          name: name,
-          email: email,
-          message: message,
+          name,
+          email,
+          message,
           time: new Date()
         });
-
-        status.innerHTML = " Feedback Sent Successfully!";
+        status.innerHTML = "Feedback Sent Successfully!";
         status.className = "text-green-600 text-center mt-4";
-
         form.reset();
-
       } catch (error) {
         status.innerHTML = "Error Sending Feedback!";
         status.className = "text-red-600 text-center mt-4";
-        console.error("Firebase Error:", error);
+        console.error(error);
       }
     });
-
   </script>
+
+  <!-- Footer -->
+  <footer class="w-full bg-gray-200 text-center py-4 mt-4">
+    &copy; 2026 Ummeats. All rights reserved.
+  </footer>
 
 </body>
 </html>
