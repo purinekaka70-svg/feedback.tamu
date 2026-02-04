@@ -17,7 +17,7 @@
 <!-- HEADER / TOP MENU -->
 <header class="bg-green-700 text-white p-6 flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0 md:space-x-4">
   <div>
-    <h1 class="text-3xl font-bold mb-1">🥩 Ummeats</h1>
+    <h1 class="text-3xl font-bold mb-1"> Ummeats</h1>
     <p class="text-green-100 text-sm">Local Kibanda / Shop Orders + Feedback</p>
   </div>
   <div class="flex flex-col md:flex-row md:space-x-4 space-y-2 md:space-y-0">
@@ -76,7 +76,7 @@
 
   <!-- ADMIN PANEL -->
   <section id="adminPanel" class="hidden bg-black text-white p-6 rounded-xl">
-    <h2 class="text-xl font-bold mb-4"> Admin Panel</h2>
+    <h2 class="text-xl font-bold mb-4">🔒 Admin Panel</h2>
     <div id="adminOrders" class="space-y-3"></div>
     <div id="adminFeedbacks" class="space-y-3 mt-6"></div>
   </section>
@@ -84,7 +84,7 @@
 </main>
 
 <footer id="footerTrigger" class="text-center bg-gray-300 py-3 cursor-pointer mt-6">
- @ Tamu Express | Umma-Kenya 
+  © 2026 Ummeats — Click 4 times for Admin
 </footer>
 
 <script type="module">
@@ -103,48 +103,140 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 const ordersCollection = collection(db,"orders");
 const feedbackCollection = collection(db,"feedbacks");
 
-// Elements
 const feedbackBtn = document.getElementById("feedbackBtn");
+const backBtn = document.getElementById("backBtn");
 const feedbackSection = document.getElementById("feedbackSection");
 const orderSection = document.getElementById("orderSection");
 const customerSection = document.getElementById("customerSection");
-
 const submitFeedbackBtn = document.getElementById("submitFeedbackBtn");
 const fbStatus = document.getElementById("fbStatus");
 
-// Feedback toggle
-feedbackBtn.addEventListener("click",()=>{
-  feedbackSection.classList.remove("hidden");
-  orderSection.classList.add("hidden");
-  customerSection.classList.add("hidden");
-});
+const itemNameInput = document.getElementById("itemName");
+const itemQtyInput = document.getElementById("itemQty");
+const itemsList = document.getElementById("itemsList");
+const addItemBtn = document.getElementById("addItemBtn");
+const submitOrderBtn = document.getElementById("submitOrderBtn");
+const orderStatus = document.getElementById("orderStatus");
+const customerOrdersDiv = document.getElementById("customerOrders");
 
-// Submit Feedback
-submitFeedbackBtn.addEventListener("click", async()=>{
-  const name = document.getElementById("fbName").value;
-  const email = document.getElementById("fbEmail").value;
-  const message = document.getElementById("fbMessage").value;
+let orderItems = [];
 
-  if(!name||!email||!message){ alert("Fill all fields"); return; }
+// Wait for DOM
+document.addEventListener("DOMContentLoaded", () => {
 
-  try{
-    await addDoc(feedbackCollection,{name,email,message,time:new Date()});
-    fbStatus.textContent=" Feedback submitted!";
-    fbStatus.className="text-green-600 font-bold";
-    document.getElementById("fbName").value="";
-    document.getElementById("fbEmail").value="";
-    document.getElementById("fbMessage").value="";
-  }catch(err){ console.log(err); fbStatus.textContent=" Error"; fbStatus.className="text-red-600 font-bold"; }
-});
+  // Feedback toggle
+  feedbackBtn.addEventListener("click", ()=>{
+    feedbackSection.classList.toggle("hidden");
+    orderSection.classList.add("hidden");
+    customerSection.classList.add("hidden");
+  });
 
-// Back Button
-document.getElementById("backBtn").addEventListener("click",()=>{
-  window.location.href="https://purinekaka70-svg.github.io/Ummeats/";
+  // Back Button
+  backBtn.addEventListener("click", ()=>{
+    window.location.href = "https://purinekaka70-svg.github.io/Ummeats/";
+  });
+
+  // Submit Feedback
+  submitFeedbackBtn.addEventListener("click", async()=>{
+    const name = document.getElementById("fbName").value.trim();
+    const email = document.getElementById("fbEmail").value.trim();
+    const message = document.getElementById("fbMessage").value.trim();
+
+    if(!name||!email||!message){ alert("Fill all fields"); return; }
+
+    try{
+      await addDoc(feedbackCollection,{name,email,message,time:new Date()});
+      fbStatus.textContent=" Feedback submitted!";
+      fbStatus.className="text-green-600 font-bold";
+      document.getElementById("fbName").value="";
+      document.getElementById("fbEmail").value="";
+      document.getElementById("fbMessage").value="";
+    }catch(err){ console.log(err); fbStatus.textContent=" Error"; fbStatus.className="text-red-600 font-bold"; }
+  });
+
+  // ADD ITEM
+  addItemBtn.addEventListener("click", () => {
+    const name = itemNameInput.value.trim();
+    const qty = itemQtyInput.value.trim();
+    if (!name || !qty) { alert("Enter item name and qty"); return; }
+    orderItems.push({name, qty});
+    renderItems();
+    itemNameInput.value=""; itemQtyInput.value="";
+  });
+
+  function renderItems() {
+    itemsList.innerHTML="";
+    orderItems.forEach((item,index)=>{
+      const li=document.createElement("li");
+      li.textContent=`${item.qty} x ${item.name}`;
+      const removeBtn=document.createElement("button");
+      removeBtn.textContent="";
+      removeBtn.className="ml-2 text-red-600";
+      removeBtn.addEventListener("click",()=>{ orderItems.splice(index,1); renderItems(); });
+      li.appendChild(removeBtn);
+      itemsList.appendChild(li);
+    });
+  }
+
+  // SUBMIT ORDER
+  submitOrderBtn.addEventListener("click", async()=>{
+    const customerName=document.getElementById("customerName").value.trim();
+    const customerEmail=document.getElementById("customerEmail").value.trim();
+    const shopName=document.getElementById("shopName").value.trim();
+    const totalAmount=document.getElementById("totalAmount").value.trim();
+    const mpesaCode=document.getElementById("mpesaCode").value.trim();
+
+    if(!customerName||!customerEmail||!shopName||orderItems.length===0||!totalAmount||!mpesaCode){
+      alert("Fill all fields & add at least one item"); return;
+    }
+
+    try {
+      await addDoc(ordersCollection,{
+        customerName, customerEmail, shopName, items: orderItems, totalAmount, mpesaCode, time:new Date()
+      });
+      orderStatus.textContent="Order submitted!";
+      orderStatus.className="text-green-600 font-bold";
+      document.getElementById("customerName").value="";
+      document.getElementById("customerEmail").value="";
+      document.getElementById("shopName").value="";
+      document.getElementById("totalAmount").value="";
+      document.getElementById("mpesaCode").value="";
+      orderItems=[];
+      renderItems();
+      displayCustomerOrders();
+    } catch(err){ console.log(err); orderStatus.textContent="Error"; orderStatus.className="text-red-600 font-bold"; }
+  });
+
+  // DISPLAY CUSTOMER ORDERS
+  async function displayCustomerOrders(){
+    customerOrdersDiv.innerHTML="";
+    const snapshot=await getDocs(ordersCollection);
+    snapshot.forEach(doc=>{
+      const data=doc.data();
+      const div=document.createElement("div");
+      div.className="p-3 border rounded bg-gray-50";
+      const itemsText=data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
+      div.innerHTML=`
+        <p><strong>Name:</strong> ${data.customerName}</p>
+        <p><strong>Email:</strong> ${data.customerEmail}</p>
+        <p><strong>Shop:</strong> ${data.shopName}</p>
+        <p><strong>Items:</strong> ${itemsText}</p>
+        <p><strong>Total:</strong> KES ${data.totalAmount}</p>
+        <p><strong>Mpesa:</strong> ${data.mpesaCode}</p>
+        <hr class="my-2">
+      `;
+      customerOrdersDiv.appendChild(div);
+    });
+  }
+
+  // Load orders on page load
+  displayCustomerOrders();
+
 });
 </script>
+
 </body>
 </html>
