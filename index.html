@@ -1,119 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Feedback Page</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-<link rel="icon" type="image/png" href="https://i.ibb.co/KcFc8xn5/Gemini-Generated-Image-jokiqjjokiqjjoki.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ummeats | TAMU EXPRESS Orders</title>
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center">
+<body class="bg-gray-100">
 
-  <!-- Header -->
-  <header class="w-full bg-green-600 text-white py-4 shadow-md">
-    <div class="container mx-auto flex justify-between items-center px-4">
-      <h1 class="text-xl font-bold">Feedback / Complaints</h1>
-      <!-- Back Button -->
-      <a href="https://purinekaka70-svg.github.io/Ummeats/">
-        <button class="bg-white text-green-600 px-4 py-2 rounded hover:bg-gray-200">
-          ← Back to Ummeats
-        </button>
-      </a>
-    </div>
-  </header>
+<div class="flex min-h-screen">
 
-  <!-- Feedback Form -->
-  <main class="flex-1 w-full flex justify-center items-start p-4">
-    <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
+  <!-- LEFT MENU -->
+  <aside class="w-1/4 bg-green-700 text-white p-6">
+    <h1 class="text-3xl font-bold mb-4">🥩 Ummeats</h1>
+    <p class="text-green-100 text-sm mb-6">Local Kibanda Orders + Feedback</p>
 
-      <h2 class="text-2xl font-bold text-center text-green-700 mb-4">
-        💬 Give Us Your Feedback
-      </h2>
+    <a href="https://purinekaka70-svg.github.io/feedback.tamu/"
+      target="_blank"
+      class="block bg-white text-green-700 text-center py-2 rounded font-bold mb-6">
+      💬 Feedback
+    </a>
 
-      <form id="feedbackForm">
-        <div class="mb-4">
-          <label class="block font-semibold mb-2">Your Name</label>
-          <input type="text" id="name" required
-            class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
-            placeholder="Enter your name">
-        </div>
+    <hr class="my-6 border-green-400">
+    <p class="text-sm">Add shop/kibanda, add multiple items, submit Mpesa ref. Customers manage own orders.</p>
+  </aside>
 
-        <div class="mb-4">
-          <label class="block font-semibold mb-2">Email</label>
-          <input type="email" id="email" required
-            class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
-            placeholder="Enter your email">
-        </div>
+  <!-- MAIN CONTENT -->
+  <main class="w-3/4 p-6 space-y-10">
 
-        <div class="mb-4">
-          <label class="block font-semibold mb-2">Your Feedback</label>
-          <textarea id="message" rows="4" required
-            class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500"
-            placeholder="Write your feedback here..."></textarea>
-        </div>
+    <!-- ORDER FORM -->
+    <section class="bg-white p-6 rounded-xl shadow-lg max-w-xl">
 
-        <button type="submit"
-          class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl transition">
-          Submit Feedback 
-        </button>
-      </form>
+      <h2 class="text-2xl font-bold mb-4">🛒 Place Your Order</h2>
 
-      <p id="status" class="text-center mt-4 font-semibold"></p>
-    </div>
+      <!-- Customer Info -->
+      <input id="customerName" class="w-full border p-2 rounded mb-3" placeholder="Your Name">
+      <input id="customerEmail" class="w-full border p-2 rounded mb-3" placeholder="Your Email">
+      <input id="shopName" class="w-full border p-2 rounded mb-3" placeholder="Shop / Kibanda">
+
+      <!-- Add Item -->
+      <div class="flex gap-2 mb-3">
+        <input id="itemName" class="w-2/3 border p-2 rounded" placeholder="Item name">
+        <input id="itemQty" class="w-1/3 border p-2 rounded" placeholder="Qty">
+      </div>
+
+      <button id="addItemBtn" class="w-full bg-green-600 text-white py-2 rounded font-bold mb-4">➕ Add Item</button>
+
+      <!-- Items List -->
+      <ul id="itemsList" class="list-disc pl-6 mb-4 text-gray-700"></ul>
+
+      <input id="totalAmount" class="w-full border p-2 rounded mb-3" placeholder="Estimated / Real Amount (KES)">
+      <input id="mpesaCode" class="w-full border p-2 rounded mb-3" placeholder="Mpesa Transaction Code">
+
+      <button id="submitOrderBtn" class="w-full bg-green-700 text-white py-2 rounded font-bold">Submit Full Order </button>
+      <p id="orderStatus" class="mt-3 font-semibold"></p>
+
+    </section>
+
+    <!-- CUSTOMER ORDERS PANEL -->
+    <section class="bg-white p-6 rounded-xl shadow-lg">
+      <h2 class="text-xl font-bold mb-3"> Your Orders</h2>
+      <div id="customerOrders" class="space-y-3"></div>
+    </section>
+
+    <!-- ADMIN PANEL -->
+    <section id="adminPanel" class="hidden bg-black text-white p-6 rounded-xl">
+      <h2 class="text-xl font-bold mb-4"> Admin Panel</h2>
+      <div id="adminOrders" class="space-y-3"></div>
+    </section>
+
   </main>
+</div>
 
-  <!-- Firebase Scripts -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<footer id="footerTrigger" class="text-center bg-gray-300 py-3 cursor-pointer">
+  © 2026 Ummeats — Click 4 times for Admin
+</footer>
 
-    /* ---------- FIREBASE CONFIG ---------- */
-    const firebaseConfig = {
-      apiKey: "AIzaSyApi2RjwEXEW2mTwCMiYERKUNAYL8Toddk",
-      authDomain: "tamuexpress-26e4a.firebaseapp.com",
-      projectId: "tamuexpress-26e4a",
-      storageBucket: "tamuexpress-26e4a.appspot.com",
-      messagingSenderId: "202068792631",
-      appId: "1:202068792631:web:8a9b97028ebd7a45af76b2"
-    };
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const feedbackCollection = collection(db, "feedbacks");
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyApi2RjwEXEW2mTwCMiYERKUNAYL8Toddk",
+  authDomain: "tamuexpress-26e4a.firebaseapp.com",
+  projectId: "tamuexpress-26e4a",
+  storageBucket: "tamuexpress-26e4a.appspot.com",
+  messagingSenderId: "202068792631",
+  appId: "1:202068792631:web:8a9b97028ebd7a45af76b2"
+};
 
-    const form = document.getElementById("feedbackForm");
-    const status = document.getElementById("status");
+// Initialize
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const ordersCollection = collection(db, "orders");
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+// Elements
+let orderItems = [];
+const addItemBtn = document.getElementById("addItemBtn");
+const itemsList = document.getElementById("itemsList");
+const submitOrderBtn = document.getElementById("submitOrderBtn");
+const orderStatus = document.getElementById("orderStatus");
+const customerOrders = document.getElementById("customerOrders");
+const adminOrders = document.getElementById("adminOrders");
+const adminPanel = document.getElementById("adminPanel");
+const footer = document.getElementById("footerTrigger");
 
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const message = document.getElementById("message").value;
+// Track customer email for viewing own orders
+let currentCustomerEmail = "";
 
-      try {
-        await addDoc(feedbackCollection, {
-          name,
-          email,
-          message,
-          time: new Date()
-        });
-        status.innerHTML = "Feedback Sent Successfully!";
-        status.className = "text-green-600 text-center mt-4";
-        form.reset();
-      } catch (error) {
-        status.innerHTML = "Error Sending Feedback!";
-        status.className = "text-red-600 text-center mt-4";
-        console.error(error);
-      }
+// Add item
+addItemBtn.addEventListener("click", () => {
+  const itemName = document.getElementById("itemName").value;
+  const itemQty = document.getElementById("itemQty").value;
+  if(!itemName || !itemQty){ alert("Enter item and qty"); return; }
+  const item = `${itemQty} x ${itemName}`;
+  orderItems.push(item);
+
+  const li = document.createElement("li");
+  li.textContent = item;
+  li.addEventListener("click", () => {
+    if(confirm("Remove this item?")) {
+      orderItems = orderItems.filter(i=>i!==item);
+      li.remove();
+    }
+  });
+  itemsList.appendChild(li);
+
+  document.getElementById("itemName").value="";
+  document.getElementById("itemQty").value="";
+});
+
+// Submit order
+submitOrderBtn.addEventListener("click", async () => {
+  const name = document.getElementById("customerName").value;
+  const email = document.getElementById("customerEmail").value;
+  const shop = document.getElementById("shopName").value;
+  const amount = document.getElementById("totalAmount").value;
+  const mpesaRef = document.getElementById("mpesaCode").value;
+
+  if(!name || !email || !shop || orderItems.length===0){ alert("Complete all fields"); return; }
+
+  currentCustomerEmail = email; // set email to filter orders
+
+  try{
+    await addDoc(ordersCollection,{
+      name, email, shop, items: orderItems, amount, mpesaRef, time: new Date()
     });
-  </script>
+    orderStatus.textContent=" Order submitted!";
+    orderStatus.className="text-green-600 font-bold";
 
-  <!-- Footer -->
-  <footer class="w-full bg-gray-200 text-center py-4 mt-4">
-    &copy; 2026 Ummeats. All rights reserved.
-  </footer>
+    orderItems=[]; itemsList.innerHTML="";
+    document.getElementById("customerName").value="";
+    document.getElementById("customerEmail").value="";
+    document.getElementById("shopName").value="";
+    document.getElementById("totalAmount").value="";
+    document.getElementById("mpesaCode").value="";
 
+    loadOrders(currentCustomerEmail); // show orders after submit
+  }catch(err){ console.log(err); orderStatus.textContent=" Error"; orderStatus.className="text-red-600 font-bold"; }
+});
+
+// Load orders
+async function loadOrders(customerEmail=null){
+  customerOrders.innerHTML="";
+  adminOrders.innerHTML="";
+  const snapshot = await getDocs(ordersCollection);
+
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    const id = docSnap.id;
+
+    // CUSTOMER ORDERS - only show if email matches
+    if(customerEmail && data.email === customerEmail){
+      const div = document.createElement("div");
+      div.className="bg-gray-50 p-4 rounded shadow";
+
+      let itemsHtml = data.items.map((item,index)=>
+        `<li>${item} <button data-index="${index}" class="text-red-500 ml-2"></button></li>`
+      ).join("");
+
+      div.innerHTML=`
+        <p class="font-bold">${data.name} (${data.shop})</p>
+        <ul class="list-disc pl-6">${itemsHtml}</ul>
+        <p><b>Amount:</b> ${data.amount}</p>
+        <p><b>Mpesa Ref:</b> ${data.mpesaRef}</p>
+      `;
+
+      // Add delete item functionality
+      div.querySelectorAll("button").forEach(btn=>{
+        btn.addEventListener("click", async ()=>{
+          const idx = btn.dataset.index;
+          data.items.splice(idx,1);
+          await updateDoc(doc(db,"orders",id),{items:data.items});
+          loadOrders(customerEmail);
+        });
+      });
+
+      customerOrders.appendChild(div);
+    }
+
+    // ADMIN ORDERS
+    adminOrders.innerHTML+=`
+      <div class="border border-gray-600 p-4 rounded">
+        <p><b>${data.name} (${data.email})</b></p>
+        <p><b>Shop:</b> ${data.shop}</p>
+        <ul class="list-disc pl-6">${data.items.map(i=>`<li>${i}</li>`).join("")}</ul>
+        <p><b>Amount:</b> ${data.amount}</p>
+        <p><b>Mpesa Ref:</b> ${data.mpesaRef}</p>
+        <button onclick="deleteOrder('${id}')" class="mt-2 bg-red-600 px-4 py-1 rounded">Delete </button>
+      </div>
+    `;
+  });
+}
+
+// Delete order (admin)
+window.deleteOrder=async function(id){ await deleteDoc(doc(db,"orders",id)); loadOrders(currentCustomerEmail); }
+
+// Admin panel trigger
+let clicks=0;
+footer.addEventListener("click",()=>{
+  clicks++;
+  if(clicks===4){
+    const u=prompt("Admin Username:");
+    const p=prompt("Admin Password:");
+    if(u==="ummeats" && p==="TamuAdmin@2025"){ adminPanel.classList.remove("hidden"); alert(" Welcome Admin"); }
+    else alert(" Access Denied");
+    clicks=0;
+  }
+});
+
+// Initial load - customer needs to enter email manually to see orders
+</script>
 </body>
 </html>
