@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ummeats | TAMU EXPRESS Orders</title>
+<title>Ummeats | TAMU EXPRESS Orders & Feedback</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
@@ -15,11 +15,9 @@
     <h1 class="text-3xl font-bold mb-4">🥩 Ummeats</h1>
     <p class="text-green-100 text-sm mb-6">Local Kibanda Orders + Feedback</p>
 
-    <a href="https://purinekaka70-svg.github.io/feedback.tamu/"
-      target="_blank"
-      class="block bg-white text-green-700 text-center py-2 rounded font-bold mb-6">
+    <button id="feedbackBtn" class="block bg-white text-green-700 text-center py-2 rounded font-bold mb-6 w-full">
       💬 Feedback
-    </a>
+    </button>
 
     <hr class="my-6 border-green-400">
     <p class="text-sm">Add shop/kibanda, add multiple items, submit Mpesa ref. Customers manage own orders.</p>
@@ -29,16 +27,13 @@
   <main class="w-3/4 p-6 space-y-10">
 
     <!-- ORDER FORM -->
-    <section class="bg-white p-6 rounded-xl shadow-lg max-w-xl">
-
+    <section id="orderSection" class="bg-white p-6 rounded-xl shadow-lg max-w-xl">
       <h2 class="text-2xl font-bold mb-4">🛒 Place Your Order</h2>
 
-      <!-- Customer Info -->
       <input id="customerName" class="w-full border p-2 rounded mb-3" placeholder="Your Name">
       <input id="customerEmail" class="w-full border p-2 rounded mb-3" placeholder="Your Email">
       <input id="shopName" class="w-full border p-2 rounded mb-3" placeholder="Shop / Kibanda">
 
-      <!-- Add Item -->
       <div class="flex gap-2 mb-3">
         <input id="itemName" class="w-2/3 border p-2 rounded" placeholder="Item name">
         <input id="itemQty" class="w-1/3 border p-2 rounded" placeholder="Qty">
@@ -46,27 +41,37 @@
 
       <button id="addItemBtn" class="w-full bg-green-600 text-white py-2 rounded font-bold mb-4">➕ Add Item</button>
 
-      <!-- Items List -->
       <ul id="itemsList" class="list-disc pl-6 mb-4 text-gray-700"></ul>
 
       <input id="totalAmount" class="w-full border p-2 rounded mb-3" placeholder="Estimated / Real Amount (KES)">
       <input id="mpesaCode" class="w-full border p-2 rounded mb-3" placeholder="Mpesa Transaction Code">
 
-      <button id="submitOrderBtn" class="w-full bg-green-700 text-white py-2 rounded font-bold">Submit Full Order </button>
+      <button id="submitOrderBtn" class="w-full bg-green-700 text-white py-2 rounded font-bold">Submit Full Order ✅</button>
       <p id="orderStatus" class="mt-3 font-semibold"></p>
-
     </section>
 
     <!-- CUSTOMER ORDERS PANEL -->
-    <section class="bg-white p-6 rounded-xl shadow-lg">
-      <h2 class="text-xl font-bold mb-3"> Your Orders</h2>
+    <section id="customerSection" class="bg-white p-6 rounded-xl shadow-lg">
+      <h2 class="text-xl font-bold mb-3">Your Orders</h2>
       <div id="customerOrders" class="space-y-3"></div>
+    </section>
+
+    <!-- FEEDBACK SECTION -->
+    <section id="feedbackSection" class="hidden bg-white p-6 rounded-xl shadow-lg max-w-xl">
+      <h2 class="text-2xl font-bold mb-4"> Feedback</h2>
+
+      <input id="fbName" class="w-full border p-2 rounded mb-3" placeholder="Your Name">
+      <input id="fbEmail" class="w-full border p-2 rounded mb-3" placeholder="Your Email">
+      <textarea id="fbMessage" class="w-full border p-2 rounded mb-3" placeholder="Write your feedback here..." rows="4"></textarea>
+      <button id="submitFeedbackBtn" class="w-full bg-blue-600 text-white py-2 rounded font-bold">Submit Feedback</button>
+      <p id="fbStatus" class="mt-3 font-semibold"></p>
     </section>
 
     <!-- ADMIN PANEL -->
     <section id="adminPanel" class="hidden bg-black text-white p-6 rounded-xl">
-      <h2 class="text-xl font-bold mb-4"> Admin Panel</h2>
+      <h2 class="text-xl font-bold mb-4">🔒 Admin Panel</h2>
       <div id="adminOrders" class="space-y-3"></div>
+      <div id="adminFeedbacks" class="space-y-3 mt-6"></div>
     </section>
 
   </main>
@@ -78,7 +83,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -90,147 +95,45 @@ const firebaseConfig = {
   appId: "1:202068792631:web:8a9b97028ebd7a45af76b2"
 };
 
-// Initialize
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const ordersCollection = collection(db, "orders");
+
+const ordersCollection = collection(db,"orders");
+const feedbackCollection = collection(db,"feedbacks");
 
 // Elements
-let orderItems = [];
-const addItemBtn = document.getElementById("addItemBtn");
-const itemsList = document.getElementById("itemsList");
-const submitOrderBtn = document.getElementById("submitOrderBtn");
-const orderStatus = document.getElementById("orderStatus");
-const customerOrders = document.getElementById("customerOrders");
-const adminOrders = document.getElementById("adminOrders");
-const adminPanel = document.getElementById("adminPanel");
-const footer = document.getElementById("footerTrigger");
+const feedbackBtn = document.getElementById("feedbackBtn");
+const feedbackSection = document.getElementById("feedbackSection");
+const orderSection = document.getElementById("orderSection");
+const customerSection = document.getElementById("customerSection");
 
-// Track customer email for viewing own orders
-let currentCustomerEmail = "";
+const submitFeedbackBtn = document.getElementById("submitFeedbackBtn");
+const fbStatus = document.getElementById("fbStatus");
 
-// Add item
-addItemBtn.addEventListener("click", () => {
-  const itemName = document.getElementById("itemName").value;
-  const itemQty = document.getElementById("itemQty").value;
-  if(!itemName || !itemQty){ alert("Enter item and qty"); return; }
-  const item = `${itemQty} x ${itemName}`;
-  orderItems.push(item);
-
-  const li = document.createElement("li");
-  li.textContent = item;
-  li.addEventListener("click", () => {
-    if(confirm("Remove this item?")) {
-      orderItems = orderItems.filter(i=>i!==item);
-      li.remove();
-    }
-  });
-  itemsList.appendChild(li);
-
-  document.getElementById("itemName").value="";
-  document.getElementById("itemQty").value="";
+// Toggle feedback section
+feedbackBtn.addEventListener("click",()=>{
+  feedbackSection.classList.remove("hidden");
+  orderSection.classList.add("hidden");
+  customerSection.classList.add("hidden");
 });
 
-// Submit order
-submitOrderBtn.addEventListener("click", async () => {
-  const name = document.getElementById("customerName").value;
-  const email = document.getElementById("customerEmail").value;
-  const shop = document.getElementById("shopName").value;
-  const amount = document.getElementById("totalAmount").value;
-  const mpesaRef = document.getElementById("mpesaCode").value;
+// Submit Feedback
+submitFeedbackBtn.addEventListener("click", async()=>{
+  const name = document.getElementById("fbName").value;
+  const email = document.getElementById("fbEmail").value;
+  const message = document.getElementById("fbMessage").value;
 
-  if(!name || !email || !shop || orderItems.length===0){ alert("Complete all fields"); return; }
-
-  currentCustomerEmail = email; // set email to filter orders
+  if(!name||!email||!message){ alert("Fill all fields"); return; }
 
   try{
-    await addDoc(ordersCollection,{
-      name, email, shop, items: orderItems, amount, mpesaRef, time: new Date()
-    });
-    orderStatus.textContent=" Order submitted!";
-    orderStatus.className="text-green-600 font-bold";
-
-    orderItems=[]; itemsList.innerHTML="";
-    document.getElementById("customerName").value="";
-    document.getElementById("customerEmail").value="";
-    document.getElementById("shopName").value="";
-    document.getElementById("totalAmount").value="";
-    document.getElementById("mpesaCode").value="";
-
-    loadOrders(currentCustomerEmail); // show orders after submit
-  }catch(err){ console.log(err); orderStatus.textContent=" Error"; orderStatus.className="text-red-600 font-bold"; }
+    await addDoc(feedbackCollection,{name,email,message,time:new Date()});
+    fbStatus.textContent=" Feedback submitted!";
+    fbStatus.className="text-green-600 font-bold";
+    document.getElementById("fbName").value="";
+    document.getElementById("fbEmail").value="";
+    document.getElementById("fbMessage").value="";
+  }catch(err){ console.log(err); fbStatus.textContent="Error"; fbStatus.className="text-red-600 font-bold"; }
 });
-
-// Load orders
-async function loadOrders(customerEmail=null){
-  customerOrders.innerHTML="";
-  adminOrders.innerHTML="";
-  const snapshot = await getDocs(ordersCollection);
-
-  snapshot.forEach(docSnap=>{
-    const data = docSnap.data();
-    const id = docSnap.id;
-
-    // CUSTOMER ORDERS - only show if email matches
-    if(customerEmail && data.email === customerEmail){
-      const div = document.createElement("div");
-      div.className="bg-gray-50 p-4 rounded shadow";
-
-      let itemsHtml = data.items.map((item,index)=>
-        `<li>${item} <button data-index="${index}" class="text-red-500 ml-2"></button></li>`
-      ).join("");
-
-      div.innerHTML=`
-        <p class="font-bold">${data.name} (${data.shop})</p>
-        <ul class="list-disc pl-6">${itemsHtml}</ul>
-        <p><b>Amount:</b> ${data.amount}</p>
-        <p><b>Mpesa Ref:</b> ${data.mpesaRef}</p>
-      `;
-
-      // Add delete item functionality
-      div.querySelectorAll("button").forEach(btn=>{
-        btn.addEventListener("click", async ()=>{
-          const idx = btn.dataset.index;
-          data.items.splice(idx,1);
-          await updateDoc(doc(db,"orders",id),{items:data.items});
-          loadOrders(customerEmail);
-        });
-      });
-
-      customerOrders.appendChild(div);
-    }
-
-    // ADMIN ORDERS
-    adminOrders.innerHTML+=`
-      <div class="border border-gray-600 p-4 rounded">
-        <p><b>${data.name} (${data.email})</b></p>
-        <p><b>Shop:</b> ${data.shop}</p>
-        <ul class="list-disc pl-6">${data.items.map(i=>`<li>${i}</li>`).join("")}</ul>
-        <p><b>Amount:</b> ${data.amount}</p>
-        <p><b>Mpesa Ref:</b> ${data.mpesaRef}</p>
-        <button onclick="deleteOrder('${id}')" class="mt-2 bg-red-600 px-4 py-1 rounded">Delete </button>
-      </div>
-    `;
-  });
-}
-
-// Delete order (admin)
-window.deleteOrder=async function(id){ await deleteDoc(doc(db,"orders",id)); loadOrders(currentCustomerEmail); }
-
-// Admin panel trigger
-let clicks=0;
-footer.addEventListener("click",()=>{
-  clicks++;
-  if(clicks===4){
-    const u=prompt("Admin Username:");
-    const p=prompt("Admin Password:");
-    if(u==="ummeats" && p==="TamuAdmin@2025"){ adminPanel.classList.remove("hidden"); alert(" Welcome Admin"); }
-    else alert(" Access Denied");
-    clicks=0;
-  }
-});
-
-// Initial load - customer needs to enter email manually to see orders
 </script>
 </body>
 </html>
