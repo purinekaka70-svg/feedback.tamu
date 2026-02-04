@@ -17,7 +17,7 @@
 <!-- HEADER / TOP MENU -->
 <header class="bg-green-700 text-white p-6 flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0 md:space-x-4">
   <div>
-    <h1 class="text-3xl font-bold mb-1"> Ummeats</h1>
+    <h1 class="text-3xl font-bold mb-1">Ummeats</h1>
     <p class="text-green-100 text-sm">Local Kibanda / Shop Orders + Feedback</p>
   </div>
   <div class="flex flex-col md:flex-row md:space-x-4 space-y-2 md:space-y-0">
@@ -84,12 +84,12 @@
 </main>
 
 <footer id="footerTrigger" class="text-center bg-gray-300 py-3 cursor-pointer mt-6">
-  © 2026 Ummeats — Click 4 times for Admin
+  @ Tamu Express | Umma-Kenya
 </footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -106,6 +106,7 @@ const db = getFirestore(app);
 const ordersCollection = collection(db,"orders");
 const feedbackCollection = collection(db,"feedbacks");
 
+// Elements
 const feedbackBtn = document.getElementById("feedbackBtn");
 const backBtn = document.getElementById("backBtn");
 const feedbackSection = document.getElementById("feedbackSection");
@@ -124,7 +125,7 @@ const customerOrdersDiv = document.getElementById("customerOrders");
 
 let orderItems = [];
 
-// Wait for DOM
+// DOM Loaded
 document.addEventListener("DOMContentLoaded", () => {
 
   // Feedback toggle
@@ -149,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try{
       await addDoc(feedbackCollection,{name,email,message,time:new Date()});
-      fbStatus.textContent=" Feedback submitted!";
+      fbStatus.textContent="Feedback submitted!";
       fbStatus.className="text-green-600 font-bold";
       document.getElementById("fbName").value="";
       document.getElementById("fbEmail").value="";
@@ -157,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }catch(err){ console.log(err); fbStatus.textContent=" Error"; fbStatus.className="text-red-600 font-bold"; }
   });
 
-  // ADD ITEM
+  // Add Item
   addItemBtn.addEventListener("click", () => {
     const name = itemNameInput.value.trim();
     const qty = itemQtyInput.value.trim();
@@ -181,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // SUBMIT ORDER
+  // Submit Order
   submitOrderBtn.addEventListener("click", async()=>{
     const customerName=document.getElementById("customerName").value.trim();
     const customerEmail=document.getElementById("customerEmail").value.trim();
@@ -197,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(ordersCollection,{
         customerName, customerEmail, shopName, items: orderItems, totalAmount, mpesaCode, time:new Date()
       });
-      orderStatus.textContent="Order submitted!";
+      orderStatus.textContent=" Order submitted!";
       orderStatus.className="text-green-600 font-bold";
       document.getElementById("customerName").value="";
       document.getElementById("customerEmail").value="";
@@ -207,33 +208,34 @@ document.addEventListener("DOMContentLoaded", () => {
       orderItems=[];
       renderItems();
       displayCustomerOrders();
-    } catch(err){ console.log(err); orderStatus.textContent="Error"; orderStatus.className="text-red-600 font-bold"; }
+    } catch(err){ console.log(err); orderStatus.textContent=" Error"; orderStatus.className="text-red-600 font-bold"; }
   });
 
-  // DISPLAY CUSTOMER ORDERS
+  // Display ONLY orders from current customer
   async function displayCustomerOrders(){
     customerOrdersDiv.innerHTML="";
-    const snapshot=await getDocs(ordersCollection);
+    const customerEmail = document.getElementById("customerEmail").value.trim();
+    if (!customerEmail) return;
+    const snapshot = await getDocs(ordersCollection);
     snapshot.forEach(doc=>{
       const data=doc.data();
-      const div=document.createElement("div");
-      div.className="p-3 border rounded bg-gray-50";
-      const itemsText=data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
-      div.innerHTML=`
-        <p><strong>Name:</strong> ${data.customerName}</p>
-        <p><strong>Email:</strong> ${data.customerEmail}</p>
-        <p><strong>Shop:</strong> ${data.shopName}</p>
-        <p><strong>Items:</strong> ${itemsText}</p>
-        <p><strong>Total:</strong> KES ${data.totalAmount}</p>
-        <p><strong>Mpesa:</strong> ${data.mpesaCode}</p>
-        <hr class="my-2">
-      `;
-      customerOrdersDiv.appendChild(div);
+      if(data.customerEmail === customerEmail){
+        const div=document.createElement("div");
+        div.className="p-3 border rounded bg-gray-50";
+        const itemsText=data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
+        div.innerHTML=`
+          <p><strong>Name:</strong> ${data.customerName}</p>
+          <p><strong>Email:</strong> ${data.customerEmail}</p>
+          <p><strong>Shop:</strong> ${data.shopName}</p>
+          <p><strong>Items:</strong> ${itemsText}</p>
+          <p><strong>Total:</strong> KES ${data.totalAmount}</p>
+          <p><strong>Mpesa:</strong> ${data.mpesaCode}</p>
+          <hr class="my-2">
+        `;
+        customerOrdersDiv.appendChild(div);
+      }
     });
   }
-
-  // Load orders on page load
-  displayCustomerOrders();
 
 });
 </script>
