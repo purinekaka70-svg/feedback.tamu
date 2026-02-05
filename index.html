@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,8 +38,8 @@
     <input id="shopName" class="w-full border p-2 rounded mb-3" placeholder="🍴 Shop Here →">
 
     <div class="flex gap-2 mb-3">
-      <input id="itemName" class="w-2/3 border p-2 rounded" placeholder="Item name">
-      <input id="itemQty" class="w-1/3 border p-2 rounded" placeholder="Qty">
+   <textarea id="itemsTextarea" class="w-full border p-2 rounded mb-3" placeholder="Enter your items here, one per line. Example: 2 x Chapati" rows="10"></textarea>
+
     </div>
 
     <button id="addItemBtn" class="w-full bg-green-600 text-white py-2 rounded font-bold mb-4">➕ Add Item</button>
@@ -156,28 +157,57 @@ submitFeedbackBtn.addEventListener("click", async()=> {
 });
 
 // Add item
-addItemBtn.addEventListener("click", ()=> {
-  const name = itemNameInput.value.trim();
-  const qty = itemQtyInput.value.trim();
-  if(!name||!qty){ alert("Enter item & qty"); return; }
-  orderItems.push({name, qty});
+addItemBtn.addEventListener("click", () => {
+  const rawText = itemsTextarea.value.trim();
+  if (!rawText) {
+    alert("Enter at least one item.");
+    return;
+  }
+
+  const lines = rawText.split("\n");
+
+  if (lines.length > 10) {
+    alert("You can only add up to 10 lines at a time.");
+    return;
+  }
+
+  let added = false;
+  lines.forEach(line => {
+    const text = line.trim();
+    if (text) {
+      orderItems.push({ name: text, qty: 1 }); // store as free text
+      added = true;
+    }
+  });
+
+  if (!added) {
+    alert("No valid items found.");
+    return;
+  }
+
   renderItems();
-  itemNameInput.value=""; itemQtyInput.value="";
+  itemsTextarea.value = ""; // clear textarea after adding
 });
 
 function renderItems(){
-  itemsList.innerHTML="";
-  orderItems.forEach((item,index)=>{
-    const li=document.createElement("li");
-    li.textContent=`${item.qty} x ${item.name}`;
-    const removeBtn=document.createElement("button");
-    removeBtn.textContent=" ";
-    removeBtn.className="ml-2 text-red-600";
-    removeBtn.addEventListener("click", ()=>{ orderItems.splice(index,1); renderItems(); });
+  itemsList.innerHTML = "";
+  orderItems.forEach((item, index) => {
+    const li = document.createElement("li");
+    li.textContent = item.name; // just show the line as-is
+
+    const removeBtn = document.createElement("button");
+    removeBtn.textContent = " ❌"; // visible remove button
+    removeBtn.className = "ml-2";
+    removeBtn.addEventListener("click", () => { 
+      orderItems.splice(index,1); 
+      renderItems(); 
+    });
+
     li.appendChild(removeBtn);
     itemsList.appendChild(li);
   });
 }
+
 
 // Submit order
 submitOrderBtn.addEventListener("click", async()=>{
