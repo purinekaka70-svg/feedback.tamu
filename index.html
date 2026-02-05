@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,7 +12,6 @@
 <marquee behavior="scroll" direction="left" scrollamount="6" class="bg-red-600 text-white font-semibold py-3 px-4 rounded shadow mx-4 mt-2">
 ⚠️ IMPORTANT NOTICE: Orders above KSh 300 attract a service fee of KSh 60. Group orders attract a service fee of KSh 100. Lunch orders: 11:30 AM – 2:00 PM. Evening orders: 4:00 PM – 8:00 PM. Kindly confirm your orders. Ramadhan Mubarak! Wishing you a happy and blessed Ramadhan. For inquiries, contact 0115613332 / 0116860686.
 </marquee>
-
 
 <!-- HEADER -->
 <header class="bg-green-700 text-white p-6 flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0 md:space-x-4">
@@ -35,12 +33,9 @@
 
     <input id="customerName" class="w-full border p-2 rounded mb-3" placeholder="Your Name">
     <input id="customerEmail" class="w-full border p-2 rounded mb-3" placeholder="Your Email">
-    <input id="shopName" class="w-full border p-2 rounded mb-3" placeholder="🍴 Shop Here →  shop/kibanda name">
+    <input id="shopName" class="w-full border p-2 rounded mb-3" placeholder="🍴 Shop Here → shop/kibanda name">
 
-    <div class="flex gap-2 mb-3">
-   <textarea id="itemsTextarea" class="w-full border p-2 rounded mb-3" placeholder="Enter your items here, one per line. Example: 2 noddles, " rows="10"></textarea>
-
-    </div>
+    <textarea id="itemsTextarea" class="w-full border p-2 rounded mb-3" placeholder="Enter your order list here, one per line. e.g 2 noddles, 1 apple punch" rows="10"></textarea>
 
     <button id="addItemBtn" class="w-full bg-green-600 text-white py-2 rounded font-bold mb-4">➕ Add Item</button>
     <ul id="itemsList" class="list-disc pl-6 mb-4 text-gray-700"></ul>
@@ -90,7 +85,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Firebase
 const firebaseConfig = {
@@ -114,8 +109,7 @@ const orderSection = document.getElementById("orderSection");
 const customerSection = document.getElementById("customerSection");
 const submitFeedbackBtn = document.getElementById("submitFeedbackBtn");
 const fbStatus = document.getElementById("fbStatus");
-const itemNameInput = document.getElementById("itemName");
-const itemQtyInput = document.getElementById("itemQty");
+const itemsTextarea = document.getElementById("itemsTextarea");
 const itemsList = document.getElementById("itemsList");
 const addItemBtn = document.getElementById("addItemBtn");
 const submitOrderBtn = document.getElementById("submitOrderBtn");
@@ -130,18 +124,18 @@ const adminLoginStatus = document.getElementById("adminLoginStatus");
 let orderItems = [];
 let footerClickCount = 0;
 
-// Feedback toggle
+// --- Feedback toggle ---
 feedbackBtn.addEventListener("click", ()=> {
   feedbackSection.classList.toggle("hidden");
   orderSection.classList.add("hidden");
   customerSection.classList.add("hidden");
 });
 
-// Back button
+// --- Back button ---
 backBtn.addEventListener("click", ()=> window.location.href="https://purinekaka70-svg.github.io/Ummeats/");
 
-// Submit feedback
-submitFeedbackBtn.addEventListener("click", async()=> {
+// --- Submit feedback ---
+submitFeedbackBtn.addEventListener("click", async()=>{
   const name = document.getElementById("fbName").value.trim();
   const email = document.getElementById("fbEmail").value.trim();
   const message = document.getElementById("fbMessage").value.trim();
@@ -156,69 +150,41 @@ submitFeedbackBtn.addEventListener("click", async()=> {
   }catch(err){ console.log(err); fbStatus.textContent="Error"; fbStatus.className="text-red-600 font-bold"; }
 });
 
-// Add item
+// --- Add item ---
 addItemBtn.addEventListener("click", () => {
   const rawText = itemsTextarea.value.trim();
-  if (!rawText) {
-    alert("Enter at least one item.");
-    return;
-  }
-
+  if (!rawText) { alert("Enter at least one item."); return; }
   const lines = rawText.split("\n");
-
-  if (lines.length > 10) {
-    alert("You can only add up to 10 lines at a time.");
-    return;
-  }
-
+  if (lines.length > 10) { alert("Max 10 lines per addition."); return; }
   let added = false;
-  lines.forEach(line => {
-    const text = line.trim();
-    if (text) {
-      orderItems.push({ name: text, qty: 1 }); // store as free text
-      added = true;
-    }
-  });
-
-  if (!added) {
-    alert("No valid items found.");
-    return;
-  }
-
+  lines.forEach(line => { const text=line.trim(); if(text){ orderItems.push({name:text, qty:1}); added=true; } });
+  if(!added){ alert("No valid items."); return; }
   renderItems();
-  itemsTextarea.value = ""; // clear textarea after adding
+  itemsTextarea.value = ""; // clear textarea
 });
 
 function renderItems(){
-  itemsList.innerHTML = "";
-  orderItems.forEach((item, index) => {
-    const li = document.createElement("li");
-    li.textContent = item.name; // just show the line as-is
-
-    const removeBtn = document.createElement("button");
-    removeBtn.textContent = " ❌"; // visible remove button
-    removeBtn.className = "ml-2";
-    removeBtn.addEventListener("click", () => { 
-      orderItems.splice(index,1); 
-      renderItems(); 
-    });
-
+  itemsList.innerHTML="";
+  orderItems.forEach((item,index)=>{
+    const li=document.createElement("li");
+    li.textContent = item.name;
+    const removeBtn=document.createElement("button");
+    removeBtn.textContent=" Remove";
+    removeBtn.className="ml-2";
+    removeBtn.addEventListener("click",()=>{ orderItems.splice(index,1); renderItems(); });
     li.appendChild(removeBtn);
     itemsList.appendChild(li);
   });
 }
 
-
-// Submit order
+// --- Submit order ---
 submitOrderBtn.addEventListener("click", async()=>{
   const customerName=document.getElementById("customerName").value.trim();
   const customerEmail=document.getElementById("customerEmail").value.trim();
   const shopName=document.getElementById("shopName").value.trim();
   const totalAmount=document.getElementById("totalAmount").value.trim();
   const mpesaCode=document.getElementById("mpesaCode").value.trim();
-  if(!customerName||!customerEmail||!shopName||orderItems.length===0||!totalAmount||!mpesaCode){
-    alert("Fill all fields & add at least one item"); return;
-  }
+  if(!customerName||!customerEmail||!shopName||orderItems.length===0||!totalAmount||!mpesaCode){ alert("Fill all fields & add items"); return; }
   try{
     await addDoc(ordersCollection,{
       customerName, customerEmail, shopName, items: orderItems, totalAmount, mpesaCode,
@@ -233,11 +199,11 @@ submitOrderBtn.addEventListener("click", async()=>{
     document.getElementById("mpesaCode").value="";
     orderItems=[];
     renderItems();
-    displayCustomerOrders(customerEmail);
+    displayCustomerOrdersRealtime(customerEmail);
   }catch(err){ console.log(err); orderStatus.textContent="Error"; orderStatus.className="text-red-600 font-bold"; }
 });
 
-// Footer click for admin login
+// --- Footer click for admin login ---
 footerTrigger.addEventListener("click", ()=>{
   footerClickCount++;
   if(footerClickCount===4){
@@ -250,7 +216,7 @@ footerTrigger.addEventListener("click", ()=>{
   }
 });
 
-// Admin login
+// --- Admin login ---
 adminLoginBtn.addEventListener("click", ()=>{
   const username=document.getElementById("adminUsernameInput").value.trim();
   const password=document.getElementById("adminPasswordInput").value.trim();
@@ -259,66 +225,73 @@ adminLoginBtn.addEventListener("click", ()=>{
     adminLoginStatus.className="text-green-600 font-bold mt-3";
     adminLoginSection.classList.add("hidden");
     adminPanel.classList.remove("hidden");
-    displayAdminOrders();
+    displayAdminOrdersRealtime();
   }else{
     adminLoginStatus.textContent="Invalid username or password!";
     adminLoginStatus.className="text-red-600 font-bold mt-3";
   }
 });
 
-// Customer orders
-async function displayCustomerOrders(customerEmail){
-  customerOrdersDiv.innerHTML="";
-  const snapshot = await getDocs(ordersCollection);
-  snapshot.forEach(docSnap=>{
-    const data=docSnap.data();
-    if(data.customerEmail===customerEmail){
+// --- Customer realtime orders ---
+function displayCustomerOrdersRealtime(customerEmail){
+  const q = query(ordersCollection, where("customerEmail","==",customerEmail));
+  onSnapshot(q, snapshot=>{
+    customerOrdersDiv.innerHTML="";
+    snapshot.forEach(docSnap=>{
+      const data = docSnap.data();
       const div=document.createElement("div");
       div.className="p-3 border rounded bg-gray-50 mb-3";
-      const itemsText=data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
+      const itemsText = data.items.map(i=>i.name).join(", ");
+      const statusText = data.paid ? 
+        `<span class="text-green-600 font-semibold">Paid</span>` : 
+        `<span class="text-red-600 font-semibold">Pending</span>`;
       div.innerHTML=`
         <p><strong>Name:</strong> ${data.customerName}</p>
         <p><strong>Shop:</strong> ${data.shopName}</p>
         <p><strong>Items:</strong> ${itemsText}</p>
-        <p><strong>Order Amount:</strong> KES ${data.totalAmount} | Pay: 0116860686 / 0759280343(Pochi La Biashara)</p>
-        <p><strong>Service Fee:</strong> KES ${data.serviceFee} | Pay: 0115613332 (Pochi La Biashara)</p>
+        <p><strong>Order Amount:</strong> KES ${data.totalAmount}</p>
+        <p><strong>Service Fee:</strong> KES ${data.serviceFee}</p>
+        <p><strong>Status:</strong> ${statusText}</p>
         <hr class="my-2">
       `;
       customerOrdersDiv.appendChild(div);
-    }
+    });
   });
 }
 
-// Admin orders display
-async function displayAdminOrders(){
-  adminPanel.innerHTML=`<h2 class="text-xl font-bold mb-4">Admin Panel</h2>`;
-  const snapshot = await getDocs(ordersCollection);
-  snapshot.forEach(docSnap=>{
-    const data = docSnap.data();
-    const div = document.createElement("div");
-    div.className="p-3 border rounded bg-gray-800 text-white mb-3";
-    const itemsText = data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
-    div.innerHTML=`
-      <p><strong>Name:</strong> ${data.customerName}</p>
-      <p><strong>Shop:</strong> ${data.shopName}</p>
-      <p><strong>Items:</strong> ${itemsText}</p>
-      <p><strong>Order Amount:</strong> KES ${data.totalAmount}</p>
-      <p><strong>Service Fee:</strong> KES ${data.serviceFee}</p>
-      <p><strong>Paid:</strong> ${data.paid?"✅":"❌"}</p>
-      <p><strong>Delivered:</strong> ${data.delivered?"✅":"❌"}</p>
-      <div class="mt-2 flex gap-2">
-        <button class="bg-green-600 py-1 px-2 rounded markPaid">Mark Paid</button>
-        <button class="bg-blue-600 py-1 px-2 rounded markDelivered">Mark Delivered</button>
-        <button class="bg-red-600 py-1 px-2 rounded deleteOrder">Delete</button>
-      </div>
-    `;
-    div.querySelector(".markPaid").addEventListener("click", async()=>{ await updateDoc(doc(db,"orders",docSnap.id),{paid:true}); displayAdminOrders(); });
-    div.querySelector(".markDelivered").addEventListener("click", async()=>{ await updateDoc(doc(db,"orders",docSnap.id),{delivered:true}); displayAdminOrders(); });
-    div.querySelector(".deleteOrder").addEventListener("click", async()=>{ if(confirm("Delete this order?")){ await deleteDoc(doc(db,"orders",docSnap.id)); displayAdminOrders(); } });
-    adminPanel.appendChild(div);
+// --- Admin realtime orders ---
+function displayAdminOrdersRealtime(){
+  onSnapshot(ordersCollection, snapshot=>{
+    adminPanel.innerHTML=`<h2 class="text-xl font-bold mb-4">Admin Panel</h2>`;
+    snapshot.forEach(docSnap=>{
+      const data=docSnap.data();
+      const div=document.createElement("div");
+      div.className="p-3 border rounded bg-gray-800 text-white mb-3";
+      const itemsText = data.items.map(i=>i.name).join(", ");
+      const paidStatus = data.paid ? `<span class="text-green-500 font-semibold">Paid</span>` : `<span class="text-red-500 font-semibold">Pending</span>`;
+      const deliveredStatus = data.delivered ? `<span class="text-green-500 font-semibold">Delivered</span>` : `<span class="text-red-500 font-semibold">Not Delivered</span>`;
+      div.innerHTML=`
+        <p><strong>Name:</strong> ${data.customerName}</p>
+        <p><strong>Shop:</strong> ${data.shopName}</p>
+        <p><strong>Items:</strong> ${itemsText}</p>
+        <p><strong>Order Amount:</strong> KES ${data.totalAmount}</p>
+        <p><strong>Service Fee:</strong> KES ${data.serviceFee}</p>
+        <p><strong>Paid:</strong> ${paidStatus}</p>
+        <p><strong>Delivered:</strong> ${deliveredStatus}</p>
+        <div class="mt-2 flex gap-2">
+          <button class="bg-green-600 py-1 px-2 rounded markPaid">Mark Paid</button>
+          <button class="bg-blue-600 py-1 px-2 rounded markDelivered">Mark Delivered</button>
+          <button class="bg-red-600 py-1 px-2 rounded deleteOrder">Delete</button>
+        </div>
+      `;
+      div.querySelector(".markPaid").addEventListener("click", async()=>{ await updateDoc(doc(db,"orders",docSnap.id),{paid:true}); });
+      div.querySelector(".markDelivered").addEventListener("click", async()=>{ await updateDoc(doc(db,"orders",docSnap.id),{delivered:true}); });
+      div.querySelector(".deleteOrder").addEventListener("click", async()=>{ if(confirm("Delete this order?")){ await deleteDoc(doc(db,"orders",docSnap.id)); } });
+      adminPanel.appendChild(div);
+    });
   });
 }
+
 </script>
-
 </body>
-</html>
+</html> 
