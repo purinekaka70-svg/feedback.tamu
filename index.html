@@ -9,28 +9,23 @@
 </head>
 <body class="bg-gray-100">
 
-<!-- MARQUEE -->
 <marquee behavior="scroll" direction="left" scrollamount="6" class="bg-red-600 text-white font-semibold py-3 px-4 rounded shadow mx-4 mt-2">
-⚠️ IMPORTANT NOTICE: Orders above KSh 400 attract a service fee of KSh 60. No morning orders are accepted. Lunch orders are accepted from 11:30 AM – 2:00 PM. Evening orders are accepted from 4:00 PM – 8:00 PM. Kindly be advised that if ordered food is not available, you're requested to browse and look for other replacements or contact customer care (0115613332). All confirmed orders will be delivered. Ramadhan is almost here! Vouchers for both morning and evening orders are now available at only KES 1,500. For more info, contact 0115613332 / 0116860686.
+⚠️ IMPORTANT NOTICE: Orders above KSh 300 attract a service fee of KSh 60. Group orders attract a service fee of KSh 100. Lunch orders: 11:30 AM – 2:00 PM. Evening orders: 4:00 PM – 8:00 PM. Kindly confirm your orders. Ramadhan Mubarak! Wishing you a happy and blessed Ramadhan. For inquiries, contact 0115613332 / 0116860686.
 </marquee>
 
-<!-- HEADER / TOP MENU -->
+
+<!-- HEADER -->
 <header class="bg-green-700 text-white p-6 flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0 md:space-x-4">
   <div>
     <h1 class="text-3xl font-bold mb-1">Ummeats</h1>
     <p class="text-green-100 text-sm">Local Kibanda / Shop Orders + Feedback</p>
   </div>
   <div class="flex flex-col md:flex-row md:space-x-4 space-y-2 md:space-y-0">
-    <button id="feedbackBtn" class="bg-white text-green-700 py-2 px-4 rounded font-bold w-full md:w-auto">
-      💬 Feedback
-    </button>
-    <button id="backBtn" class="bg-white text-green-700 py-2 px-4 rounded font-bold w-full md:w-auto">
-      🔙 Back to Ummeats
-    </button>
+    <button id="feedbackBtn" class="bg-white text-green-700 py-2 px-4 rounded font-bold w-full md:w-auto">💬 Feedback</button>
+    <button id="backBtn" class="bg-white text-green-700 py-2 px-4 rounded font-bold w-full md:w-auto">🔙 Back to Ummeats</button>
   </div>
 </header>
 
-<!-- MAIN CONTENT -->
 <main class="p-6 space-y-10 max-w-4xl mx-auto">
 
   <!-- ORDER FORM -->
@@ -47,26 +42,24 @@
     </div>
 
     <button id="addItemBtn" class="w-full bg-green-600 text-white py-2 rounded font-bold mb-4">➕ Add Item</button>
-
     <ul id="itemsList" class="list-disc pl-6 mb-4 text-gray-700"></ul>
 
     <input id="totalAmount" class="w-full border p-2 rounded mb-3" placeholder="Estimated / Real Amount (KES)">
     <input id="mpesaCode" class="w-full border p-2 rounded mb-3" placeholder="Mpesa Transaction Code">
 
-    <button id="submitOrderBtn" class="w-full bg-green-700 text-white py-2 rounded font-bold">Submit Full Order </button>
+    <button id="submitOrderBtn" class="w-full bg-green-700 text-white py-2 rounded font-bold">Submit Full Order</button>
     <p id="orderStatus" class="mt-3 font-semibold"></p>
   </section>
 
-  <!-- CUSTOMER ORDERS PANEL -->
+  <!-- CUSTOMER ORDERS -->
   <section id="customerSection" class="bg-white p-6 rounded-xl shadow-lg">
-    <h2 class="text-xl font-bold mb-3"> Your Orders</h2>
+    <h2 class="text-xl font-bold mb-3">Your Orders</h2>
     <div id="customerOrders" class="space-y-3"></div>
   </section>
 
   <!-- FEEDBACK SECTION -->
   <section id="feedbackSection" class="hidden bg-white p-6 rounded-xl shadow-lg">
-    <h2 class="text-2xl font-bold mb-4"> Feedback</h2>
-
+    <h2 class="text-2xl font-bold mb-4">Feedback</h2>
     <input id="fbName" class="w-full border p-2 rounded mb-3" placeholder="Your Name">
     <input id="fbEmail" class="w-full border p-2 rounded mb-3" placeholder="Your Email">
     <textarea id="fbMessage" class="w-full border p-2 rounded mb-3" placeholder="Write your feedback here..." rows="4"></textarea>
@@ -74,11 +67,18 @@
     <p id="fbStatus" class="mt-3 font-semibold"></p>
   </section>
 
+  <!-- ADMIN LOGIN -->
+  <section id="adminLoginSection" class="hidden bg-black text-white p-6 rounded-xl">
+    <h2 class="text-xl font-bold mb-4">Admin Login</h2>
+    <input id="adminUsernameInput" class="w-full border p-2 rounded mb-3 text-black" placeholder="Username">
+    <input id="adminPasswordInput" type="password" class="w-full border p-2 rounded mb-3 text-black" placeholder="Password">
+    <button id="adminLoginBtn" class="w-full bg-green-600 py-2 rounded font-bold">Login</button>
+    <p id="adminLoginStatus" class="mt-3 font-semibold"></p>
+  </section>
+
   <!-- ADMIN PANEL -->
   <section id="adminPanel" class="hidden bg-black text-white p-6 rounded-xl">
-    <h2 class="text-xl font-bold mb-4">🔒 Admin Panel</h2>
-    <div id="adminOrders" class="space-y-3"></div>
-    <div id="adminFeedbacks" class="space-y-3 mt-6"></div>
+    <h2 class="text-xl font-bold mb-4"> Admin Panel</h2>
   </section>
 
 </main>
@@ -89,9 +89,9 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// Firebase config
+// Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyApi2RjwEXEW2mTwCMiYERKUNAYL8Toddk",
   authDomain: "tamuexpress-26e4a.firebaseapp.com",
@@ -100,7 +100,6 @@ const firebaseConfig = {
   messagingSenderId: "202068792631",
   appId: "1:202068792631:web:8a9b97028ebd7a45af76b2"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const ordersCollection = collection(db,"orders");
@@ -114,7 +113,6 @@ const orderSection = document.getElementById("orderSection");
 const customerSection = document.getElementById("customerSection");
 const submitFeedbackBtn = document.getElementById("submitFeedbackBtn");
 const fbStatus = document.getElementById("fbStatus");
-
 const itemNameInput = document.getElementById("itemName");
 const itemQtyInput = document.getElementById("itemQty");
 const itemsList = document.getElementById("itemsList");
@@ -122,122 +120,174 @@ const addItemBtn = document.getElementById("addItemBtn");
 const submitOrderBtn = document.getElementById("submitOrderBtn");
 const orderStatus = document.getElementById("orderStatus");
 const customerOrdersDiv = document.getElementById("customerOrders");
+const footerTrigger = document.getElementById("footerTrigger");
+const adminPanel = document.getElementById("adminPanel");
+const adminLoginSection = document.getElementById("adminLoginSection");
+const adminLoginBtn = document.getElementById("adminLoginBtn");
+const adminLoginStatus = document.getElementById("adminLoginStatus");
 
 let orderItems = [];
+let footerClickCount = 0;
 
-// DOM Loaded
-document.addEventListener("DOMContentLoaded", () => {
+// Feedback toggle
+feedbackBtn.addEventListener("click", ()=> {
+  feedbackSection.classList.toggle("hidden");
+  orderSection.classList.add("hidden");
+  customerSection.classList.add("hidden");
+});
 
-  // Feedback toggle
-  feedbackBtn.addEventListener("click", ()=>{
-    feedbackSection.classList.toggle("hidden");
+// Back button
+backBtn.addEventListener("click", ()=> window.location.href="https://purinekaka70-svg.github.io/Ummeats/");
+
+// Submit feedback
+submitFeedbackBtn.addEventListener("click", async()=> {
+  const name = document.getElementById("fbName").value.trim();
+  const email = document.getElementById("fbEmail").value.trim();
+  const message = document.getElementById("fbMessage").value.trim();
+  if(!name||!email||!message){ alert("Fill all fields"); return; }
+  try{
+    await addDoc(feedbackCollection,{name,email,message,time:new Date()});
+    fbStatus.textContent="Feedback submitted!";
+    fbStatus.className="text-green-600 font-bold";
+    document.getElementById("fbName").value="";
+    document.getElementById("fbEmail").value="";
+    document.getElementById("fbMessage").value="";
+  }catch(err){ console.log(err); fbStatus.textContent="Error"; fbStatus.className="text-red-600 font-bold"; }
+});
+
+// Add item
+addItemBtn.addEventListener("click", ()=> {
+  const name = itemNameInput.value.trim();
+  const qty = itemQtyInput.value.trim();
+  if(!name||!qty){ alert("Enter item & qty"); return; }
+  orderItems.push({name, qty});
+  renderItems();
+  itemNameInput.value=""; itemQtyInput.value="";
+});
+
+function renderItems(){
+  itemsList.innerHTML="";
+  orderItems.forEach((item,index)=>{
+    const li=document.createElement("li");
+    li.textContent=`${item.qty} x ${item.name}`;
+    const removeBtn=document.createElement("button");
+    removeBtn.textContent=" ";
+    removeBtn.className="ml-2 text-red-600";
+    removeBtn.addEventListener("click", ()=>{ orderItems.splice(index,1); renderItems(); });
+    li.appendChild(removeBtn);
+    itemsList.appendChild(li);
+  });
+}
+
+// Submit order
+submitOrderBtn.addEventListener("click", async()=>{
+  const customerName=document.getElementById("customerName").value.trim();
+  const customerEmail=document.getElementById("customerEmail").value.trim();
+  const shopName=document.getElementById("shopName").value.trim();
+  const totalAmount=document.getElementById("totalAmount").value.trim();
+  const mpesaCode=document.getElementById("mpesaCode").value.trim();
+  if(!customerName||!customerEmail||!shopName||orderItems.length===0||!totalAmount||!mpesaCode){
+    alert("Fill all fields & add at least one item"); return;
+  }
+  try{
+    await addDoc(ordersCollection,{
+      customerName, customerEmail, shopName, items: orderItems, totalAmount, mpesaCode,
+      serviceFee:40, paid:false, delivered:false, time:new Date()
+    });
+    orderStatus.textContent="Order submitted!";
+    orderStatus.className="text-green-600 font-bold";
+    document.getElementById("customerName").value="";
+    document.getElementById("customerEmail").value="";
+    document.getElementById("shopName").value="";
+    document.getElementById("totalAmount").value="";
+    document.getElementById("mpesaCode").value="";
+    orderItems=[];
+    renderItems();
+    displayCustomerOrders(customerEmail);
+  }catch(err){ console.log(err); orderStatus.textContent="Error"; orderStatus.className="text-red-600 font-bold"; }
+});
+
+// Footer click for admin login
+footerTrigger.addEventListener("click", ()=>{
+  footerClickCount++;
+  if(footerClickCount===4){
+    footerClickCount=0;
+    adminLoginSection.classList.remove("hidden");
     orderSection.classList.add("hidden");
     customerSection.classList.add("hidden");
-  });
-
-  // Back Button
-  backBtn.addEventListener("click", ()=>{
-    window.location.href = "https://purinekaka70-svg.github.io/Ummeats/";
-  });
-
-  // Submit Feedback
-  submitFeedbackBtn.addEventListener("click", async()=>{
-    const name = document.getElementById("fbName").value.trim();
-    const email = document.getElementById("fbEmail").value.trim();
-    const message = document.getElementById("fbMessage").value.trim();
-
-    if(!name||!email||!message){ alert("Fill all fields"); return; }
-
-    try{
-      await addDoc(feedbackCollection,{name,email,message,time:new Date()});
-      fbStatus.textContent="Feedback submitted!";
-      fbStatus.className="text-green-600 font-bold";
-      document.getElementById("fbName").value="";
-      document.getElementById("fbEmail").value="";
-      document.getElementById("fbMessage").value="";
-    }catch(err){ console.log(err); fbStatus.textContent=" Error"; fbStatus.className="text-red-600 font-bold"; }
-  });
-
-  // Add Item
-  addItemBtn.addEventListener("click", () => {
-    const name = itemNameInput.value.trim();
-    const qty = itemQtyInput.value.trim();
-    if (!name || !qty) { alert("Enter item name and qty"); return; }
-    orderItems.push({name, qty});
-    renderItems();
-    itemNameInput.value=""; itemQtyInput.value="";
-  });
-
-  function renderItems() {
-    itemsList.innerHTML="";
-    orderItems.forEach((item,index)=>{
-      const li=document.createElement("li");
-      li.textContent=`${item.qty} x ${item.name}`;
-      const removeBtn=document.createElement("button");
-      removeBtn.textContent="";
-      removeBtn.className="ml-2 text-red-600";
-      removeBtn.addEventListener("click",()=>{ orderItems.splice(index,1); renderItems(); });
-      li.appendChild(removeBtn);
-      itemsList.appendChild(li);
-    });
+    feedbackSection.classList.add("hidden");
+    adminPanel.classList.add("hidden");
   }
-
-  // Submit Order
-  submitOrderBtn.addEventListener("click", async()=>{
-    const customerName=document.getElementById("customerName").value.trim();
-    const customerEmail=document.getElementById("customerEmail").value.trim();
-    const shopName=document.getElementById("shopName").value.trim();
-    const totalAmount=document.getElementById("totalAmount").value.trim();
-    const mpesaCode=document.getElementById("mpesaCode").value.trim();
-
-    if(!customerName||!customerEmail||!shopName||orderItems.length===0||!totalAmount||!mpesaCode){
-      alert("Fill all fields & add at least one item"); return;
-    }
-
-    try {
-      await addDoc(ordersCollection,{
-        customerName, customerEmail, shopName, items: orderItems, totalAmount, mpesaCode, time:new Date()
-      });
-      orderStatus.textContent=" Order submitted!";
-      orderStatus.className="text-green-600 font-bold";
-      document.getElementById("customerName").value="";
-      document.getElementById("customerEmail").value="";
-      document.getElementById("shopName").value="";
-      document.getElementById("totalAmount").value="";
-      document.getElementById("mpesaCode").value="";
-      orderItems=[];
-      renderItems();
-      displayCustomerOrders();
-    } catch(err){ console.log(err); orderStatus.textContent=" Error"; orderStatus.className="text-red-600 font-bold"; }
-  });
-
-  // Display ONLY orders from current customer
-  async function displayCustomerOrders(){
-    customerOrdersDiv.innerHTML="";
-    const customerEmail = document.getElementById("customerEmail").value.trim();
-    if (!customerEmail) return;
-    const snapshot = await getDocs(ordersCollection);
-    snapshot.forEach(doc=>{
-      const data=doc.data();
-      if(data.customerEmail === customerEmail){
-        const div=document.createElement("div");
-        div.className="p-3 border rounded bg-gray-50";
-        const itemsText=data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
-        div.innerHTML=`
-          <p><strong>Name:</strong> ${data.customerName}</p>
-          <p><strong>Email:</strong> ${data.customerEmail}</p>
-          <p><strong>Shop:</strong> ${data.shopName}</p>
-          <p><strong>Items:</strong> ${itemsText}</p>
-          <p><strong>Total:</strong> KES ${data.totalAmount}</p>
-          <p><strong>Mpesa:</strong> ${data.mpesaCode}</p>
-          <hr class="my-2">
-        `;
-        customerOrdersDiv.appendChild(div);
-      }
-    });
-  }
-
 });
+
+// Admin login
+adminLoginBtn.addEventListener("click", ()=>{
+  const username=document.getElementById("adminUsernameInput").value.trim();
+  const password=document.getElementById("adminPasswordInput").value.trim();
+  if(username==="TamuAdmin@2025" && password==="ummeats"){
+    adminLoginStatus.textContent="Login successful!";
+    adminLoginStatus.className="text-green-600 font-bold mt-3";
+    adminLoginSection.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    displayAdminOrders();
+  }else{
+    adminLoginStatus.textContent="Invalid username or password!";
+    adminLoginStatus.className="text-red-600 font-bold mt-3";
+  }
+});
+
+// Customer orders
+async function displayCustomerOrders(customerEmail){
+  customerOrdersDiv.innerHTML="";
+  const snapshot = await getDocs(ordersCollection);
+  snapshot.forEach(docSnap=>{
+    const data=docSnap.data();
+    if(data.customerEmail===customerEmail){
+      const div=document.createElement("div");
+      div.className="p-3 border rounded bg-gray-50 mb-3";
+      const itemsText=data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
+      div.innerHTML=`
+        <p><strong>Name:</strong> ${data.customerName}</p>
+        <p><strong>Shop:</strong> ${data.shopName}</p>
+        <p><strong>Items:</strong> ${itemsText}</p>
+        <p><strong>Order Amount:</strong> KES ${data.totalAmount} | Pay: 0116860686 / 0759280343(Pochi La Biashara)</p>
+        <p><strong>Service Fee:</strong> KES ${data.serviceFee} | Pay: 0115613332 (Pochi La Biashara)</p>
+        <hr class="my-2">
+      `;
+      customerOrdersDiv.appendChild(div);
+    }
+  });
+}
+
+// Admin orders display
+async function displayAdminOrders(){
+  adminPanel.innerHTML=`<h2 class="text-xl font-bold mb-4">Admin Panel</h2>`;
+  const snapshot = await getDocs(ordersCollection);
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    const div = document.createElement("div");
+    div.className="p-3 border rounded bg-gray-800 text-white mb-3";
+    const itemsText = data.items.map(i=>`${i.qty} x ${i.name}`).join(", ");
+    div.innerHTML=`
+      <p><strong>Name:</strong> ${data.customerName}</p>
+      <p><strong>Shop:</strong> ${data.shopName}</p>
+      <p><strong>Items:</strong> ${itemsText}</p>
+      <p><strong>Order Amount:</strong> KES ${data.totalAmount}</p>
+      <p><strong>Service Fee:</strong> KES ${data.serviceFee}</p>
+      <p><strong>Paid:</strong> ${data.paid?"✅":"❌"}</p>
+      <p><strong>Delivered:</strong> ${data.delivered?"✅":"❌"}</p>
+      <div class="mt-2 flex gap-2">
+        <button class="bg-green-600 py-1 px-2 rounded markPaid">Mark Paid</button>
+        <button class="bg-blue-600 py-1 px-2 rounded markDelivered">Mark Delivered</button>
+        <button class="bg-red-600 py-1 px-2 rounded deleteOrder">Delete</button>
+      </div>
+    `;
+    div.querySelector(".markPaid").addEventListener("click", async()=>{ await updateDoc(doc(db,"orders",docSnap.id),{paid:true}); displayAdminOrders(); });
+    div.querySelector(".markDelivered").addEventListener("click", async()=>{ await updateDoc(doc(db,"orders",docSnap.id),{delivered:true}); displayAdminOrders(); });
+    div.querySelector(".deleteOrder").addEventListener("click", async()=>{ if(confirm("Delete this order?")){ await deleteDoc(doc(db,"orders",docSnap.id)); displayAdminOrders(); } });
+    adminPanel.appendChild(div);
+  });
+}
 </script>
 
 </body>
