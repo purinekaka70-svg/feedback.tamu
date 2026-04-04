@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <title>Contact Us | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./contact.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <a href="./contact.html" class="brand">Contact Tamu Express</a>
+        <p class="brand-tagline">Reach support, partnerships, and business contact lines from one page.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./categories.html">Categories</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-primary button-small" href="./seller.html">Seller Portal</a>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="hero panel reveal reveal-delay-1">
+        <p class="eyebrow">Contact Us</p>
+        <h1>Reach the support team through call, WhatsApp, or direct business contact.</h1>
+        <p class="hero-text">
+          For support, partnerships, onboarding, or general service assistance, these are the main Tamu Express contact points.
+        </p>
+      </section>
+
+      <section class="contact-grid reveal reveal-delay-2">
+        <article class="card support-card">
+          <p class="contact-eyebrow">Support line 1</p>
+          <h2>0115613332</h2>
+          <p>Chat on WhatsApp or call directly for faster support.</p>
+          <div class="button-row">
+            <a class="button button-primary" href="https://wa.me/254115613332?text=Hello%20Tamu%20Express%20support" target="_blank" rel="noreferrer">Chat WhatsApp</a>
+            <a class="button button-outline" href="tel:0115613332">Call</a>
+          </div>
+        </article>
+
+        <article class="card support-card">
+          <p class="contact-eyebrow">Support line 2</p>
+          <h2>0116860686</h2>
+          <p>Use this line for follow-up, business inquiries, or service assistance.</p>
+          <div class="button-row">
+            <a class="button button-primary" href="https://wa.me/254116860686?text=Hello%20Tamu%20Express%20support" target="_blank" rel="noreferrer">Chat WhatsApp</a>
+            <a class="button button-outline" href="tel:0116860686">Call</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid reveal reveal-delay-3">
+        <article class="card location-card">
+          <p class="contact-eyebrow">Location</p>
+          <h3>Kajiado, Kenya</h3>
+          <p>Tamu Express is connected to Kajiado and uses that foundation to support buyers, businesses, and delivery-focused service coordination.</p>
+        </article>
+
+        <article class="card location-card">
+          <p class="contact-eyebrow">What To Reach Us For</p>
+          <h3>Support, partnerships, and onboarding</h3>
+          <p>Use the contact lines for customer support, seller onboarding, partnerships, or general service inquiries.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="button button-ghost button-small" href="./index.html" data-footer-link>Home</a>
+        <a class="button button-ghost button-small" href="./categories.html" data-footer-link>Categories</a>
+        <a class="button button-ghost button-small" href="./about.html" data-footer-link>About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html" data-footer-link>Contact Us</a>
+        <a class="button button-ghost button-small" href="./cart.html" data-footer-link>Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html" data-footer-link>Seller Portal</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="./contact.js"></script>
+</body>
+</html>

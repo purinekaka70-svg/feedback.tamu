@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <title>About Us | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./about.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <a href="./about.html" class="brand">About Tamu Express</a>
+        <p class="brand-tagline">A delivery-centered marketplace connecting buyers with approved sellers.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./categories.html">Categories</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-primary button-small" href="./seller.html">Seller Portal</a>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="hero panel reveal reveal-delay-1">
+        <p class="eyebrow">About Us</p>
+        <h1>Tamu Express connects buyers with supermarkets, retailers, and wholesalers, then coordinates the delivery journey.</h1>
+        <p class="hero-text">
+          The platform is built to make discovery, ordering, and movement easier. Buyers browse trusted sellers in one
+          place, businesses join through approval, and Tamu Express stays in the middle as the coordinating layer.
+        </p>
+      </section>
+
+      <section class="feature-grid reveal reveal-delay-2">
+        <article class="card feature-card">
+          <p class="feature-eyebrow">What We Do</p>
+          <h2>We connect demand and supply.</h2>
+          <p>Buyers find products, sellers list offers, and Tamu Express helps the order move in a structured way.</p>
+        </article>
+
+        <article class="card feature-card">
+          <p class="feature-eyebrow">Our Role</p>
+          <h2>We act as the intermediary.</h2>
+          <p>That means visibility, coordination, and delivery support stay under one marketplace system.</p>
+        </article>
+
+        <article class="card feature-card">
+          <p class="feature-eyebrow">Who We Serve</p>
+          <h2>Buyers, supermarkets, retailers, and wholesalers.</h2>
+          <p>The platform supports both normal household buying and larger supply-focused ordering needs.</p>
+        </article>
+      </section>
+
+      <section class="timeline-grid reveal reveal-delay-3">
+        <article class="card timeline-card">
+          <span class="step-number">01</span>
+          <h3>Approved sellers join</h3>
+          <p>Businesses register first and enter the marketplace only after admin review.</p>
+        </article>
+
+        <article class="card timeline-card">
+          <span class="step-number">02</span>
+          <h3>Buyers browse clearly</h3>
+          <p>Products, categories, and daily offers stay visible in a cleaner buyer experience.</p>
+        </article>
+
+        <article class="card timeline-card">
+          <span class="step-number">03</span>
+          <h3>Tamu Express coordinates movement</h3>
+          <p>The system keeps the order flow visible as it moves into sourcing, dispatch, and delivery.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="button button-ghost button-small" href="./index.html" data-footer-link>Home</a>
+        <a class="button button-ghost button-small" href="./categories.html" data-footer-link>Categories</a>
+        <a class="button button-ghost button-small" href="./about.html" data-footer-link>About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html" data-footer-link>Contact Us</a>
+        <a class="button button-ghost button-small" href="./cart.html" data-footer-link>Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html" data-footer-link>Seller Portal</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="./about.js"></script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <title>Cart | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./cart.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <a href="./cart.html" class="brand">Tamu Express Cart</a>
+        <p class="brand-tagline">Review the buyer cart before it moves into checkout and delivery coordination.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./categories.html">Categories</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-primary button-small" href="./seller.html">Seller Portal</a>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="hero panel reveal reveal-delay-1">
+        <p class="eyebrow">Buyer Cart</p>
+        <h1>Review quantities, totals, and the delivery-ready order summary.</h1>
+        <p class="hero-text">
+          This page carries the cart and checkout review so it does not clutter the home or category browsing pages.
+        </p>
+      </section>
+
+      <section class="cart-layout reveal reveal-delay-2">
+        <div class="cart-main-column">
+          <section class="card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Cart Items</p>
+                <h2 class="section-title">Products selected by the buyer.</h2>
+              </div>
+              <button id="clearCartButton" class="button button-outline button-small" type="button">Clear cart</button>
+            </div>
+
+            <div id="cartItems" class="cart-list"></div>
+          </section>
+
+          <section class="card checkout-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Checkout Details</p>
+                <h2 class="section-title">Save buyer location and payment choice.</h2>
+              </div>
+            </div>
+
+            <form id="checkoutForm" class="stack">
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Buyer name</span>
+                  <input id="buyerNameInput" class="input" name="fullName" placeholder="Buyer full name" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Buyer phone</span>
+                  <input id="buyerPhoneInput" class="input" name="phone" placeholder="07XXXXXXXX" required />
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Delivery location</span>
+                  <input id="buyerLocationInput" class="input" name="location" placeholder="Kajiado Town, stage, landmark..." required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Checkout payment method</span>
+                  <select id="paymentMethodInput" class="input" name="paymentMethod" required>
+                    <option value="">Select payment method</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Buyer latitude</span>
+                  <input id="buyerLatitudeInput" class="input" name="latitude" type="number" step="any" placeholder="-1.8573" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Buyer longitude</span>
+                  <input id="buyerLongitudeInput" class="input" name="longitude" type="number" step="any" placeholder="36.7786" required />
+                </label>
+              </div>
+
+              <label class="field">
+                <span class="field-label">Delivery note</span>
+                <textarea id="buyerNoteInput" class="input input-textarea" name="note" rows="4" placeholder="Apartment, gate color, floor, or other delivery help"></textarea>
+              </label>
+
+              <div>
+                <p class="field-label">Seller payment methods in this cart</p>
+                <div id="sellerPaymentMethods" class="chip-list"></div>
+              </div>
+
+              <div>
+                <p class="field-label">Delivery fee breakdown</p>
+                <div id="deliveryBreakdown" class="breakdown-list"></div>
+              </div>
+
+              <p id="checkoutStatus" class="tiny"></p>
+            </form>
+          </section>
+        </div>
+
+        <aside class="card summary-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Order Summary</p>
+              <h2 class="section-title">Ready for checkout.</h2>
+            </div>
+          </div>
+
+          <div class="summary-list">
+            <div class="summary-row">
+              <span>Items</span>
+              <strong id="cartCountBadge">0</strong>
+            </div>
+            <div class="summary-row">
+              <span>Products total</span>
+              <strong id="cartSubtotalValue">KSh 0</strong>
+            </div>
+            <div class="summary-row">
+              <span>Estimated delivery</span>
+              <strong id="deliveryFeeValue">KSh 0</strong>
+            </div>
+            <div class="summary-row">
+              <span>Total estimate</span>
+              <strong id="grandTotalValue">KSh 0</strong>
+            </div>
+          </div>
+
+          <div id="deliverySummaryInfo" class="info-box">
+            Tamu Express will coordinate seller confirmation, sourcing, and dispatch after checkout.
+          </div>
+
+          <div class="button-grid">
+            <button id="checkoutButton" class="button button-primary" type="button">Proceed to checkout</button>
+            <a class="button button-ghost" href="./categories.html">Add more products</a>
+          </div>
+        </aside>
+      </section>
+
+      <section class="dashboard-grid reveal reveal-delay-3">
+        <article class="card stage-card">
+          <p class="eyebrow">Checkout next</p>
+          <h3>Buyer confirms order with delivery location</h3>
+          <p>The cart now uses buyer and seller coordinates so Tamu Express can price the route before dispatch.</p>
+        </article>
+
+        <article class="card stage-card">
+          <p class="eyebrow">Operations next</p>
+          <h3>Tamu Express coordinates movement</h3>
+          <p>Admin and operations track sourcing, dispatch, and delivery progress after checkout.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="button button-ghost button-small" href="./index.html" data-footer-link>Home</a>
+        <a class="button button-ghost button-small" href="./categories.html" data-footer-link>Categories</a>
+        <a class="button button-ghost button-small" href="./about.html" data-footer-link>About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html" data-footer-link>Contact Us</a>
+        <a class="button button-ghost button-small" href="./cart.html" data-footer-link>Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html" data-footer-link>Seller Portal</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="./cart.js"></script>
+</body>
+</html>

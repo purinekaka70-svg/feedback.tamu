@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <title>Admin Portal | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <a href="./admin.html" class="brand">Tamu Express Admin Portal</a>
+        <p class="brand-tagline">Manage seller approvals, marketplace categories, and delivery-facing order stages.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Marketplace</a>
+        <button id="adminLogoutButton" class="button button-outline button-small" type="button">Logout</button>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="hero panel reveal reveal-delay-1">
+        <p class="eyebrow">Admin Operations</p>
+        <h1>Keep the market trusted, organized, and ready for delivery.</h1>
+        <p class="hero-text">
+          Admin controls who gets approved to sell, which categories stay visible to buyers, and how orders move from
+          pending requests into sourcing, dispatch, and completion.
+        </p>
+      </section>
+
+      <section id="adminOverviewStats" class="stats-grid reveal reveal-delay-2"></section>
+
+      <section class="dashboard-grid reveal reveal-delay-3">
+        <article class="card">
+          <div class="section-head">
+            <h2>Seller approvals</h2>
+            <span class="tiny">Review applications from the seller portal</span>
+          </div>
+
+          <div id="approvalList" class="item-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-head">
+            <h2>Category management</h2>
+            <span class="tiny">Keep buyer browsing organized</span>
+          </div>
+
+          <form id="categoryForm" class="stack">
+            <label class="field">
+              <span class="field-label">New category</span>
+              <input class="input" name="categoryName" placeholder="Household essentials" required />
+            </label>
+
+            <button class="button button-primary" type="submit">Add category</button>
+          </form>
+
+          <div id="categoryList" class="chip-list"></div>
+        </article>
+      </section>
+
+      <section class="reveal">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Order Operations</p>
+            <h2 class="section-title">Move active orders through the delivery pipeline.</h2>
+          </div>
+        </div>
+
+        <div id="orderBoard" class="order-board"></div>
+      </section>
+
+      <section class="feature-grid reveal reveal-delay-1">
+        <article class="card feature-card">
+          <p class="feature-eyebrow">Responsibility</p>
+          <h3>Protect buyer trust with approved sellers only.</h3>
+          <p>Admin approval is the gate between registration and a public store listing.</p>
+        </article>
+
+        <article class="card feature-card">
+          <p class="feature-eyebrow">Operations</p>
+          <h3>Keep delivery movement visible from one dashboard.</h3>
+          <p>Pending, sourcing, dispatch, and completed states should stay easy to scan.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="./admin.js"></script>
+</body>
+</html>

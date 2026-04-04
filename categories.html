@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <title>Categories | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./categories.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <a href="./categories.html" class="brand">Tamu Express Categories</a>
+        <p class="brand-tagline">Browse approved stores, compare products, and build a cart faster.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-primary button-small" href="./cart.html">Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html">Seller Portal</a>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="hero panel reveal reveal-delay-1">
+        <p class="eyebrow">Buyer Categories</p>
+        <h1>Browse approved sellers, products, and offers.</h1>
+        <p class="hero-text">Only seller-managed items appear here after registration and approval.</p>
+      </section>
+
+      <section class="section-stack reveal reveal-delay-2">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Browse Marketplace</p>
+            <h2 class="section-title">Find the right seller and products quickly.</h2>
+          </div>
+          <div id="browseSummary" class="summary-chip">Loading market...</div>
+        </div>
+
+        <article class="card browse-card">
+          <label class="field">
+            <span class="field-label">Search products or stores</span>
+            <input id="searchInput" class="input" type="search" placeholder="Search milk, drinks, wholesale, supermarket..." />
+          </label>
+
+          <div class="filter-stack">
+            <div>
+              <p class="filter-label">Store type</p>
+              <div id="storeTypeFilters" class="chip-row"></div>
+            </div>
+            <div>
+              <p class="filter-label">Category</p>
+              <div id="categoryFilters" class="chip-row"></div>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="resetFiltersButton" class="button button-outline button-small" type="button">Reset filters</button>
+            <a class="button button-primary button-small" href="./cart.html">Go to cart</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid reveal reveal-delay-3">
+        <article class="card">
+          <div class="section-head">
+            <h3>Seller offers</h3>
+            <span class="tiny">Offers appear when sellers create them.</span>
+          </div>
+          <div id="dealGrid" class="deal-grid"></div>
+        </article>
+
+        <article class="card cart-summary-card">
+          <div class="section-head">
+            <h3>Cart summary</h3>
+            <button id="clearCartButton" class="button button-ghost button-small" type="button">Clear cart</button>
+          </div>
+
+          <div class="summary-list">
+            <div class="summary-row">
+              <span>Items</span>
+              <strong id="cartCountBadge">0</strong>
+            </div>
+            <div class="summary-row">
+              <span>Products total</span>
+              <strong id="cartSubtotalValue">KSh 0</strong>
+            </div>
+            <div class="summary-row">
+              <span>Estimated delivery</span>
+              <strong id="deliveryFeeValue">KSh 0</strong>
+            </div>
+          </div>
+
+          <div class="info-box">
+            Tamu Express stays in the middle coordinating the order after the buyer builds the cart.
+          </div>
+        </article>
+      </section>
+
+      <section class="section-stack reveal">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Approved Sellers</p>
+            <h2 class="section-title">Registered businesses visible to buyers.</h2>
+          </div>
+        </div>
+
+        <div id="storeGrid" class="store-grid"></div>
+      </section>
+
+      <section class="section-stack reveal reveal-delay-1">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Product Board</p>
+            <h2 class="section-title">Products added by sellers.</h2>
+          </div>
+          <div id="productCountSummary" class="summary-chip">0 products</div>
+        </div>
+
+        <div id="productGrid" class="product-grid"></div>
+      </section>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="button button-ghost button-small" href="./index.html" data-footer-link>Home</a>
+        <a class="button button-ghost button-small" href="./categories.html" data-footer-link>Categories</a>
+        <a class="button button-ghost button-small" href="./about.html" data-footer-link>About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html" data-footer-link>Contact Us</a>
+        <a class="button button-ghost button-small" href="./cart.html" data-footer-link>Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html" data-footer-link>Seller Portal</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="./categories.js"></script>
+</body>
+</html>
