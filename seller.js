@@ -1,12 +1,25 @@
 const STORAGE_KEYS = {
-  sellerApplications: "tamu_market_seller_applications",
+  sellers: "tamu_market_sellers",
+  currentSeller: "tamu_market_current_seller",
   sellerProducts: "tamu_market_seller_products",
   sellerOffers: "tamu_market_seller_offers",
-  sellerDrafts: "tamu_market_seller_drafts",
   adminOrders: "tamu_market_admin_orders",
-  activeSellerStore: "tamu_market_active_seller_store",
   adminSession: "tamu_market_admin_session"
 };
+
+const API_ENDPOINTS = {
+  sellerApply: "./api/sellers/apply.php"
+};
+
+const DEMO_ORDER_IDS = new Set(["order-1001", "order-1002", "order-1003", "order-1004"]);
+
+const ADMIN_CREDENTIALS = {
+  username: "TamuAdmin@2025",
+  password: "ummeats"
+};
+
+let map;
+let marker;
 
 const API_ENDPOINTS = {
   sellerApply: "./api/sellers/apply.php"
@@ -84,16 +97,65 @@ async function postJson(url, payload) {
   }
 }
 
-function showToast(message, tone = "success") {
-  const container = document.getElementById("toastContainer");
-  const toast = document.createElement("div");
-  toast.className = `toast toast--${tone}`;
-  toast.textContent = message;
-  container.appendChild(toast);
+function initMap() {
+  const defaultLat = -1.2921; // Nairobi coordinates as default
+  const defaultLng = 36.8219;
 
-  window.setTimeout(() => {
-    toast.remove();
-  }, 2600);
+  map = L.map('locationMap').setView([defaultLat, defaultLng], 10);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  map.on('click', function(e) {
+    const { lat, lng } = e.latlng;
+    if (marker) {
+      marker.setLatLng([lat, lng]);
+    } else {
+      marker = L.marker([lat, lng]).addTo(map);
+    }
+    document.getElementById('latitude').value = lat.toFixed(6);
+    document.getElementById('longitude').value = lng.toFixed(6);
+  });
+
+  // Try to get user's current location
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+      const { latitude, longitude } = position.coords;
+      map.setView([latitude, longitude], 15);
+    });
+  }
+}
+
+function toggleForms(showRegistration) {
+  const registrationForm = document.getElementById('registrationForm');
+  const loginForm = document.getElementById('loginForm');
+  const formTitle = document.getElementById('formTitle');
+
+  if (showRegistration) {
+    registrationForm.classList.remove('is-hidden');
+    loginForm.classList.add('is-hidden');
+    formTitle.textContent = 'New Seller Registration';
+  } else {
+    registrationForm.classList.add('is-hidden');
+    loginForm.classList.remove('is-hidden');
+    formTitle.textContent = 'Seller Login';
+  }
+}
+
+function showDashboard() {
+  document.querySelector('main').classList.add('dashboard-view');
+  document.getElementById('sellerDashboard').classList.remove('is-hidden');
+  renderCounts();
+  renderProducts();
+  renderOffers();
+  renderOrders();
+}
+
+function hideDashboard() {
+  document.querySelector('main').classList.remove('dashboard-view');
+  document.getElementById('sellerDashboard').classList.add('is-hidden');
+  setCurrentSeller(null);
 }
 
 function initReveal() {
@@ -218,8 +280,16 @@ function sanitizeOrders() {
   return cleanOrders;
 }
 
-function applications() {
-  return readStorage(STORAGE_KEYS.sellerApplications, []);
+function sellers() {
+  return readStorage(STORAGE_KEYS.sellers, []);
+}
+
+function currentSeller() {
+  return readStorage(STORAGE_KEYS.currentSeller, null);
+}
+
+function setCurrentSeller(seller) {
+  writeStorage(STORAGE_KEYS.currentSeller, seller);
 }
 
 function products() {
@@ -231,7 +301,8 @@ function offers() {
 }
 
 function orders() {
-  return sanitizeOrders();
+  const currentOrders = readStorage(STORAGE_KEYS.adminOrders, []);
+  return currentOrders.filter((order) => !DEMO_ORDER_IDS.has(order.id));
 }
 
 function activeStoreId() {
@@ -259,14 +330,16 @@ function getStoreById(storeId) {
 }
 
 function renderCounts() {
-  const allApplications = applications();
-  document.getElementById("pendingCount").textContent = String(
-    allApplications.filter((application) => application.status === "pending").length
-  );
-  document.getElementById("approvedCount").textContent = String(
-    allApplications.filter((application) => application.status === "approved").length
-  );
-  document.getElementById("draftCount").textContent = String(products().length);
+  const seller = currentSeller();
+  if (!seller) return;
+
+  const sellerProducts = products().filter(p => p.sellerId === seller.id);
+  const sellerOffers = offers().filter(o => o.sellerId === seller.id);
+  const sellerOrders = orders().filter(o => o.sellerId === seller.id);
+
+  document.getElementById("productCount").textContent = sellerProducts.length;
+  document.getElementById("offerCount").textContent = sellerOffers.length;
+  document.getElementById("orderCount").textContent = sellerOrders.filter(o => o.paymentStatus !== 'paid').length;
 }
 
 function renderApplications() {
@@ -405,59 +478,52 @@ function resetOfferForm() {
 }
 
 function renderProducts() {
-  const container = document.getElementById("sellerProductList");
-  const currentStoreId = activeStoreId();
-  const list = currentStoreId
-    ? products().filter((product) => product.storeId === currentStoreId).slice().reverse()
-    : [];
+  const seller = currentSeller();
+  if (!seller) return;
+
+  const container = document.getElementById("productList");
+  const list = products().filter(p => p.sellerId === seller.id).slice().reverse();
 
   if (!list.length) {
-    container.innerHTML = '<div class="list-card">No products yet for this store. Add your first product above.</div>';
+    container.innerHTML = '<div class="list-card">No products yet. Add your first product above.</div>';
     return;
   }
 
-  container.innerHTML = list
-    .map(
-      (product) => `
-        <article class="list-card">
-          <div class="section-head">
-            <strong>${product.productName}</strong>
-            <span class="status-pill status-pill--approved">${product.productCategory}</span>
-          </div>
-          <p>${product.storeName || storeLabel(getStoreById(product.storeId))}</p>
-          <p class="tiny">Price: ${currency(product.productPrice)} | ${product.productStock}</p>
-          <p class="tiny">${product.productOffer || "No product offer note added."}</p>
-          <div class="button-row">
-            <button class="button button-outline button-small" data-edit-product="${product.id}" type="button">Update</button>
-            <button class="button button-ghost button-small" data-delete-product="${product.id}" type="button">Delete</button>
-          </div>
-        </article>
-      `
-    )
-    .join("");
+  container.innerHTML = list.map(product => `
+    <article class="list-card">
+      <div class="section-head">
+        <strong>${product.productName}</strong>
+        <span class="status-pill status-pill--approved">${product.productCategory}</span>
+      </div>
+      <p>${product.storeName}</p>
+      <p class="tiny">Price: ${currency(product.productPrice)} | ${product.productStock}</p>
+      <p class="tiny">${product.productOffer || "No special offer."}</p>
+      <div class="button-row">
+        <button class="button button-outline button-small" data-edit-product="${product.id}" type="button">Update</button>
+        <button class="button button-ghost button-small" data-delete-product="${product.id}" type="button">Delete</button>
+      </div>
+    </article>
+  `).join("");
 
-  container.querySelectorAll("[data-edit-product]").forEach((button) => {
+  container.querySelectorAll("[data-edit-product]").forEach(button => {
     button.addEventListener("click", () => {
-      const product = products().find((entry) => entry.id === button.dataset.editProduct);
-      if (!product) {
-        return;
-      }
+      const product = products().find(p => p.id === button.dataset.editProduct);
+      if (!product) return;
 
-      document.getElementById("productIdInput").value = product.id;
-      document.getElementById("productStoreSelect").value = product.storeId;
+      document.getElementById("productId").value = product.id;
       document.querySelector('[name="productName"]').value = product.productName;
       document.querySelector('[name="productCategory"]').value = product.productCategory;
       document.querySelector('[name="productPrice"]').value = product.productPrice;
       document.querySelector('[name="productStock"]').value = product.productStock;
       document.querySelector('[name="productDeal"]').value = product.productOffer || "";
-      document.getElementById("saveProductButton").textContent = "Update product";
-      showToast("Product loaded for updating.", "info");
+      document.getElementById("saveProductBtn").textContent = "Update Product";
+      showToast("Product loaded for editing.", "info");
     });
   });
 
-  container.querySelectorAll("[data-delete-product]").forEach((button) => {
+  container.querySelectorAll("[data-delete-product]").forEach(button => {
     button.addEventListener("click", () => {
-      const nextProducts = products().filter((product) => product.id !== button.dataset.deleteProduct);
+      const nextProducts = products().filter(p => p.id !== button.dataset.deleteProduct);
       writeStorage(STORAGE_KEYS.sellerProducts, nextProducts);
       renderCounts();
       renderProducts();
@@ -467,57 +533,51 @@ function renderProducts() {
 }
 
 function renderOffers() {
-  const container = document.getElementById("sellerOfferList");
-  const currentStoreId = activeStoreId();
-  const list = currentStoreId
-    ? offers().filter((offer) => offer.storeId === currentStoreId).slice().reverse()
-    : [];
+  const seller = currentSeller();
+  if (!seller) return;
+
+  const container = document.getElementById("offerList");
+  const list = offers().filter(o => o.sellerId === seller.id).slice().reverse();
 
   if (!list.length) {
-    container.innerHTML = '<div class="list-card">No offers yet for this store. Add your first offer above.</div>';
+    container.innerHTML = '<div class="list-card">No offers yet. Create your first offer above.</div>';
     return;
   }
 
-  container.innerHTML = list
-    .map(
-      (offer) => `
-        <article class="list-card">
-          <div class="section-head">
-            <strong>${offer.offerTitle}</strong>
-            <span class="status-pill status-pill--pending">${offer.offerExpiry}</span>
-          </div>
-          <p>${offer.storeName || storeLabel(getStoreById(offer.storeId))}</p>
-          <p class="tiny">${offer.offerNote}</p>
-          <div class="button-row">
-            <button class="button button-outline button-small" data-edit-offer="${offer.id}" type="button">Update</button>
-            <button class="button button-ghost button-small" data-delete-offer="${offer.id}" type="button">Delete</button>
-          </div>
-        </article>
-      `
-    )
-    .join("");
+  container.innerHTML = list.map(offer => `
+    <article class="list-card">
+      <div class="section-head">
+        <strong>${offer.offerTitle}</strong>
+        <span class="status-pill status-pill--pending">${offer.offerExpiry}</span>
+      </div>
+      <p>${offer.storeName}</p>
+      <p class="tiny">${offer.offerNote}</p>
+      <div class="button-row">
+        <button class="button button-outline button-small" data-edit-offer="${offer.id}" type="button">Update</button>
+        <button class="button button-ghost button-small" data-delete-offer="${offer.id}" type="button">Delete</button>
+      </div>
+    </article>
+  `).join("");
 
-  container.querySelectorAll("[data-edit-offer]").forEach((button) => {
+  container.querySelectorAll("[data-edit-offer]").forEach(button => {
     button.addEventListener("click", () => {
-      const offer = offers().find((entry) => entry.id === button.dataset.editOffer);
-      if (!offer) {
-        return;
-      }
+      const offer = offers().find(o => o.id === button.dataset.editOffer);
+      if (!offer) return;
 
-      document.getElementById("offerIdInput").value = offer.id;
-      document.getElementById("offerStoreSelect").value = offer.storeId;
+      document.getElementById("offerId").value = offer.id;
       document.querySelector('[name="offerTitle"]').value = offer.offerTitle;
       document.querySelector('[name="offerNote"]').value = offer.offerNote;
       document.querySelector('[name="offerExpiry"]').value = offer.offerExpiry;
-      document.getElementById("saveOfferButton").textContent = "Update offer";
-      showToast("Offer loaded for updating.", "info");
+      document.getElementById("saveOfferBtn").textContent = "Update Offer";
+      showToast("Offer loaded for editing.", "info");
     });
   });
 
-  container.querySelectorAll("[data-delete-offer]").forEach((button) => {
+  container.querySelectorAll("[data-delete-offer]").forEach(button => {
     button.addEventListener("click", () => {
-      const nextOffers = offers().filter((offer) => offer.id !== button.dataset.deleteOffer);
+      const nextOffers = offers().filter(o => o.id !== button.dataset.deleteOffer);
       writeStorage(STORAGE_KEYS.sellerOffers, nextOffers);
+      renderCounts();
       renderOffers();
       showToast("Offer removed.", "warn");
     });
@@ -583,80 +643,87 @@ function markOrderPaid(orderId, storeId) {
 }
 
 function renderOrders() {
-  const container = document.getElementById("sellerOrderList");
-  const currentStore = getStoreById(activeStoreId());
+  const seller = currentSeller();
+  if (!seller) return;
 
-  if (!currentStore) {
-    container.innerHTML = '<div class="list-card">Register a business first to start receiving orders here.</div>';
-    return;
-  }
-
-  const list = orders()
-    .filter((order) => orderMatchesStore(order, currentStore))
-    .slice()
-    .reverse();
+  const container = document.getElementById("orderList");
+  const list = orders().filter(o => o.sellerId === seller.id).slice().reverse();
 
   if (!list.length) {
-    container.innerHTML = '<div class="list-card">No orders yet for this store.</div>';
+    container.innerHTML = '<div class="list-card">No orders yet for your store.</div>';
     return;
   }
 
-  container.innerHTML = list
-    .map((order) => {
-      const matchingItems = sellerOrderItems(order, currentStore.id);
-      const sellerAmount = matchingItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
-      const paymentStatus = sellerPaymentStatus(order, currentStore.id);
+  container.innerHTML = list.map(order => {
+    const paymentStatus = order.paymentStatus || "pending";
+    const sellerAmount = order.total || 0; // Simplified
 
-      return `
-        <article class="list-card">
-          <div class="section-head">
-            <strong>${order.id}</strong>
-            <span class="status-pill status-pill--${paymentStatus === "paid" ? "approved" : "pending"}">
-              ${paymentStatus === "paid" ? "Paid" : "Pending payment"}
-            </span>
+    return `
+      <article class="list-card">
+        <div class="section-head">
+          <strong>${order.id}</strong>
+          <span class="status-pill status-pill--${paymentStatus === "paid" ? "approved" : "pending"}">
+            ${paymentStatus === "paid" ? "Paid" : "Pending payment"}
+          </span>
+        </div>
+        <p>${order.customer || "Customer"} | ${order.phone || ""}</p>
+        <p class="tiny">${order.buyerLocation || "Delivery location"} | ${order.paymentMethod || "Payment method"}</p>
+        <p class="tiny">Total: ${currency(sellerAmount)}</p>
+        ${paymentStatus !== "paid" ? `
+          <div class="button-row">
+            <button class="button button-primary button-small" data-mark-paid="${order.id}" type="button">Mark as Paid</button>
           </div>
-          <p>${order.customer || "Buyer"}${order.phone ? ` | ${order.phone}` : ""}</p>
-          <p class="tiny">${order.buyerLocation || "Delivery location pending"} | ${order.paymentMethod || "Payment method pending"}</p>
-          <p class="tiny">Store amount: ${currency(sellerAmount)} | Order total: ${currency(order.total || 0)}</p>
-          ${matchingItems.length
-            ? matchingItems
-                .map((item) => `<p class="tiny">${item.productName} x${item.quantity}</p>`)
-                .join("")
-            : '<p class="tiny">This order came from an older flow without item breakdown.</p>'}
-          ${paymentStatus !== "paid"
-            ? `<div class="button-row">
-                <button class="button button-primary button-small" data-mark-paid="${order.id}" type="button">Mark as paid</button>
-              </div>`
-            : ""}
-        </article>
-      `;
-    })
-    .join("");
+        ` : ""}
+      </article>
+    `;
+  }).join("");
 
-  container.querySelectorAll("[data-mark-paid]").forEach((button) => {
+  container.querySelectorAll("[data-mark-paid]").forEach(button => {
     button.addEventListener("click", () => {
-      markOrderPaid(button.dataset.markPaid, currentStore.id);
+      markOrderPaid(button.dataset.markPaid, seller.id);
     });
   });
 }
 
-function buildApplicationPayload(formData) {
-  const paymentOptions = formData.getAll("paymentOptions");
-  const latitude = Number(formData.get("latitude"));
-  const longitude = Number(formData.get("longitude"));
+function markOrderPaid(orderId, sellerId) {
+  const nextOrders = orders().map(order => {
+    if (order.id !== orderId) return order;
+    return { ...order, paymentStatus: "paid" };
+  });
 
-  if (!paymentOptions.length) {
-    return {
-      ok: false,
-      message: "Select at least one payment option."
-    };
+  writeStorage(STORAGE_KEYS.adminOrders, nextOrders);
+  renderCounts();
+  renderOrders();
+  showToast("Order marked as paid.");
+}
+
+function buildSellerPayload(formData) {
+  const email = String(formData.get("email")).trim().toLowerCase();
+  const password = String(formData.get("password"));
+  const latitude = parseFloat(formData.get("latitude"));
+  const longitude = parseFloat(formData.get("longitude"));
+  const paymentMethods = formData.getAll("paymentMethods");
+
+  if (!email || !password) {
+    return { ok: false, message: "Email and password are required." };
+  }
+
+  if (password.length < 6) {
+    return { ok: false, message: "Password must be at least 6 characters long." };
   }
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return {
-      ok: false,
-      message: "Enter valid pickup coordinates."
-    };
+    return { ok: false, message: "Please select your location on the map." };
+  }
+
+  if (paymentMethods.length === 0) {
+    return { ok: false, message: "Select at least one payment method." };
+  }
+
+  // Check if email already exists
+  const existingSellers = sellers();
+  if (existingSellers.some(s => s.email === email)) {
+    return { ok: false, message: "An account with this email already exists." };
   }
 
   return {
@@ -664,46 +731,37 @@ function buildApplicationPayload(formData) {
     payload: {
       id: createId("seller"),
       storeName: String(formData.get("storeName")).trim(),
-      businessType: String(formData.get("businessType")).trim(),
       ownerName: String(formData.get("ownerName")).trim(),
       phone: String(formData.get("phone")).trim(),
-      location: String(formData.get("location")).trim(),
-      categoryFocus: String(formData.get("categoryFocus")).trim(),
-      minimumOrder: Number(formData.get("minimumOrder")),
-      prepTime: String(formData.get("prepTime")).trim(),
+      email,
+      password: btoa(password), // Simple encoding for demo (use proper hashing in production)
       latitude,
       longitude,
-      categoryList: splitFocusCategories(formData.get("categoryFocus")),
-      paymentOptions,
-      status: "pending",
+      paymentMethods,
+      status: "approved", // Auto-approve for demo
       createdAt: new Date().toISOString()
     }
   };
 }
 
 function buildProductPayload(formData) {
-  const store = getStoreById(String(formData.get("storeId")).trim());
+  const seller = currentSeller();
   const productPrice = Number(formData.get("productPrice"));
-  if (!store) {
-    return {
-      ok: false,
-      message: "Choose the store you want to manage."
-    };
+
+  if (!seller) {
+    return { ok: false, message: "Please login first." };
   }
 
   if (!Number.isFinite(productPrice) || productPrice < 0) {
-    return {
-      ok: false,
-      message: "Enter a valid product price."
-    };
+    return { ok: false, message: "Enter a valid product price." };
   }
 
   return {
     ok: true,
     payload: {
       id: String(formData.get("productId")).trim() || createId("product"),
-      storeId: store.id,
-      storeName: storeLabel(store),
+      sellerId: seller.id,
+      storeName: seller.storeName,
       productName: String(formData.get("productName")).trim(),
       productCategory: String(formData.get("productCategory")).trim(),
       productPrice,
@@ -715,20 +773,18 @@ function buildProductPayload(formData) {
 }
 
 function buildOfferPayload(formData) {
-  const store = getStoreById(String(formData.get("storeId")).trim());
-  if (!store) {
-    return {
-      ok: false,
-      message: "Choose the store for this offer."
-    };
+  const seller = currentSeller();
+
+  if (!seller) {
+    return { ok: false, message: "Please login first." };
   }
 
   return {
     ok: true,
     payload: {
       id: String(formData.get("offerId")).trim() || createId("offer"),
-      storeId: store.id,
-      storeName: storeLabel(store),
+      sellerId: seller.id,
+      storeName: seller.storeName,
       offerTitle: String(formData.get("offerTitle")).trim(),
       offerNote: String(formData.get("offerNote")).trim(),
       offerExpiry: String(formData.get("offerExpiry")).trim(),
@@ -747,57 +803,123 @@ function refreshSellerWorkspace() {
   renderOrders();
 }
 
+function resetProductForm() {
+  const form = document.getElementById("productForm");
+  form.reset();
+  document.getElementById("productId").value = "";
+  document.getElementById("saveProductBtn").textContent = "Save Product";
+}
+
+function resetOfferForm() {
+  const form = document.getElementById("offerForm");
+  form.reset();
+  document.getElementById("offerId").value = "";
+  document.getElementById("saveOfferBtn").textContent = "Save Offer";
+}
+
 function bindForms() {
-  document.getElementById("sellerApplicationForm").addEventListener("submit", async (event) => {
+  // Registration form
+  document.getElementById("sellerRegistrationForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const nextApplication = buildApplicationPayload(formData);
+    const result = buildSellerPayload(formData);
 
-    if (!nextApplication.ok) {
-      showToast(nextApplication.message, "warn");
+    if (!result.ok) {
+      showToast(result.message, "warn");
       return;
     }
 
-    const application = nextApplication.payload;
-    writeStorage(STORAGE_KEYS.sellerApplications, [...applications(), application]);
-    setActiveStoreId(application.id);
+    const seller = result.payload;
+    const existingSellers = sellers();
+    writeStorage(STORAGE_KEYS.sellers, [...existingSellers, seller]);
+    setCurrentSeller(seller);
     event.currentTarget.reset();
-    refreshSellerWorkspace();
-    resetProductForm();
-    resetOfferForm();
-
-    const response = await postJson(API_ENDPOINTS.sellerApply, application);
-    showToast(
-      response.ok
-        ? "Business registered and saved."
-        : "Business registered locally. Backend sync will work when PHP is live.",
-      response.ok ? "success" : "info"
-    );
+    showDashboard();
+    showToast("Registration successful! Welcome to your dashboard.", "success");
   });
 
-  document.getElementById("sellerProductForm").addEventListener("submit", (event) => {
+  // Login form
+  document.getElementById("sellerLoginForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const nextProduct = buildProductPayload(formData);
+    const email = String(formData.get("email")).trim().toLowerCase();
+    const password = String(formData.get("password"));
 
-    if (!nextProduct.ok) {
-      showToast(nextProduct.message, "warn");
+    const seller = sellers().find(s => s.email === email && atob(s.password) === password);
+    if (!seller) {
+      document.getElementById("loginStatus").textContent = "Invalid email or password.";
       return;
     }
 
-    const product = nextProduct.payload;
+    setCurrentSeller(seller);
+    event.currentTarget.reset();
+    document.getElementById("loginStatus").textContent = "";
+    showDashboard();
+    showToast("Login successful!", "success");
+  });
+
+  // Product form
+  document.getElementById("productForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const result = buildProductPayload(formData);
+
+    if (!result.ok) {
+      showToast(result.message, "warn");
+      return;
+    }
+
+    const product = result.payload;
     const currentProducts = products();
-    const existingProduct = currentProducts.find((entry) => entry.id === product.id);
+    const existingProduct = currentProducts.find(p => p.id === product.id);
     const nextProducts = existingProduct
-      ? currentProducts.map((entry) =>
-          entry.id === product.id
-            ? { ...entry, ...product, createdAt: entry.createdAt || new Date().toISOString() }
-            : entry
-        )
+      ? currentProducts.map(p => p.id === product.id ? { ...p, ...product, createdAt: p.createdAt || new Date().toISOString() } : p)
       : [...currentProducts, { ...product, createdAt: new Date().toISOString() }];
 
     writeStorage(STORAGE_KEYS.sellerProducts, nextProducts);
-    refreshSellerWorkspace();
+    renderCounts();
+    renderProducts();
+    resetProductForm();
+    showToast(existingProduct ? "Product updated." : "Product added.");
+  });
+
+  // Offer form
+  document.getElementById("offerForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const result = buildOfferPayload(formData);
+
+    if (!result.ok) {
+      showToast(result.message, "warn");
+      return;
+    }
+
+    const offer = result.payload;
+    const currentOffers = offers();
+    const existingOffer = currentOffers.find(o => o.id === offer.id);
+    const nextOffers = existingOffer
+      ? currentOffers.map(o => o.id === offer.id ? { ...o, ...offer, createdAt: o.createdAt || new Date().toISOString() } : o)
+      : [...currentOffers, { ...offer, createdAt: new Date().toISOString() }];
+
+    writeStorage(STORAGE_KEYS.sellerOffers, nextOffers);
+    renderCounts();
+    renderOffers();
+    resetOfferForm();
+    showToast(existingOffer ? "Offer updated." : "Offer created.");
+  });
+}
+
+function bindActions() {
+  document.getElementById("showRegistration").addEventListener("click", () => toggleForms(true));
+  document.getElementById("showLogin").addEventListener("click", () => toggleForms(false));
+  document.getElementById("resetProductBtn").addEventListener("click", resetProductForm);
+  document.getElementById("resetOfferBtn").addEventListener("click", resetOfferForm);
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    hideDashboard();
+    toggleForms(false);
+    showToast("Logged out successfully.", "info");
+  });
+}
     resetProductForm();
     showToast(existingProduct ? "Product updated." : "Product saved.");
   });
@@ -857,15 +979,19 @@ function bindWorkspaceActions() {
 }
 
 function boot() {
-  migrateLegacyProducts();
-  sanitizeOrders();
   initReveal();
   initAdminTrigger();
+  initMap();
   bindForms();
-  bindWorkspaceActions();
-  refreshSellerWorkspace();
-  resetProductForm();
-  resetOfferForm();
+  bindActions();
+
+  // Check if seller is already logged in
+  const seller = currentSeller();
+  if (seller) {
+    showDashboard();
+  } else {
+    toggleForms(false); // Show login by default
+  }
 }
 
 boot();

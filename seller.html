@@ -11,6 +11,7 @@
     href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   >
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="./seller.css">
 </head>
 <body>
@@ -18,7 +19,7 @@
     <header class="topbar panel reveal">
       <div class="brand-block">
         <a href="./seller.html" class="brand">Tamu Express Seller Portal</a>
-        <p class="brand-tagline">Register, wait for approval, then prepare your product catalog and deals.</p>
+        <p class="brand-tagline">Register your business or login to manage your store.</p>
       </div>
 
       <nav class="topbar-actions" aria-label="Primary">
@@ -31,73 +32,298 @@
 
     <main class="content-shell">
       <section class="hero panel reveal reveal-delay-1">
-        <p class="eyebrow">Seller Side</p>
-        <h1>Bring your supermarket, retail shop, or wholesale business onto Tamu Express.</h1>
+        <p class="eyebrow">Seller Portal</p>
+        <h1>Join Tamu Express Market</h1>
         <p class="hero-text">
-          This side is for businesses that want to list products on the marketplace. Submit store details first,
-          wait for admin approval, and then shape the catalog buyers will browse.
+          Register your business to start selling on our marketplace. Once approved, manage your products, offers, and orders from your dashboard.
         </p>
       </section>
 
-      <section class="stats-grid reveal reveal-delay-2">
-        <article class="card stat-card">
-          <span class="stat-label">Pending applications</span>
-          <strong id="pendingCount">0</strong>
+      <section class="dashboard-grid reveal reveal-delay-2">
+        <article class="card">
+          <div class="section-head">
+            <h2 id="formTitle">New Seller Registration</h2>
+            <div class="button-row">
+              <button id="showRegistration" class="button button-primary button-small">Register</button>
+              <button id="showLogin" class="button button-outline button-small">Login</button>
+            </div>
+          </div>
+
+          <div id="registrationForm" class="stack">
+            <form id="sellerRegistrationForm" class="stack">
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Business Name</span>
+                  <input class="input" name="storeName" placeholder="Tamu Supermart" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Owner Name</span>
+                  <input class="input" name="ownerName" placeholder="John Doe" required />
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Phone Number</span>
+                  <input class="input" name="phone" placeholder="07XXXXXXXX" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Email</span>
+                  <input class="input" type="email" name="email" placeholder="owner@business.com" required />
+                </label>
+              </div>
+
+              <label class="field">
+                <span class="field-label">Password</span>
+                <input class="input" type="password" name="password" placeholder="Create a strong password" required />
+              </label>
+
+              <div class="field">
+                <span class="field-label">Business Location</span>
+                <p class="tiny">Click on the map to set your pickup location</p>
+                <div id="locationMap" style="height: 300px; width: 100%; border: 1px solid #ddd; border-radius: 4px;"></div>
+                <input type="hidden" name="latitude" id="latitude" />
+                <input type="hidden" name="longitude" id="longitude" />
+              </div>
+
+              <fieldset class="field fieldset">
+                <legend class="field-label">Payment Methods</legend>
+                <div class="checkbox-grid">
+                  <label class="checkbox-chip">
+                    <input type="checkbox" name="paymentMethods" value="M-Pesa Till" />
+                    <span>M-Pesa Till</span>
+                  </label>
+                  <label class="checkbox-chip">
+                    <input type="checkbox" name="paymentMethods" value="M-Pesa Pochi" />
+                    <span>M-Pesa Pochi</span>
+                  </label>
+                  <label class="checkbox-chip">
+                    <input type="checkbox" name="paymentMethods" value="Card Payment" />
+                    <span>Card Payment</span>
+                  </label>
+                </div>
+                <p class="tiny">Select the payment methods you accept from customers.</p>
+              </fieldset>
+
+              <button class="button button-primary" type="submit">Register Business</button>
+            </form>
+          </div>
+
+          <div id="loginForm" class="stack is-hidden">
+            <form id="sellerLoginForm" class="stack">
+              <label class="field">
+                <span class="field-label">Email</span>
+                <input class="input" type="email" name="email" placeholder="your@email.com" required />
+              </label>
+
+              <label class="field">
+                <span class="field-label">Password</span>
+                <input class="input" type="password" name="password" required />
+              </label>
+
+              <button class="button button-primary" type="submit">Login</button>
+              <p id="loginStatus" class="tiny"></p>
+            </form>
+          </div>
         </article>
-        <article class="card stat-card">
-          <span class="stat-label">Approved stores</span>
-          <strong id="approvedCount">0</strong>
-        </article>
-        <article class="card stat-card">
-          <span class="stat-label">Saved products</span>
-          <strong id="draftCount">0</strong>
+
+        <article class="card">
+          <div class="section-head">
+            <h2>Getting Started</h2>
+            <span class="tiny">How to join the marketplace</span>
+          </div>
+
+          <div class="info-box">
+            <ol>
+              <li><strong>Register:</strong> Fill out the registration form with your business details.</li>
+              <li><strong>Wait for Approval:</strong> Our admin team will review and approve your application.</li>
+              <li><strong>Login:</strong> Once approved, use your email and password to access your seller dashboard.</li>
+              <li><strong>Manage:</strong> Add products, create offers, view orders, and manage payments.</li>
+            </ol>
+          </div>
         </article>
       </section>
 
-      <section class="dashboard-grid reveal reveal-delay-3">
-        <article class="card">
-          <div class="section-head">
-            <h2>Store registration</h2>
-            <span class="tiny">Submits into the admin approval queue</span>
-          </div>
+      <div id="sellerDashboard" class="is-hidden">
+        <section class="stats-grid reveal reveal-delay-2">
+          <article class="card stat-card">
+            <span class="stat-label">Total Products</span>
+            <strong id="productCount">0</strong>
+          </article>
+          <article class="card stat-card">
+            <span class="stat-label">Active Offers</span>
+            <strong id="offerCount">0</strong>
+          </article>
+          <article class="card stat-card">
+            <span class="stat-label">Pending Orders</span>
+            <strong id="orderCount">0</strong>
+          </article>
+        </section>
 
-          <form id="sellerApplicationForm" class="stack">
-            <div class="field-grid">
-              <label class="field">
-                <span class="field-label">Business name</span>
-                <input class="input" name="storeName" placeholder="Tamu Supermart" required />
-              </label>
-
-              <label class="field">
-                <span class="field-label">Business type</span>
-                <select class="input" name="businessType" required>
-                  <option value="supermarket">Supermarket</option>
-                  <option value="retail">Retail</option>
-                  <option value="wholesale">Wholesale</option>
-                </select>
-              </label>
+        <section class="dashboard-grid reveal reveal-delay-3">
+          <article class="card">
+            <div class="section-head">
+              <h2>Product Management</h2>
+              <span class="tiny">Add, update, or remove products</span>
             </div>
 
-            <div class="field-grid">
-              <label class="field">
-                <span class="field-label">Owner name</span>
-                <input class="input" name="ownerName" placeholder="Business owner" required />
-              </label>
+            <form id="productForm" class="stack">
+              <input id="productId" name="productId" type="hidden" />
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Product Name</span>
+                  <input class="input" name="productName" placeholder="Fresh milk 500ml" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Category</span>
+                  <input class="input" name="productCategory" placeholder="Dairy" required />
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Price (KSh)</span>
+                  <input class="input" name="productPrice" type="number" min="0" step="0.01" placeholder="120" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Stock Status</span>
+                  <select class="input" name="productStock" required>
+                    <option value="In stock">In stock</option>
+                    <option value="Out of stock">Out of stock</option>
+                    <option value="Limited stock">Limited stock</option>
+                  </select>
+                </label>
+              </div>
 
               <label class="field">
-                <span class="field-label">Phone number</span>
-                <input class="input" name="phone" placeholder="07XXXXXXXX" required />
+                <span class="field-label">Special Offer</span>
+                <input class="input" name="productDeal" placeholder="Buy 2 get 1 free" />
               </label>
+
+              <div class="button-row">
+                <button id="saveProductBtn" class="button button-outline" type="submit">Save Product</button>
+                <button id="resetProductBtn" class="button button-ghost" type="button">Reset</button>
+              </div>
+            </form>
+
+            <div id="productList" class="item-list"></div>
+          </article>
+
+          <article class="card">
+            <div class="section-head">
+              <h2>Deals & Offers</h2>
+              <span class="tiny">Create special promotions</span>
             </div>
 
-            <div class="field-grid">
+            <form id="offerForm" class="stack">
+              <input id="offerId" name="offerId" type="hidden" />
+
               <label class="field">
-                <span class="field-label">Location</span>
-                <input class="input" name="location" placeholder="Kajiado Town" required />
+                <span class="field-label">Offer Title</span>
+                <input class="input" name="offerTitle" placeholder="Weekend Special" required />
               </label>
 
               <label class="field">
-                <span class="field-label">Main category focus</span>
+                <span class="field-label">Offer Description</span>
+                <textarea class="input input-textarea" name="offerNote" rows="3" placeholder="Details about the offer" required></textarea>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Expiry Date/Time</span>
+                <input class="input" name="offerExpiry" placeholder="Ends Sunday 6 PM" required />
+              </label>
+
+              <div class="button-row">
+                <button id="saveOfferBtn" class="button button-primary" type="submit">Save Offer</button>
+                <button id="resetOfferBtn" class="button button-ghost" type="button">Reset</button>
+              </div>
+            </form>
+
+            <div id="offerList" class="item-list"></div>
+          </article>
+        </section>
+
+        <section class="dashboard-grid reveal reveal-delay-1">
+          <article class="card">
+            <div class="section-head">
+              <h2>Order Management</h2>
+              <span class="tiny">View and manage customer orders</span>
+            </div>
+
+            <div id="orderList" class="item-list"></div>
+          </article>
+
+          <article class="card">
+            <div class="section-head">
+              <h2>Quick Actions</h2>
+              <span class="tiny">Common seller tasks</span>
+            </div>
+
+            <div class="button-row">
+              <button id="logoutBtn" class="button button-outline">Logout</button>
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="button button-ghost button-small" href="./index.html" data-footer-link>Home</a>
+        <a class="button button-ghost button-small" href="./categories.html" data-footer-link>Categories</a>
+        <a class="button button-ghost button-small" href="./about.html" data-footer-link>About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html" data-footer-link>Contact Us</a>
+        <a class="button button-ghost button-small" href="./cart.html" data-footer-link>Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html" data-footer-link>Seller Portal</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./seller.js"></script>
+</body>
+</html>
                 <input class="input" name="categoryFocus" placeholder="Beverages, groceries, household..." required />
               </label>
             </div>
