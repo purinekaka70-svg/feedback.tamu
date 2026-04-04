@@ -96,11 +96,15 @@ button {
   color: var(--muted);
 }
 
-.topbar-actions,
-.button-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.topbar-link {
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 160ms ease;
+}
+
+.topbar-link:hover {
+  color: var(--accent-strong);
 }
 
 .stack {
