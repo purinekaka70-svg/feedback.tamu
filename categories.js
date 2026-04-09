@@ -9,9 +9,8 @@ const STORAGE_KEYS = {
   adminSession: "tamu_market_admin_session"
 };
 
-const ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
+const API_ENDPOINTS = {
+  adminLogin: "./api/admin/login.php"
 };
 
 const defaultCategories = [
@@ -20,6 +19,7 @@ const defaultCategories = [
   "Groceries",
   "Fresh Foods",
   "Household",
+  "Clothes",
   "Snacks",
   "Dairy",
   "Wholesale Packs"
@@ -32,6 +32,8 @@ const state = {
   search: "",
   cart: readStorage(STORAGE_KEYS.cart, [])
 };
+let filterScrollerResizeBound = false;
+let lastFloatingCartCount = 0;
 
 function readStorage(key, fallback) {
   try {
@@ -84,7 +86,8 @@ function currency(value) {
 }
 
 function capitalize(value) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const text = String(value || "n/a");
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function normalizePaymentOptions(options) {
@@ -92,6 +95,33 @@ function normalizePaymentOptions(options) {
     ? options.map((entry) => String(entry).trim()).filter(Boolean)
     : [];
   return cleaned.length ? cleaned : ["M-Pesa", "Cash on Delivery"];
+}
+
+function storePaymentOptions(store) {
+  if (!store) {
+    return normalizePaymentOptions([]);
+  }
+  return normalizePaymentOptions(store.paymentOptions || store.paymentMethods);
+}
+
+function storeTillNumber(store) {
+  return String((store && store.tillNumber) || "").trim();
+}
+
+function storePochiNumber(store) {
+  return String((store && store.pochiNumber) || "").trim();
+}
+
+function storeCardAccount(store) {
+  return String((store && store.cardAccount) || "").trim();
+}
+
+function storeCounty(store) {
+  return String((store && store.county) || "").trim();
+}
+
+function storeBusinessImageBase64(store) {
+  return String((store && store.businessImageBase64) || "").trim();
 }
 
 function applications() {
@@ -132,7 +162,7 @@ function currentCategories() {
     .filter((product) => approvedStoreIds.has(product.storeId))
     .map((product) => product.productCategory)
     .filter(Boolean);
-  return ["all", ...new Set([...storedCategories, ...liveCategories])];
+  return ["all", ...new Set([...defaultCategories, ...storedCategories, ...liveCategories])];
 }
 
 function visibleStores() {
@@ -148,8 +178,8 @@ function visibleStores() {
       state.selectedCategory === "all" || productCategories.includes(state.selectedCategory);
     const matchesSearch =
       !query ||
-      store.storeName.toLowerCase().includes(query) ||
-      store.location.toLowerCase().includes(query) ||
+      String(store.storeName || "").toLowerCase().includes(query) ||
+      String(store.location || "").toLowerCase().includes(query) ||
       productCategories.join(" ").toLowerCase().includes(query) ||
       products.some((product) => {
         if (product.storeId !== store.id) {
@@ -306,7 +336,7 @@ function availableCheckoutMethods(cartItems) {
   )]
     .map((storeId) => getStore(storeId))
     .filter(Boolean)
-    .map((store) => normalizePaymentOptions(store.paymentOptions));
+    .map((store) => storePaymentOptions(store));
 
   if (!methodsByStore.length) {
     return [];
@@ -340,6 +370,29 @@ function showToast(message, tone = "success") {
   window.setTimeout(() => {
     toast.remove();
   }, 2600);
+}
+
+function cartItemCount() {
+  return state.cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+}
+
+function renderFloatingCartCount(animate = false) {
+  const countElement = document.getElementById("floatingCartCount");
+  if (!countElement) {
+    return;
+  }
+
+  const count = cartItemCount();
+  countElement.textContent = String(count);
+  countElement.classList.toggle("is-empty", count === 0);
+
+  if (animate && count > lastFloatingCartCount) {
+    countElement.classList.remove("is-pop");
+    void countElement.offsetWidth;
+    countElement.classList.add("is-pop");
+  }
+
+  lastFloatingCartCount = count;
 }
 
 function initReveal() {
@@ -413,22 +466,124 @@ function initAdminTrigger() {
     button.addEventListener("click", closeModal);
   });
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
 
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-      window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
-      status.textContent = "Login successful. Redirecting...";
-      window.setTimeout(() => {
-        window.location.href = "./admin.html";
-      }, 450);
+    if (!username || !password) {
+      status.textContent = "Enter username and password.";
       return;
     }
 
-    status.textContent = "Invalid admin credentials.";
+    status.textContent = "Checking credentials...";
+
+    try {
+      const response = await window.fetch(API_ENDPOINTS.adminLogin, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data && data.ok) {
+        window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
+        status.textContent = "Login successful. Redirecting...";
+        window.setTimeout(() => {
+          window.location.href = "./admin.html";
+        }, 450);
+        return;
+      }
+
+      status.textContent = data && data.message ? data.message : "Invalid admin credentials.";
+    } catch (error) {
+      status.textContent = "Could not reach admin login service.";
+    }
   });
+}
+
+function scrollFilterRow(row, direction) {
+  if (!row) {
+    return;
+  }
+
+  const step = Math.max(180, Math.round(row.clientWidth * 0.72));
+  row.scrollBy({
+    left: direction * step,
+    behavior: "smooth"
+  });
+}
+
+function updateFilterScrollerState(scroller) {
+  if (!scroller) {
+    return;
+  }
+
+  const row = scroller.querySelector(".chip-row");
+  const leftButton = scroller.querySelector('[data-scroll-dir="left"]');
+  const rightButton = scroller.querySelector('[data-scroll-dir="right"]');
+  if (!row || !leftButton || !rightButton) {
+    return;
+  }
+
+  const canScroll = row.scrollWidth > row.clientWidth + 1;
+  const maxScroll = Math.max(0, row.scrollWidth - row.clientWidth);
+  const atStart = row.scrollLeft <= 1;
+  const atEnd = row.scrollLeft >= maxScroll - 1;
+
+  leftButton.disabled = !canScroll || atStart;
+  rightButton.disabled = !canScroll || atEnd;
+  leftButton.classList.toggle("is-hidden-control", !canScroll);
+  rightButton.classList.toggle("is-hidden-control", !canScroll);
+}
+
+function updateFilterScrollers() {
+  document.querySelectorAll(".chip-scroller").forEach((scroller) => {
+    updateFilterScrollerState(scroller);
+  });
+}
+
+function initFilterScrollers() {
+  document.querySelectorAll(".chip-scroller").forEach((scroller) => {
+    const row = scroller.querySelector(".chip-row");
+    const leftButton = scroller.querySelector('[data-scroll-dir="left"]');
+    const rightButton = scroller.querySelector('[data-scroll-dir="right"]');
+    if (!row || !leftButton || !rightButton) {
+      return;
+    }
+
+    if (scroller.dataset.bound === "true") {
+      updateFilterScrollerState(scroller);
+      return;
+    }
+
+    leftButton.addEventListener("click", () => {
+      scrollFilterRow(row, -1);
+    });
+    rightButton.addEventListener("click", () => {
+      scrollFilterRow(row, 1);
+    });
+
+    row.addEventListener(
+      "scroll",
+      () => {
+        updateFilterScrollerState(scroller);
+      },
+      { passive: true }
+    );
+
+    scroller.dataset.bound = "true";
+    updateFilterScrollerState(scroller);
+  });
+
+  if (!filterScrollerResizeBound) {
+    window.addEventListener("resize", () => {
+      updateFilterScrollers();
+    });
+    filterScrollerResizeBound = true;
+  }
 }
 
 function addToCart(productId) {
@@ -447,6 +602,7 @@ function addToCart(productId) {
 
   writeStorage(STORAGE_KEYS.cart, state.cart);
   renderCartSummary();
+  renderFloatingCartCount(true);
   showToast("Item added to cart.");
 }
 
@@ -482,7 +638,10 @@ function renderCategoryFilters() {
   const container = document.getElementById("categoryFilters");
   container.innerHTML = currentCategories()
     .map((category) => {
-      const label = category === "all" ? "All categories" : category;
+      let label = category === "all" ? "All categories" : category;
+      if (category.toLowerCase() === "clothes") {
+        label = "Click to shop Clothes";
+      }
       return `
         <button class="filter-chip ${state.selectedCategory === category ? "is-active" : ""}" data-category="${category}" type="button">
           ${label}
@@ -569,33 +728,40 @@ function renderStores() {
             { latitude: Number(store.latitude), longitude: Number(store.longitude) }
           ).toFixed(1)} km away`
         : "Set buyer location in cart";
-      const storeCategories = sellerProducts()
-        .filter((product) => product.storeId === store.id)
-        .map((product) => product.productCategory);
+      const countyLabel = storeCounty(store) ? `${storeCounty(store)} County` : "County not set";
+      const tillChip = storeTillNumber(store)
+        ? `Till ${storeTillNumber(store)}`
+        : `Pay by ${storePaymentOptions(store)[0] || "M-Pesa"}`;
+      const phoneChip = store.phone || "Phone not set";
+      const locationChip = store.location || countyLabel;
+      const cartActionLabel = hasBuyerCoordinates ? `Cart | ${distanceLabel}` : "Cart";
 
       return `
         <article class="store-card ${state.focusedStoreId === store.id ? "is-active" : ""}">
-          <div class="store-chip-row">
-            <span class="store-type-pill">${capitalize(store.businessType)}</span>
-            <span class="store-chip">${store.location}</span>
+          <div class="store-pill store-pill--location">${locationChip}</div>
+          <div class="store-pill-row">
+            <span class="store-pill">${tillChip}</span>
+            <span class="store-pill">${phoneChip}</span>
           </div>
-          <div>
-            <h3>${store.storeName}</h3>
-            <p>${[...new Set(storeCategories)].join(" | ") || "No products added yet"}</p>
+          <h3 class="store-title">${store.storeName}</h3>
+          <div class="store-action-row">
+            <a class="store-cart-button" href="./cart.html" data-store-cart="${store.id}">
+              <span class="store-cart-button__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                  <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.4a2 2 0 0 0 2-1.5L22 7H7.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <circle cx="10" cy="20" r="1.7"></circle>
+                  <circle cx="18" cy="20" r="1.7"></circle>
+                </svg>
+              </span>
+              ${cartActionLabel}
+            </a>
+            <button class="button button-primary button-small store-menu-button" data-focus-store="${store.id}" type="button">
+              ${state.focusedStoreId === store.id ? "Viewing Menu" : "View Menu"}
+            </button>
           </div>
-          <div class="store-chip-row">
-            <span class="store-chip">Prep ${store.prepTime}</span>
-            <span class="store-chip">Min ${currency(store.minimumOrder || 0)}</span>
-            <span class="store-chip">${distanceLabel}</span>
-          </div>
-          <div class="tag-row">
-            ${normalizePaymentOptions(store.paymentOptions)
-              .map((method) => `<span class="meta-pill">${method}</span>`)
-              .join("")}
-          </div>
-          <button class="button button-outline button-small" data-focus-store="${store.id}" type="button">
-            ${state.focusedStoreId === store.id ? "Showing products" : "View products"}
-          </button>
+          <p class="store-helper-text">
+            Click the supermarket icon to continue with cart and payment details.
+          </p>
         </article>
       `;
     })
@@ -606,6 +772,12 @@ function renderStores() {
       state.focusedStoreId = state.focusedStoreId === button.dataset.focusStore ? "all" : button.dataset.focusStore;
       renderMarket();
       document.getElementById("productGrid").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  container.querySelectorAll("[data-store-cart]").forEach((link) => {
+    link.addEventListener("click", () => {
+      showToast("Opening cart for checkout flow.", "info");
     });
   });
 }
@@ -625,7 +797,10 @@ function renderProducts() {
   container.innerHTML = list
     .map((product) => {
       const store = getStore(product.storeId);
-      const paymentLabel = store ? normalizePaymentOptions(store.paymentOptions).join(", ") : "Seller payment methods";
+      const paymentLabel = store ? storePaymentOptions(store).join(", ") : "Seller payment methods";
+      const tillLabel = store && storeTillNumber(store) ? ` | Till ${storeTillNumber(store)}` : "";
+      const pochiLabel = store && storePochiNumber(store) ? ` | Pochi ${storePochiNumber(store)}` : "";
+      const cardLabel = store && storeCardAccount(store) ? ` | Card ${storeCardAccount(store)}` : "";
 
       return `
         <article class="product-card">
@@ -644,7 +819,7 @@ function renderProducts() {
             </div>
           </div>
           <p>${product.productOffer || "No special offer on this item."}</p>
-          <p class="tiny">Payments: ${paymentLabel}</p>
+          <p class="tiny">Payments: ${paymentLabel}${tillLabel}${pochiLabel}${cardLabel}</p>
           <button class="button button-primary button-small" data-add-product="${product.id}" type="button">Add to cart</button>
         </article>
       `;
@@ -659,6 +834,14 @@ function renderProducts() {
 }
 
 function renderCartSummary() {
+  const cartCountBadge = document.getElementById("cartCountBadge");
+  const cartSubtotalValue = document.getElementById("cartSubtotalValue");
+  const deliveryFeeValue = document.getElementById("deliveryFeeValue");
+  const infoBox = document.querySelector(".cart-summary-card .info-box");
+  if (!cartCountBadge || !cartSubtotalValue || !deliveryFeeValue || !infoBox) {
+    return;
+  }
+
   const subtotal = state.cart.reduce((sum, item) => {
     const product = getProduct(item.productId);
     return sum + (product ? product.productPrice * item.quantity : 0);
@@ -667,11 +850,10 @@ function renderCartSummary() {
   const delivery = buildDeliverySummary(state.cart);
   const methods = availableCheckoutMethods(state.cart);
 
-  document.getElementById("cartCountBadge").textContent = String(itemCount);
-  document.getElementById("cartSubtotalValue").textContent = currency(subtotal);
-  document.getElementById("deliveryFeeValue").textContent = itemCount ? delivery.label : currency(0);
+  cartCountBadge.textContent = String(itemCount);
+  cartSubtotalValue.textContent = currency(subtotal);
+  deliveryFeeValue.textContent = itemCount ? delivery.label : currency(0);
 
-  const infoBox = document.querySelector(".cart-summary-card .info-box");
   if (!itemCount) {
     infoBox.textContent = "Add seller products to start building your cart.";
     return;
@@ -698,6 +880,8 @@ function renderMarket() {
   renderStores();
   renderProducts();
   renderCartSummary();
+  renderFloatingCartCount();
+  updateFilterScrollers();
 }
 
 function bindEvents() {
@@ -715,12 +899,15 @@ function bindEvents() {
     renderMarket();
   });
 
-  document.getElementById("clearCartButton").addEventListener("click", () => {
-    state.cart = [];
-    writeStorage(STORAGE_KEYS.cart, state.cart);
-    renderCartSummary();
-    showToast("Cart cleared.", "warn");
-  });
+  const clearCartButton = document.getElementById("clearCartButton");
+  if (clearCartButton) {
+    clearCartButton.addEventListener("click", () => {
+      state.cart = [];
+      writeStorage(STORAGE_KEYS.cart, state.cart);
+      renderCartSummary();
+      showToast("Cart cleared.", "warn");
+    });
+  }
 
   window.addEventListener("storage", () => {
     state.cart = readStorage(STORAGE_KEYS.cart, []);
@@ -733,6 +920,7 @@ function boot() {
   migrateLegacyProducts();
   initReveal();
   initAdminTrigger();
+  initFilterScrollers();
   bindEvents();
   renderMarket();
 }

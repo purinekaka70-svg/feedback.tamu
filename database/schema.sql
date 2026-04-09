@@ -153,4 +153,4 @@ ON DUPLICATE KEY UPDATE name = VALUES(name);
 -- Add your real admin user after generating a PHP password hash.
 -- Example:
 -- INSERT INTO admins (username, display_name, password_hash)
--- VALUES ('TamuAdmin@2025', 'Tamu Express Admin', '$2y$10$replace_with_real_hash');
+-- VALUES ('admin@example.com', 'Tamu Express Admin', '$2y$10$replace_with_real_hash');

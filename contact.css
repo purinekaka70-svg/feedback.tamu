@@ -187,6 +187,17 @@ button { cursor: pointer; }
   margin-top: 12px;
 }
 
+.footer-link-word {
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.footer-link-word:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
 .footer-title { margin: 0; font-weight: 800; }
 .footer-brandline { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .footer-mark {
@@ -296,5 +307,14 @@ button { cursor: pointer; }
   .footer { padding: 18px; }
   .topbar,
   .section-head { flex-direction: column; align-items: flex-start; }
+  .topbar-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .topbar-actions .button {
+    flex: 0 0 auto;
+  }
   .toast-stack { right: 12px; left: 12px; width: auto; }
 }

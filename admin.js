@@ -5,6 +5,10 @@ const STORAGE_KEYS = {
   adminSession: "tamu_market_admin_session"
 };
 
+const API_ENDPOINTS = {
+  adminLogin: "./api/admin/login.php"
+};
+
 const DEMO_ORDER_IDS = new Set(["order-1001", "order-1002", "order-1003", "order-1004"]);
 
 const defaultCategories = [
@@ -13,12 +17,16 @@ const defaultCategories = [
   "Groceries",
   "Fresh Foods",
   "Household",
+  "Clothes",
   "Snacks",
   "Dairy",
   "Wholesale Packs"
 ];
 
 const orderStages = ["pending", "sourcing", "dispatch", "completed"];
+let categoryFormBound = false;
+let logoutBound = false;
+let loginBound = false;
 
 function readStorage(key, fallback) {
   try {
@@ -27,15 +35,6 @@ function readStorage(key, fallback) {
   } catch (error) {
     return fallback;
   }
-}
-
-function ensureAdminSession() {
-  if (window.localStorage.getItem(STORAGE_KEYS.adminSession) === "active") {
-    return true;
-  }
-
-  window.location.href = "./index.html";
-  return false;
 }
 
 function writeStorage(key, value) {
@@ -65,7 +64,8 @@ function currency(value) {
 }
 
 function capitalize(value) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const text = String(value || "n/a");
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function showToast(message, tone = "success") {
@@ -104,12 +104,80 @@ function initReveal() {
   items.forEach((item) => observer.observe(item));
 }
 
+function hasAdminSession() {
+  return window.localStorage.getItem(STORAGE_KEYS.adminSession) === "active";
+}
+
+function setAdminView(isLoggedIn) {
+  const loginView = document.getElementById("adminLoginView");
+  const dashboardView = document.getElementById("adminDashboardView");
+  const logoutButton = document.getElementById("adminLogoutButton");
+  if (!loginView || !dashboardView || !logoutButton) {
+    return;
+  }
+
+  loginView.classList.toggle("is-hidden", isLoggedIn);
+  dashboardView.classList.toggle("is-hidden", !isLoggedIn);
+  logoutButton.classList.toggle("is-hidden", !isLoggedIn);
+}
+
+async function submitAdminAccess(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const status = document.getElementById("adminAccessStatus");
+  const formData = new FormData(form);
+  const username = String(formData.get("username")).trim();
+  const password = String(formData.get("password"));
+
+  if (!username || !password) {
+    status.textContent = "Enter admin email and password.";
+    return;
+  }
+
+  status.textContent = "Checking credentials...";
+
+  try {
+    const response = await window.fetch(API_ENDPOINTS.adminLogin, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok && data && data.ok) {
+      window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
+      status.textContent = "Login successful. Loading dashboard...";
+      window.setTimeout(() => {
+        activateDashboard();
+      }, 280);
+      return;
+    }
+
+    status.textContent = data && data.message ? data.message : "Invalid admin credentials.";
+  } catch (error) {
+    status.textContent = "Could not reach admin login service.";
+  }
+}
+
+function bindAdminAccessForm() {
+  const form = document.getElementById("adminAccessForm");
+  if (!form || loginBound) {
+    return;
+  }
+
+  form.addEventListener("submit", submitAdminAccess);
+  loginBound = true;
+}
+
 function applications() {
   return readStorage(STORAGE_KEYS.sellerApplications, []);
 }
 
 function categories() {
-  return readStorage(STORAGE_KEYS.categories, defaultCategories);
+  const stored = readStorage(STORAGE_KEYS.categories, defaultCategories);
+  return [...new Set([...defaultCategories, ...stored])];
 }
 
 function orders() {
@@ -165,27 +233,34 @@ function renderApprovals() {
   }
 
   container.innerHTML = list
-    .map(
-      (application) => `
+    .map((application) => {
+      const paymentOptions = Array.isArray(application.paymentOptions)
+        ? application.paymentOptions
+        : Array.isArray(application.paymentMethods)
+          ? application.paymentMethods
+          : [];
+      const tillText = application.tillNumber ? ` | Till: ${application.tillNumber}` : "";
+      const pochiText = application.pochiNumber ? ` | Pochi: ${application.pochiNumber}` : "";
+      const cardText = application.cardAccount ? ` | Card: ${application.cardAccount}` : "";
+      return `
         <article class="list-card">
           <div class="section-head">
             <div>
               <strong>${application.storeName}</strong>
-              <p class="tiny">${capitalize(application.businessType)} | ${application.location}</p>
+              <p class="tiny">${capitalize(application.businessType || "seller")} | ${application.location || "Location pending"}</p>
             </div>
             <span class="status-pill status-pill--${application.status}">${capitalize(application.status)}</span>
           </div>
-          <p>Owner: ${application.ownerName} | Phone: ${application.phone}</p>
-          <p class="tiny">Focus: ${application.categoryFocus} | Prep time: ${application.prepTime}</p>
-          <p class="tiny">Payments: ${(application.paymentOptions || []).join(", ") || "M-Pesa, Cash on Delivery"}</p>
-          <p class="tiny">Minimum order: ${currency(application.minimumOrder || 0)} | Pickup: ${application.latitude || "-"}, ${application.longitude || "-"}</p>
+          <p>Owner: ${application.ownerName || "-"} | Phone: ${application.phone || "-"}</p>
+          <p class="tiny">Payments: ${paymentOptions.join(", ") || "M-Pesa, Cash on Delivery"}${tillText}${pochiText}${cardText}</p>
+          <p class="tiny">Pickup: ${application.latitude || "-"}, ${application.longitude || "-"}</p>
           <div class="button-row">
             <button class="button button-primary button-small" data-application-action="approved" data-application-id="${application.id}" type="button">Approve</button>
             <button class="button button-outline button-small" data-application-action="rejected" data-application-id="${application.id}" type="button">Reject</button>
           </div>
         </article>
-      `
-    )
+      `;
+    })
     .join("");
 
   container.querySelectorAll("[data-application-action]").forEach((button) => {
@@ -268,7 +343,12 @@ function renderOrders() {
 }
 
 function bindCategoryForm() {
-  document.getElementById("categoryForm").addEventListener("submit", (event) => {
+  const form = document.getElementById("categoryForm");
+  if (!form || categoryFormBound) {
+    return;
+  }
+
+  form.addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const categoryName = String(formData.get("categoryName")).trim();
@@ -287,28 +367,55 @@ function bindCategoryForm() {
     renderCategories();
     showToast("Category added.");
   });
+
+  categoryFormBound = true;
 }
 
 function bindLogout() {
-  document.getElementById("adminLogoutButton").addEventListener("click", () => {
-    window.localStorage.removeItem(STORAGE_KEYS.adminSession);
-    window.location.href = "./index.html";
-  });
-}
-
-function boot() {
-  if (!ensureAdminSession()) {
+  const logoutButton = document.getElementById("adminLogoutButton");
+  if (!logoutButton || logoutBound) {
     return;
   }
 
+  logoutButton.addEventListener("click", () => {
+    window.localStorage.removeItem(STORAGE_KEYS.adminSession);
+    const loginForm = document.getElementById("adminAccessForm");
+    const status = document.getElementById("adminAccessStatus");
+    if (loginForm) {
+      loginForm.reset();
+    }
+    if (status) {
+      status.textContent = "";
+    }
+    setAdminView(false);
+    showToast("Logged out.", "info");
+  });
+
+  logoutBound = true;
+}
+
+function activateDashboard() {
   seedStorage();
+  setAdminView(true);
   initReveal();
-  bindCategoryForm();
-  bindLogout();
   renderOverview();
   renderApprovals();
   renderCategories();
   renderOrders();
+}
+
+function boot() {
+  initReveal();
+  bindAdminAccessForm();
+  bindCategoryForm();
+  bindLogout();
+
+  if (hasAdminSession()) {
+    activateDashboard();
+    return;
+  }
+
+  setAdminView(false);
 }
 
 boot();

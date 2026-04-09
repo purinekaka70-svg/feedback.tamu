@@ -80,6 +80,7 @@ button {
 }
 
 .brand {
+  margin: 0;
   color: var(--accent-strong);
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: clamp(1.8rem, 3vw, 2.7rem);
@@ -171,6 +172,48 @@ button {
   display: grid;
   gap: 18px;
   margin-top: 18px;
+}
+
+.admin-login-view {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-login-heading {
+  margin: 0;
+  color: #0f172a;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(2.8rem, 8vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.admin-login-card {
+  padding: 28px;
+}
+
+.admin-login-card .button {
+  width: 100%;
+}
+
+.login-status {
+  min-height: 1.3rem;
+}
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 16px;
+}
+
+.admin-side-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-overview-card .stats-grid {
+  margin-top: 16px;
+  grid-template-columns: 1fr;
 }
 
 .hero {
@@ -366,6 +409,26 @@ button {
   text-align: center;
 }
 
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.footer-link-word {
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.footer-link-word:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
 .footer-title {
   margin: 0;
   font-weight: 800;
@@ -390,6 +453,10 @@ button {
   font-size: 0.9rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.is-hidden {
+  display: none !important;
 }
 
 .toast-stack {
@@ -458,7 +525,7 @@ button {
 }
 
 @media (max-width: 980px) {
-  .dashboard-grid,
+  .admin-shell,
   .order-board {
     grid-template-columns: 1fr;
   }
@@ -477,10 +544,25 @@ button {
     padding: 18px;
   }
 
+  .admin-login-card {
+    padding: 18px;
+  }
+
   .topbar,
   .section-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .topbar-actions .button {
+    flex: 0 0 auto;
   }
 
   .toast-stack {

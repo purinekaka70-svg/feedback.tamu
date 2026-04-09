@@ -9,15 +9,13 @@ const STORAGE_KEYS = {
 };
 
 const API_ENDPOINTS = {
-  createOrder: "./api/orders/create.php"
-};
-
-const ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
+  createOrder: "./api/orders/create.php",
+  adminLogin: "./api/admin/login.php"
 };
 
 let cart = readStorage(STORAGE_KEYS.cart, []);
+let buyerMap;
+let buyerMarker;
 
 function readStorage(key, fallback) {
   try {
@@ -98,12 +96,188 @@ function normalizePaymentOptions(options) {
   return cleaned.length ? cleaned : ["M-Pesa", "Cash on Delivery"];
 }
 
+function storePaymentOptions(store) {
+  if (!store) {
+    return normalizePaymentOptions([]);
+  }
+  return normalizePaymentOptions(store.paymentOptions || store.paymentMethods);
+}
+
+function storeTillNumber(store) {
+  return String((store && store.tillNumber) || "").trim();
+}
+
+function storePochiNumber(store) {
+  return String((store && store.pochiNumber) || "").trim();
+}
+
+function storeCardAccount(store) {
+  return String((store && store.cardAccount) || "").trim();
+}
+
 function currency(value) {
   return `KSh ${Number(value).toLocaleString()}`;
 }
 
 function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
+
+function setBuyerMapStatus(message) {
+  const status = document.getElementById("buyerMapSearchStatus");
+  if (!status) {
+    return;
+  }
+  status.textContent = message;
+}
+
+function setBuyerCoordinates(latitude, longitude, options = {}) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return;
+  }
+
+  const label = String(options.label || "").trim();
+  const setLocationText = options.setLocationText === true;
+  const forceLocationText = options.forceLocationText === true;
+  const skipRender = options.skipRender === true;
+  const fallbackLabel = `Pinned at ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  const locationInput = document.getElementById("buyerLocationInput");
+  const latitudeInput = document.getElementById("buyerLatitudeInput");
+  const longitudeInput = document.getElementById("buyerLongitudeInput");
+
+  if (latitudeInput) {
+    latitudeInput.value = lat.toFixed(6);
+  }
+  if (longitudeInput) {
+    longitudeInput.value = lng.toFixed(6);
+  }
+
+  if (setLocationText && locationInput) {
+    if (forceLocationText || !locationInput.value.trim()) {
+      locationInput.value = label || fallbackLabel;
+    }
+  }
+
+  if (buyerMap) {
+    if (buyerMarker) {
+      buyerMarker.setLatLng([lat, lng]);
+    } else {
+      buyerMarker = L.marker([lat, lng]).addTo(buyerMap);
+    }
+    buyerMap.setView([lat, lng], 15);
+  }
+
+  setBuyerMapStatus(label ? `Pinned: ${label}` : fallbackLabel);
+
+  if (!skipRender) {
+    saveBuyerProfileFromForm();
+  }
+}
+
+async function searchBuyerMapLocation() {
+  const input = document.getElementById("buyerMapSearchInput");
+  if (!input) {
+    return;
+  }
+
+  const query = input.value.trim();
+  if (!query) {
+    setBuyerMapStatus("Type a location to search first.");
+    return;
+  }
+
+  setBuyerMapStatus("Searching location...");
+
+  try {
+    const response = await window.fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Accept: "application/json"
+        }
+      }
+    );
+    const results = await response.json().catch(() => []);
+    const match = Array.isArray(results) ? results[0] : null;
+    if (!match) {
+      setBuyerMapStatus("No location match found. Try a nearby town or landmark.");
+      return;
+    }
+
+    const lat = Number(match.lat);
+    const lng = Number(match.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setBuyerMapStatus("Location found but coordinates were invalid. Try another search.");
+      return;
+    }
+
+    setBuyerCoordinates(lat, lng, {
+      label: match.display_name || query,
+      setLocationText: true,
+      forceLocationText: true
+    });
+  } catch (error) {
+    setBuyerMapStatus("Search failed. Check internet and try again.");
+  }
+}
+
+function initBuyerMap() {
+  const mapElement = document.getElementById("buyerLocationMap");
+  if (!mapElement || typeof L === "undefined") {
+    return;
+  }
+
+  const defaultLat = -1.2921;
+  const defaultLng = 36.8219;
+  buyerMap = L.map("buyerLocationMap").setView([defaultLat, defaultLng], 10);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "(c) OpenStreetMap contributors"
+  }).addTo(buyerMap);
+
+  buyerMap.on("click", (event) => {
+    const { lat, lng } = event.latlng;
+    setBuyerCoordinates(lat, lng, {
+      label: `Pinned at ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+      setLocationText: true
+    });
+  });
+
+  const searchButton = document.getElementById("buyerMapSearchButton");
+  const searchInput = document.getElementById("buyerMapSearchInput");
+
+  if (searchButton && searchButton.dataset.bound !== "true") {
+    searchButton.addEventListener("click", () => {
+      searchBuyerMapLocation();
+    });
+    searchButton.dataset.bound = "true";
+  }
+
+  if (searchInput && searchInput.dataset.bound !== "true") {
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        searchBuyerMapLocation();
+      }
+    });
+    searchInput.dataset.bound = "true";
+  }
+
+  const profile = buyerProfile();
+  const profileLat = Number(profile.latitude);
+  const profileLng = Number(profile.longitude);
+  if (Number.isFinite(profileLat) && Number.isFinite(profileLng)) {
+    setBuyerCoordinates(profileLat, profileLng, { skipRender: true });
+  } else if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const { latitude, longitude } = position.coords;
+      if (buyerMap) {
+        buyerMap.setView([latitude, longitude], 13);
+      }
+    });
+  }
 }
 
 function haversineDistanceKm(from, to) {
@@ -152,7 +326,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
       total: subtotal,
       breakdown: [],
       consolidationFee: 0,
-      label: "Set location"
+      label: "Pin map location"
     };
   }
 
@@ -223,7 +397,7 @@ function availableCheckoutMethods(items) {
   )]
     .map((storeId) => getStore(storeId))
     .filter(Boolean)
-    .map((store) => normalizePaymentOptions(store.paymentOptions));
+    .map((store) => storePaymentOptions(store));
 
   if (!methodsByStore.length) {
     return [];
@@ -354,21 +528,41 @@ function initAdminTrigger() {
     button.addEventListener("click", closeModal);
   });
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
 
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-      window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
-      status.textContent = "Login successful. Redirecting...";
-      window.setTimeout(() => {
-        window.location.href = "./admin.html";
-      }, 450);
+    if (!username || !password) {
+      status.textContent = "Enter username and password.";
       return;
     }
 
-    status.textContent = "Invalid admin credentials.";
+    status.textContent = "Checking credentials...";
+
+    try {
+      const response = await window.fetch(API_ENDPOINTS.adminLogin, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data && data.ok) {
+        window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
+        status.textContent = "Login successful. Redirecting...";
+        window.setTimeout(() => {
+          window.location.href = "./admin.html";
+        }, 450);
+        return;
+      }
+
+      status.textContent = data && data.message ? data.message : "Invalid admin credentials.";
+    } catch (error) {
+      status.textContent = "Could not reach admin login service.";
+    }
   });
 }
 
@@ -435,7 +629,7 @@ function renderPaymentOptions(items) {
   container.innerHTML = selectedStores
     .map(
       (store) => `
-        <span class="payment-chip">${store.storeName}: ${normalizePaymentOptions(store.paymentOptions).join(", ")}</span>
+        <span class="payment-chip">${store.storeName}: ${storePaymentOptions(store).join(", ")}${storeTillNumber(store) ? ` | Till ${storeTillNumber(store)}` : ""}${storePochiNumber(store) ? ` | Pochi ${storePochiNumber(store)}` : ""}${storeCardAccount(store) ? ` | Card ${storeCardAccount(store)}` : ""}</span>
       `
     )
     .join("");
@@ -471,7 +665,7 @@ function renderDeliveryBreakdown(items) {
   }
 
   if (!delivery.hasCoordinates) {
-    container.innerHTML = '<div class="breakdown-card"><p>Enter buyer coordinates to calculate delivery from each seller.</p></div>';
+    container.innerHTML = '<div class="breakdown-card"><p>Pin buyer location on the map to calculate delivery from each seller.</p></div>';
     return delivery;
   }
 
@@ -521,8 +715,8 @@ function renderSummaryPanels() {
   }
 
   if (!delivery.hasCoordinates) {
-    info.textContent = "Enter buyer delivery coordinates so Tamu Express can calculate the route from each seller.";
-    status.textContent = "Waiting for buyer location to calculate the final delivery fee.";
+    info.textContent = "Pin buyer location on the map so Tamu Express can calculate route distance from each seller.";
+    status.textContent = "Waiting for buyer map location to calculate the final delivery fee.";
     return;
   }
 
@@ -560,7 +754,7 @@ function renderCart() {
       return `
         <article class="cart-item">
           <strong>${product.productName}</strong>
-          <p>${store.storeName} | ${store.location}</p>
+          <p>${store.storeName} | ${store.location || "Location pending"}</p>
           <p>${currency(product.productPrice)}</p>
           <div class="button-row">
             <button class="button button-ghost button-small" data-cart-action="decrease" data-product-id="${product.id}" type="button">-</button>
@@ -669,7 +863,7 @@ async function handleCheckout() {
   }
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    showToast("Enter valid buyer coordinates to calculate delivery.", "warn");
+    showToast("Pin buyer location on the map to calculate delivery.", "warn");
     return;
   }
 
@@ -679,7 +873,7 @@ async function handleCheckout() {
   }
 
   if (!delivery.hasCoordinates) {
-    showToast("Buyer coordinates are required for route pricing.", "warn");
+    showToast("Buyer map location is required for route pricing.", "warn");
     return;
   }
 
@@ -734,6 +928,7 @@ function boot() {
   initReveal();
   initAdminTrigger();
   fillCheckoutForm();
+  initBuyerMap();
   bindEvents();
   renderCart();
 }

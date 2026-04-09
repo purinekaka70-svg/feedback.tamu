@@ -11,6 +11,7 @@
     href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   >
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="./cart.css">
 </head>
 <body>
@@ -31,15 +32,7 @@
     </header>
 
     <main class="content-shell">
-      <section class="hero panel reveal reveal-delay-1">
-        <p class="eyebrow">Buyer Cart</p>
-        <h1>Review quantities, totals, and the delivery-ready order summary.</h1>
-        <p class="hero-text">
-          This page carries the cart and checkout review so it does not clutter the home or category browsing pages.
-        </p>
-      </section>
-
-      <section class="cart-layout reveal reveal-delay-2">
+      <section class="cart-layout reveal reveal-delay-1">
         <div class="cart-main-column">
           <section class="card">
             <div class="section-head">
@@ -88,16 +81,16 @@
                 </label>
               </div>
 
-              <div class="field-grid">
-                <label class="field">
-                  <span class="field-label">Buyer latitude</span>
-                  <input id="buyerLatitudeInput" class="input" name="latitude" type="number" step="any" placeholder="-1.8573" required />
-                </label>
-
-                <label class="field">
-                  <span class="field-label">Buyer longitude</span>
-                  <input id="buyerLongitudeInput" class="input" name="longitude" type="number" step="any" placeholder="36.7786" required />
-                </label>
+              <div class="field">
+                <span class="field-label">Buyer map location</span>
+                <div class="map-search-row">
+                  <input id="buyerMapSearchInput" class="input" type="search" placeholder="Search buyer town, street, stage, landmark..." />
+                  <button id="buyerMapSearchButton" class="button button-outline button-small" type="button">Search</button>
+                </div>
+                <p id="buyerMapSearchStatus" class="tiny">Search or click on the map to pin buyer location.</p>
+                <div id="buyerLocationMap" class="location-map"></div>
+                <input id="buyerLatitudeInput" name="latitude" type="hidden" />
+                <input id="buyerLongitudeInput" name="longitude" type="hidden" />
               </div>
 
               <label class="field">
@@ -162,7 +155,7 @@
         <article class="card stage-card">
           <p class="eyebrow">Checkout next</p>
           <h3>Buyer confirms order with delivery location</h3>
-          <p>The cart now uses buyer and seller coordinates so Tamu Express can price the route before dispatch.</p>
+          <p>The cart now uses buyer and seller map pins so Tamu Express can price the route before dispatch.</p>
         </article>
 
         <article class="card stage-card">
@@ -181,12 +174,8 @@
       </p>
       <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
       <div class="footer-links">
-        <a class="button button-ghost button-small" href="./index.html" data-footer-link>Home</a>
-        <a class="button button-ghost button-small" href="./categories.html" data-footer-link>Categories</a>
-        <a class="button button-ghost button-small" href="./about.html" data-footer-link>About Us</a>
-        <a class="button button-ghost button-small" href="./contact.html" data-footer-link>Contact Us</a>
-        <a class="button button-ghost button-small" href="./cart.html" data-footer-link>Cart</a>
-        <a class="button button-ghost button-small" href="./seller.html" data-footer-link>Seller Portal</a>
+        <a class="footer-link-word" href="./about.html" data-footer-link>About Us</a>
+        <a class="footer-link-word" href="./contact.html" data-footer-link>Contact Us</a>
       </div>
     </footer>
   </div>
@@ -221,6 +210,7 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="./cart.js"></script>
 </body>
 </html>

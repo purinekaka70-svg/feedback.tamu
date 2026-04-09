@@ -1,8 +1,5 @@
 const ADMIN_SESSION_KEY = "tamu_market_admin_session";
-const ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
-};
+const ADMIN_LOGIN_ENDPOINT = "./api/admin/login.php";
 
 function initReveal() {
   const items = document.querySelectorAll(".reveal");
@@ -75,21 +72,41 @@ function initAdminTrigger() {
     button.addEventListener("click", closeModal);
   });
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
 
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-      window.localStorage.setItem(ADMIN_SESSION_KEY, "active");
-      status.textContent = "Login successful. Redirecting...";
-      window.setTimeout(() => {
-        window.location.href = "./admin.html";
-      }, 450);
+    if (!username || !password) {
+      status.textContent = "Enter username and password.";
       return;
     }
 
-    status.textContent = "Invalid admin credentials.";
+    status.textContent = "Checking credentials...";
+
+    try {
+      const response = await window.fetch(ADMIN_LOGIN_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data && data.ok) {
+        window.localStorage.setItem(ADMIN_SESSION_KEY, "active");
+        status.textContent = "Login successful. Redirecting...";
+        window.setTimeout(() => {
+          window.location.href = "./admin.html";
+        }, 450);
+        return;
+      }
+
+      status.textContent = data && data.message ? data.message : "Invalid admin credentials.";
+    } catch (error) {
+      status.textContent = "Could not reach admin login service.";
+    }
   });
 }
 

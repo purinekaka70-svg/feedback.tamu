@@ -17,81 +17,91 @@
   <div class="site-shell">
     <header class="topbar panel reveal">
       <div class="brand-block">
-        <a href="./admin.html" class="brand">Tamu Express Admin Portal</a>
-        <p class="brand-tagline">Manage seller approvals, marketplace categories, and delivery-facing order stages.</p>
+        <p class="eyebrow">Admin Page</p>
+        <h1 class="brand">Tamu Express Admin</h1>
       </div>
 
       <nav class="topbar-actions" aria-label="Primary">
-        <a class="button button-ghost button-small" href="./index.html">Marketplace</a>
+        <a class="button button-primary button-small" href="https://ummeats.vercel.app/">Back To Site</a>
         <button id="adminLogoutButton" class="button button-outline button-small" type="button">Logout</button>
       </nav>
     </header>
 
     <main class="content-shell">
-      <section class="hero panel reveal reveal-delay-1">
-        <p class="eyebrow">Admin Operations</p>
-        <h1>Keep the market trusted, organized, and ready for delivery.</h1>
-        <p class="hero-text">
-          Admin controls who gets approved to sell, which categories stay visible to buyers, and how orders move from
-          pending requests into sourcing, dispatch, and completion.
-        </p>
-      </section>
-
-      <section id="adminOverviewStats" class="stats-grid reveal reveal-delay-2"></section>
-
-      <section class="dashboard-grid reveal reveal-delay-3">
-        <article class="card">
-          <div class="section-head">
-            <h2>Seller approvals</h2>
-            <span class="tiny">Review applications from the seller portal</span>
-          </div>
-
-          <div id="approvalList" class="item-list"></div>
-        </article>
-
-        <article class="card">
-          <div class="section-head">
-            <h2>Category management</h2>
-            <span class="tiny">Keep buyer browsing organized</span>
-          </div>
-
-          <form id="categoryForm" class="stack">
+      <section id="adminLoginView" class="admin-login-view reveal reveal-delay-1">
+        <h2 class="admin-login-heading">Admin</h2>
+        <article class="card admin-login-card">
+          <form id="adminAccessForm" class="stack">
             <label class="field">
-              <span class="field-label">New category</span>
-              <input class="input" name="categoryName" placeholder="Household essentials" required />
+              <span class="field-label">Admin email</span>
+              <input id="adminAccessUsername" class="input" name="username" type="email" placeholder="admin@example.com" autocomplete="username" required />
             </label>
 
-            <button class="button button-primary" type="submit">Add category</button>
+            <label class="field">
+              <span class="field-label">Password</span>
+              <input id="adminAccessPassword" class="input" name="password" type="password" placeholder="Password" autocomplete="current-password" required />
+            </label>
+
+            <p class="tiny">Use the admin account configured in your backend.</p>
+            <button class="button button-primary" type="submit">Login</button>
+            <p id="adminAccessStatus" class="tiny login-status"></p>
           </form>
-
-          <div id="categoryList" class="chip-list"></div>
         </article>
       </section>
 
-      <section class="reveal">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Order Operations</p>
-            <h2 class="section-title">Move active orders through the delivery pipeline.</h2>
+      <div id="adminDashboardView" class="is-hidden">
+        <section class="admin-shell reveal reveal-delay-1">
+          <article class="card admin-main-card">
+            <div class="section-head">
+              <h2>Seller approvals</h2>
+              <span class="tiny">Review applications from the seller portal</span>
+            </div>
+
+            <div id="approvalList" class="item-list"></div>
+          </article>
+
+          <div class="admin-side-stack">
+            <article class="card admin-overview-card">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Admin Overview</p>
+                  <h2 class="section-title">Marketplace status</h2>
+                </div>
+              </div>
+              <div id="adminOverviewStats" class="stats-grid"></div>
+            </article>
+
+            <article class="card">
+              <div class="section-head">
+                <h2>Category management</h2>
+                <span class="tiny">Keep buyer browsing organized</span>
+              </div>
+
+              <form id="categoryForm" class="stack">
+                <label class="field">
+                  <span class="field-label">New category</span>
+                  <input class="input" name="categoryName" placeholder="Household essentials" required />
+                </label>
+
+                <button class="button button-primary" type="submit">Add category</button>
+              </form>
+
+              <div id="categoryList" class="chip-list"></div>
+            </article>
           </div>
-        </div>
+        </section>
 
-        <div id="orderBoard" class="order-board"></div>
-      </section>
+        <section class="card reveal reveal-delay-2">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Order Operations</p>
+              <h2 class="section-title">Move active orders through the delivery pipeline.</h2>
+            </div>
+          </div>
 
-      <section class="feature-grid reveal reveal-delay-1">
-        <article class="card feature-card">
-          <p class="feature-eyebrow">Responsibility</p>
-          <h3>Protect buyer trust with approved sellers only.</h3>
-          <p>Admin approval is the gate between registration and a public store listing.</p>
-        </article>
-
-        <article class="card feature-card">
-          <p class="feature-eyebrow">Operations</p>
-          <h3>Keep delivery movement visible from one dashboard.</h3>
-          <p>Pending, sourcing, dispatch, and completed states should stay easy to scan.</p>
-        </article>
-      </section>
+          <div id="orderBoard" class="order-board"></div>
+        </section>
+      </div>
     </main>
 
     <footer class="footer panel">
@@ -101,6 +111,10 @@
         <span>Teams Technologies</span>
       </p>
       <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="footer-link-word" href="./about.html">About Us</a>
+        <a class="footer-link-word" href="./contact.html">Contact Us</a>
+      </div>
     </footer>
   </div>
 

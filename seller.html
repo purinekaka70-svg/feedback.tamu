@@ -23,21 +23,17 @@
       </div>
 
       <nav class="topbar-actions" aria-label="Primary">
-        <a class="topbar-link" href="./about.html">About Us</a>
-        <a class="topbar-link" href="./contact.html">Contact Us</a>
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./categories.html">Categories</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-ghost button-small" href="./cart.html">Cart</a>
+        <a class="button button-primary button-small" href="./seller.html">Seller Portal</a>
       </nav>
     </header>
 
     <main class="content-shell">
-      <section class="hero panel reveal reveal-delay-1">
-        <p class="eyebrow">Seller Portal</p>
-        <h1>Join Tamu Express Market</h1>
-        <p class="hero-text">
-          Register your business to start selling on our marketplace. Once approved, manage your products, offers, and orders from your dashboard.
-        </p>
-      </section>
-
-      <section class="dashboard-grid reveal reveal-delay-2">
+      <section class="dashboard-grid reveal reveal-delay-1">
         <article class="card">
           <div class="section-head">
             <h2 id="formTitle">New Seller Registration</h2>
@@ -56,32 +52,105 @@
                 </label>
 
                 <label class="field">
-                  <span class="field-label">Owner Name</span>
-                  <input class="input" name="ownerName" placeholder="John Doe" required />
+                  <span class="field-label">Business Type</span>
+                  <select class="input" name="businessType" required>
+                    <option value="supermarket">Supermarket</option>
+                    <option value="retail">Retail</option>
+                    <option value="wholesale">Wholesale</option>
+                  </select>
                 </label>
               </div>
 
               <div class="field-grid">
                 <label class="field">
+                  <span class="field-label">Owner Name</span>
+                  <input class="input" name="ownerName" placeholder="John Doe" required />
+                </label>
+
+                <label class="field">
                   <span class="field-label">Phone Number</span>
                   <input class="input" name="phone" placeholder="07XXXXXXXX" required />
                 </label>
+              </div>
 
+              <div class="field-grid">
                 <label class="field">
                   <span class="field-label">Email</span>
                   <input class="input" type="email" name="email" placeholder="owner@business.com" required />
                 </label>
+
+                <label class="field">
+                  <span class="field-label">Password</span>
+                  <input class="input" type="password" name="password" placeholder="Create a strong password" required />
+                </label>
               </div>
 
-              <label class="field">
-                <span class="field-label">Password</span>
-                <input class="input" type="password" name="password" placeholder="Create a strong password" required />
-              </label>
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">County (Kenya)</span>
+                  <select class="input" name="county" required>
+                    <option value="">Select county</option>
+                    <option>Baringo</option>
+                    <option>Bomet</option>
+                    <option>Bungoma</option>
+                    <option>Busia</option>
+                    <option>Elgeyo-Marakwet</option>
+                    <option>Embu</option>
+                    <option>Garissa</option>
+                    <option>Homa Bay</option>
+                    <option>Isiolo</option>
+                    <option>Kajiado</option>
+                    <option>Kakamega</option>
+                    <option>Kericho</option>
+                    <option>Kiambu</option>
+                    <option>Kilifi</option>
+                    <option>Kirinyaga</option>
+                    <option>Kisii</option>
+                    <option>Kisumu</option>
+                    <option>Kitui</option>
+                    <option>Kwale</option>
+                    <option>Laikipia</option>
+                    <option>Lamu</option>
+                    <option>Machakos</option>
+                    <option>Makueni</option>
+                    <option>Mandera</option>
+                    <option>Marsabit</option>
+                    <option>Meru</option>
+                    <option>Migori</option>
+                    <option>Mombasa</option>
+                    <option>Murang'a</option>
+                    <option>Nairobi</option>
+                    <option>Nakuru</option>
+                    <option>Nandi</option>
+                    <option>Narok</option>
+                    <option>Nyamira</option>
+                    <option>Nyandarua</option>
+                    <option>Nyeri</option>
+                    <option>Samburu</option>
+                    <option>Siaya</option>
+                    <option>Taita-Taveta</option>
+                    <option>Tana River</option>
+                    <option>Tharaka-Nithi</option>
+                    <option>Trans Nzoia</option>
+                    <option>Turkana</option>
+                    <option>Uasin Gishu</option>
+                    <option>Vihiga</option>
+                    <option>Wajir</option>
+                    <option>West Pokot</option>
+                  </select>
+                </label>
+              </div>
 
               <div class="field">
                 <span class="field-label">Business Location</span>
                 <p class="tiny">Click on the map to set your pickup location</p>
-                <div id="locationMap" style="height: 300px; width: 100%; border: 1px solid #ddd; border-radius: 4px;"></div>
+                <div class="map-search-row">
+                  <input id="sellerMapSearchInput" class="input" type="search" placeholder="Search place, town, stage, landmark..." />
+                  <button id="sellerMapSearchButton" class="button button-outline button-small" type="button">Search</button>
+                  <button id="sellerUseCoordinatesButton" class="button button-primary button-small" type="button">Use My Coordinates</button>
+                </div>
+                <p id="sellerMapSearchStatus" class="tiny">Tip: search and then click the map to refine the exact pin.</p>
+                <div id="locationMap" class="location-map"></div>
                 <input type="hidden" name="latitude" id="latitude" />
                 <input type="hidden" name="longitude" id="longitude" />
               </div>
@@ -104,6 +173,21 @@
                 </div>
                 <p class="tiny">Select the payment methods you accept from customers.</p>
               </fieldset>
+
+              <label id="tillNumberField" class="field is-hidden">
+                <span class="field-label">M-Pesa Till Number</span>
+                <input id="tillNumberInput" class="input" name="tillNumber" placeholder="Enter till number" inputmode="numeric" />
+              </label>
+
+              <label id="pochiNumberField" class="field is-hidden">
+                <span class="field-label">M-Pesa Pochi Number</span>
+                <input id="pochiNumberInput" class="input" name="pochiNumber" placeholder="Enter Pochi phone number" inputmode="tel" />
+              </label>
+
+              <label id="cardAccountField" class="field is-hidden">
+                <span class="field-label">Card Payment Account</span>
+                <input id="cardAccountInput" class="input" name="cardAccount" placeholder="Enter card account or merchant ID" />
+              </label>
 
               <button class="button button-primary" type="submit">Register Business</button>
             </form>
@@ -278,8 +362,8 @@
       </p>
       <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
       <div class="footer-links">
-        <a class="topbar-link" href="./about.html" data-footer-link>About Us</a>
-        <a class="topbar-link" href="./contact.html" data-footer-link>Contact Us</a>
+        <a class="footer-link-word" href="./about.html" data-footer-link>About Us</a>
+        <a class="footer-link-word" href="./contact.html" data-footer-link>Contact Us</a>
       </div>
     </footer>
   </div>
