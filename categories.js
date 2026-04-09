@@ -1,3 +1,4 @@
+let cachedApplications = [];
 const STORAGE_KEYS = {
   cart: "tamu_market_cart",
   categories: "tamu_market_categories",
@@ -95,7 +96,15 @@ function normalizePaymentOptions(options) {
 }
 
 function applications() {
-  return readStorage(STORAGE_KEYS.sellerApplications, []);
+  return cachedApplications;
+}
+
+async function loadMarketData() {
+  const res = await fetch('./api/admin/applications.php?status=approved');
+  const data = await res.json();
+  if (data.ok) {
+    cachedApplications = data.applications || [];
+  }
 }
 
 function sellerProducts() {
@@ -724,9 +733,10 @@ function bindEvents() {
   });
 }
 
-function boot() {
+async function boot() {
   seedCategories();
   migrateLegacyProducts();
+  await loadMarketData();
   initReveal();
   initAdminTrigger();
   bindEvents();

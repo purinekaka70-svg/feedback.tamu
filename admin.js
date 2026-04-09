@@ -1,12 +1,9 @@
+let cachedApplications = [];
 const STORAGE_KEYS = {
   sellerApplications: "tamu_market_seller_applications",
   categories: "tamu_market_categories",
   adminOrders: "tamu_market_admin_orders",
   adminSession: "tamu_market_admin_session"
-};
-
-const API_ENDPOINTS = {
-  adminLogin: "./api/admin/login.php"
 };
 
 const DEMO_ORDER_IDS = new Set(["order-1001", "order-1002", "order-1003", "order-1004"]);
@@ -17,16 +14,12 @@ const defaultCategories = [
   "Groceries",
   "Fresh Foods",
   "Household",
-  "Clothes",
   "Snacks",
   "Dairy",
   "Wholesale Packs"
 ];
 
 const orderStages = ["pending", "sourcing", "dispatch", "completed"];
-let categoryFormBound = false;
-let logoutBound = false;
-let loginBound = false;
 
 function readStorage(key, fallback) {
   try {
@@ -35,6 +28,15 @@ function readStorage(key, fallback) {
   } catch (error) {
     return fallback;
   }
+}
+
+function ensureAdminSession() {
+  if (window.localStorage.getItem(STORAGE_KEYS.adminSession) === "active") {
+    return true;
+  }
+
+  window.location.href = "./index.html";
+  return false;
 }
 
 function writeStorage(key, value) {
@@ -104,80 +106,20 @@ function initReveal() {
   items.forEach((item) => observer.observe(item));
 }
 
-function hasAdminSession() {
-  return window.localStorage.getItem(STORAGE_KEYS.adminSession) === "active";
-}
-
-function setAdminView(isLoggedIn) {
-  const loginView = document.getElementById("adminLoginView");
-  const dashboardView = document.getElementById("adminDashboardView");
-  const logoutButton = document.getElementById("adminLogoutButton");
-  if (!loginView || !dashboardView || !logoutButton) {
-    return;
-  }
-
-  loginView.classList.toggle("is-hidden", isLoggedIn);
-  dashboardView.classList.toggle("is-hidden", !isLoggedIn);
-  logoutButton.classList.toggle("is-hidden", !isLoggedIn);
-}
-
-async function submitAdminAccess(event) {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const status = document.getElementById("adminAccessStatus");
-  const formData = new FormData(form);
-  const username = String(formData.get("username")).trim();
-  const password = String(formData.get("password"));
-
-  if (!username || !password) {
-    status.textContent = "Enter admin email and password.";
-    return;
-  }
-
-  status.textContent = "Checking credentials...";
-
-  try {
-    const response = await window.fetch(API_ENDPOINTS.adminLogin, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await response.json().catch(() => ({}));
-
-    if (response.ok && data && data.ok) {
-      window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
-      status.textContent = "Login successful. Loading dashboard...";
-      window.setTimeout(() => {
-        activateDashboard();
-      }, 280);
-      return;
-    }
-
-    status.textContent = data && data.message ? data.message : "Invalid admin credentials.";
-  } catch (error) {
-    status.textContent = "Could not reach admin login service.";
-  }
-}
-
-function bindAdminAccessForm() {
-  const form = document.getElementById("adminAccessForm");
-  if (!form || loginBound) {
-    return;
-  }
-
-  form.addEventListener("submit", submitAdminAccess);
-  loginBound = true;
-}
-
 function applications() {
-  return readStorage(STORAGE_KEYS.sellerApplications, []);
+  return cachedApplications;
+}
+
+async function loadData() {
+  const res = await fetch('./api/admin/applications.php');
+  const data = await res.json();
+  if (data.ok) {
+    cachedApplications = data.applications || [];
+  }
 }
 
 function categories() {
-  const stored = readStorage(STORAGE_KEYS.categories, defaultCategories);
-  return [...new Set([...defaultCategories, ...stored])];
+  return readStorage(STORAGE_KEYS.categories, defaultCategories);
 }
 
 function orders() {
@@ -213,14 +155,19 @@ function renderOverview() {
   `;
 }
 
-function updateApplicationStatus(applicationId, status) {
-  const nextApplications = applications().map((application) =>
-    application.id === applicationId ? { ...application, status } : application
-  );
-  writeStorage(STORAGE_KEYS.sellerApplications, nextApplications);
-  renderOverview();
-  renderApprovals();
-  showToast(`Application ${status}.`, status === "approved" ? "success" : "warn");
+async function updateApplicationStatus(applicationId, status) {
+  const response = await fetch('./api/admin/applications.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: applicationId, status })
+  });
+  const result = await response.json();
+  if (result.ok) {
+    await loadData();
+    renderOverview();
+    renderApprovals();
+    showToast(`Application ${status}.`, status === "approved" ? "success" : "warn");
+  }
 }
 
 function renderApprovals() {
@@ -343,12 +290,7 @@ function renderOrders() {
 }
 
 function bindCategoryForm() {
-  const form = document.getElementById("categoryForm");
-  if (!form || categoryFormBound) {
-    return;
-  }
-
-  form.addEventListener("submit", (event) => {
+  document.getElementById("categoryForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const categoryName = String(formData.get("categoryName")).trim();
@@ -367,55 +309,29 @@ function bindCategoryForm() {
     renderCategories();
     showToast("Category added.");
   });
-
-  categoryFormBound = true;
 }
 
 function bindLogout() {
-  const logoutButton = document.getElementById("adminLogoutButton");
-  if (!logoutButton || logoutBound) {
+  document.getElementById("adminLogoutButton").addEventListener("click", () => {
+    window.localStorage.removeItem(STORAGE_KEYS.adminSession);
+    window.location.href = "./index.html";
+  });
+}
+
+async function boot() {
+  if (!ensureAdminSession()) {
     return;
   }
 
-  logoutButton.addEventListener("click", () => {
-    window.localStorage.removeItem(STORAGE_KEYS.adminSession);
-    const loginForm = document.getElementById("adminAccessForm");
-    const status = document.getElementById("adminAccessStatus");
-    if (loginForm) {
-      loginForm.reset();
-    }
-    if (status) {
-      status.textContent = "";
-    }
-    setAdminView(false);
-    showToast("Logged out.", "info");
-  });
-
-  logoutBound = true;
-}
-
-function activateDashboard() {
   seedStorage();
-  setAdminView(true);
+  await loadData();
   initReveal();
+  bindCategoryForm();
+  bindLogout();
   renderOverview();
   renderApprovals();
   renderCategories();
   renderOrders();
-}
-
-function boot() {
-  initReveal();
-  bindAdminAccessForm();
-  bindCategoryForm();
-  bindLogout();
-
-  if (hasAdminSession()) {
-    activateDashboard();
-    return;
-  }
-
-  setAdminView(false);
 }
 
 boot();
