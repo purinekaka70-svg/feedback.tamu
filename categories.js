@@ -43,6 +43,52 @@ function readStorage(key, fallback) {
   }
 }
 
+function portalSellers() {
+  return readStorage("tamu_sellers", [])
+    .filter((seller) => seller.status === "approved")
+    .map((seller) => {
+      const [latitude = "", longitude = ""] = String(seller.coordinates || "")
+        .split(",")
+        .map((part) => part.trim());
+
+      return {
+        id: seller.id,
+        storeName: seller.name || seller.email || "Approved seller",
+        businessType: seller.businessType || "retail",
+        location: seller.coordinates || "Seller location",
+        latitude,
+        longitude,
+        prepTime: seller.prepTime || "30-60 min",
+        paymentOptions: seller.paymentOptions || ["M-Pesa", "Cash on Delivery"],
+        status: "approved"
+      };
+    });
+}
+
+function portalProducts() {
+  const stores = new Map(portalSellers().map((seller) => [seller.id, seller]));
+
+  return readStorage("tamu_products", [])
+    .filter((product) => stores.has(product.sellerId))
+    .map((product) => {
+      const store = stores.get(product.sellerId);
+
+      return {
+        id: product.id,
+        storeId: product.sellerId,
+        storeName: product.sellerName || store.storeName,
+        productName: product.name || "Seller product",
+        productCategory: product.category || "Other",
+        productPrice: Number(product.price) || 0,
+        productStock: product.stock || "Available",
+        productOffer: product.offer || "",
+        productImage: product.image || "",
+        createdAt: product.createdAt || new Date().toISOString(),
+        updatedAt: product.updatedAt || product.createdAt || new Date().toISOString()
+      };
+    });
+}
+
 function writeStorage(key, value) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
@@ -96,19 +142,32 @@ function normalizePaymentOptions(options) {
 }
 
 function applications() {
-  return cachedApplications;
+  const merged = [...cachedApplications, ...portalSellers()];
+  return merged.filter((application, index, list) =>
+    list.findIndex((item) => item.id === application.id) === index
+  );
 }
 
 async function loadMarketData() {
-  const res = await fetch('./api/admin/applications.php?status=approved');
-  const data = await res.json();
-  if (data.ok) {
-    cachedApplications = data.applications || [];
+  try {
+    const res = await fetch('./api/admin/applications.php?status=approved');
+    if (!res.ok) {
+      return;
+    }
+    const data = await res.json();
+    if (data.ok) {
+      cachedApplications = data.applications || [];
+    }
+  } catch (error) {
+    cachedApplications = [];
   }
 }
 
 function sellerProducts() {
-  return readStorage(STORAGE_KEYS.sellerProducts, []);
+  const merged = [...readStorage(STORAGE_KEYS.sellerProducts, []), ...portalProducts()];
+  return merged.filter((product, index, list) =>
+    list.findIndex((item) => item.id === product.id) === index
+  );
 }
 
 function sellerOffers() {
@@ -637,7 +696,9 @@ function renderProducts() {
 
       return `
         <article class="product-card" style="padding: 8px; display: flex; flex-direction: column; gap: 8px;">
-          <div class="product-visual" style="height: 100px; font-size: 0.8rem;">${product.productCategory}</div>
+          <div class="product-visual" style="height: 100px; font-size: 0.8rem;">
+            ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}" style="width:100%;height:100%;object-fit:cover;border-radius:18px;">` : product.productCategory}
+          </div>
           <div class="product-head" style="margin: 0;">
             <div>
               <h3 style="font-size: 1rem; margin-bottom: 2px;">${product.productName}</h3>
@@ -672,11 +733,29 @@ function renderCartSummary() {
   const delivery = buildDeliverySummary(state.cart);
   const methods = availableCheckoutMethods(state.cart);
 
-  document.getElementById("cartCountBadge").textContent = String(itemCount);
-  document.getElementById("cartSubtotalValue").textContent = currency(subtotal);
-  document.getElementById("deliveryFeeValue").textContent = itemCount ? delivery.label : currency(0);
+  const cartCountBadge = document.getElementById("cartCountBadge");
+  const floatingCartCount = document.getElementById("floatingCartCount");
+  const subtotalValue = document.getElementById("cartSubtotalValue");
+  const deliveryFeeValue = document.getElementById("deliveryFeeValue");
+
+  if (cartCountBadge) {
+    cartCountBadge.textContent = String(itemCount);
+  }
+  if (floatingCartCount) {
+    floatingCartCount.textContent = String(itemCount);
+    floatingCartCount.classList.toggle("is-empty", itemCount === 0);
+  }
+  if (subtotalValue) {
+    subtotalValue.textContent = currency(subtotal);
+  }
+  if (deliveryFeeValue) {
+    deliveryFeeValue.textContent = itemCount ? delivery.label : currency(0);
+  }
 
   const infoBox = document.querySelector(".cart-summary-card .info-box");
+  if (!infoBox) {
+    return;
+  }
   if (!itemCount) {
     infoBox.textContent = "Add seller products to start building your cart.";
     return;
@@ -720,12 +799,15 @@ function bindEvents() {
     renderMarket();
   });
 
-  document.getElementById("clearCartButton").addEventListener("click", () => {
-    state.cart = [];
-    writeStorage(STORAGE_KEYS.cart, state.cart);
-    renderCartSummary();
-    showToast("Cart cleared.", "warn");
-  });
+  const clearCartButton = document.getElementById("clearCartButton");
+  if (clearCartButton) {
+    clearCartButton.addEventListener("click", () => {
+      state.cart = [];
+      writeStorage(STORAGE_KEYS.cart, state.cart);
+      renderCartSummary();
+      showToast("Cart cleared.", "warn");
+    });
+  }
 
   window.addEventListener("storage", () => {
     state.cart = readStorage(STORAGE_KEYS.cart, []);
