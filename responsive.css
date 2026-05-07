@@ -1,0 +1,140 @@
+html {
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.site-shell {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: clamp(14px, 2vw, 32px);
+}
+
+.content-shell,
+.section-stack,
+.panel,
+.card,
+.hero,
+.footer,
+.topbar {
+  width: 100%;
+}
+
+.content-shell {
+  min-height: calc(100vh - 160px);
+}
+
+.hero {
+  align-items: stretch;
+}
+
+.feature-grid,
+.dashboard-grid,
+.deal-grid,
+.store-grid,
+.product-grid,
+.timeline-grid,
+.stats-grid,
+.item-list {
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+
+.field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+@media (min-width: 1200px) {
+  .site-shell {
+    padding-inline: clamp(24px, 3vw, 56px);
+  }
+
+  .hero:not(.hero-simple) {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  }
+
+  .store-grid,
+  .product-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+}
+
+@media (min-width: 1600px) {
+  .feature-grid,
+  .deal-grid,
+  .store-grid,
+  .product-grid,
+  .timeline-grid,
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    position: static;
+  }
+
+  .hero,
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .site-shell {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .content-shell {
+    gap: 12px;
+    min-height: auto;
+  }
+
+  .topbar,
+  .hero,
+  .hero-copy,
+  .card,
+  .panel,
+  .modal-card,
+  .notice-strip,
+  .footer {
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .topbar-actions,
+  .button-row,
+  .hero-actions {
+    width: 100%;
+  }
+
+  .button,
+  .topbar-actions .button,
+  .button-row .button {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+}

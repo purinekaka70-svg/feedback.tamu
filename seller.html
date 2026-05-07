@@ -13,6 +13,7 @@
   >
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="./seller.css">
+  <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
   <div class="site-shell">
@@ -33,7 +34,7 @@
     </header>
 
     <main class="content-shell">
-      <section class="dashboard-grid reveal reveal-delay-1">
+      <section id="sellerAuthSection" class="dashboard-grid reveal reveal-delay-1">
         <article class="card">
           <div class="section-head">
             <h2 id="formTitle">New Seller Registration</h2>
@@ -229,6 +230,20 @@
       </section>
 
       <div id="sellerDashboard" class="is-hidden">
+        <section class="seller-workspace-bar panel reveal reveal-delay-1">
+          <button id="sellerWorkspaceToggle" class="button button-outline button-small" type="button" aria-expanded="false">Menu</button>
+          <div>
+            <p class="eyebrow">Seller Workspace</p>
+            <h2 id="sellerWelcomeTitle" class="section-title">Manage your store</h2>
+          </div>
+          <nav id="sellerWorkspaceNav" class="seller-workspace-nav" aria-label="Seller dashboard">
+            <button class="button button-primary button-small" type="button" data-seller-view="overview">Overview</button>
+            <button class="button button-ghost button-small" type="button" data-seller-view="products">Products</button>
+            <button class="button button-ghost button-small" type="button" data-seller-view="offers">Offers</button>
+            <button class="button button-ghost button-small" type="button" data-seller-view="orders">Orders</button>
+          </nav>
+        </section>
+
         <section class="stats-grid reveal reveal-delay-2">
           <article class="card stat-card">
             <span class="stat-label">Total Products</span>
@@ -244,7 +259,7 @@
           </article>
         </section>
 
-        <section class="dashboard-grid reveal reveal-delay-3">
+        <section class="dashboard-grid reveal reveal-delay-3" data-seller-panel="products">
           <article class="card">
             <div class="section-head">
               <h2>Product Management</h2>
@@ -287,6 +302,18 @@
                 <input class="input" name="productDeal" placeholder="Buy 2 get 1 free" />
               </label>
 
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Product Image URL</span>
+                  <input class="input" name="productImageUrl" type="url" placeholder="https://example.com/photo.jpg" />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Upload Product Image</span>
+                  <input class="input" name="productImageFile" type="file" accept="image/*" />
+                </label>
+              </div>
+
               <div class="button-row">
                 <button id="saveProductBtn" class="button button-outline" type="submit">Save Product</button>
                 <button id="resetProductBtn" class="button button-ghost" type="button">Reset</button>
@@ -296,7 +323,7 @@
             <div id="productList" class="item-list"></div>
           </article>
 
-          <article class="card">
+          <article class="card" data-seller-panel="offers">
             <div class="section-head">
               <h2>Deals & Offers</h2>
               <span class="tiny">Create special promotions</span>
@@ -331,7 +358,7 @@
         </section>
 
         <section class="dashboard-grid reveal reveal-delay-1">
-          <article class="card">
+          <article class="card" data-seller-panel="orders">
             <div class="section-head">
               <h2>Order Management</h2>
               <span class="tiny">View and manage customer orders</span>
@@ -347,6 +374,8 @@
             </div>
 
             <div class="button-row">
+              <a class="button button-primary" href="./categories.html">View Marketplace</a>
+              <a class="button button-ghost" href="./cart.html">Open Orders Cart</a>
               <button id="logoutBtn" class="button button-outline">Logout</button>
             </div>
           </article>

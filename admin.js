@@ -1,5 +1,6 @@
 let cachedApplications = [];
 const STORAGE_KEYS = {
+  sellers: "tamu_market_sellers",
   sellerApplications: "tamu_market_seller_applications",
   categories: "tamu_market_categories",
   adminOrders: "tamu_market_admin_orders",
@@ -107,14 +108,25 @@ function initReveal() {
 }
 
 function applications() {
-  return cachedApplications;
+  const localSellers = readStorage(STORAGE_KEYS.sellers, []);
+  const merged = [...cachedApplications, ...localSellers];
+  return merged.filter((application, index, list) =>
+    list.findIndex((item) => item.id === application.id) === index
+  );
 }
 
 async function loadData() {
-  const res = await fetch('./api/admin/applications.php');
-  const data = await res.json();
-  if (data.ok) {
-    cachedApplications = data.applications || [];
+  try {
+    const res = await fetch('./api/admin/applications.php');
+    if (!res.ok) {
+      return;
+    }
+    const data = await res.json();
+    if (data.ok) {
+      cachedApplications = data.applications || [];
+    }
+  } catch (error) {
+    cachedApplications = [];
   }
 }
 
@@ -156,18 +168,31 @@ function renderOverview() {
 }
 
 async function updateApplicationStatus(applicationId, status) {
-  const response = await fetch('./api/admin/applications.php', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: applicationId, status })
-  });
-  const result = await response.json();
-  if (result.ok) {
-    await loadData();
-    renderOverview();
-    renderApprovals();
-    showToast(`Application ${status}.`, status === "approved" ? "success" : "warn");
+  const localSellers = readStorage(STORAGE_KEYS.sellers, []);
+  const updatedSellers = localSellers.map((seller) =>
+    seller.id === applicationId ? { ...seller, status, approvedAt: status === "approved" ? new Date().toISOString() : seller.approvedAt } : seller
+  );
+  if (updatedSellers.some((seller, index) => seller !== localSellers[index])) {
+    writeStorage(STORAGE_KEYS.sellers, updatedSellers);
   }
+
+  try {
+    const response = await fetch('./api/admin/applications.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: applicationId, status })
+    });
+    const result = await response.json();
+    if (result.ok) {
+      await loadData();
+    }
+  } catch (error) {
+    // Local seller approvals still work when the PHP API is unavailable.
+  }
+
+  renderOverview();
+  renderApprovals();
+  showToast(`Application ${status}.`, status === "approved" ? "success" : "warn");
 }
 
 function renderApprovals() {

@@ -479,7 +479,9 @@
 
   function init() {
     wireCoordinateButtons();
-    wireSellerForms();
+    if (!$("#sellerRegistrationForm")) {
+      wireSellerForms();
+    }
     initAdminHelpers();
     ensureDashboard();
     ensureAdminApprovalPanel();

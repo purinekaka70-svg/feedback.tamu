@@ -132,19 +132,25 @@ function showDashboard() {
     return;
   }
 
+  document.body.classList.add("seller-dashboard-active");
+  document.getElementById("sellerAuthSection").classList.add("is-hidden");
   document.getElementById("sellerDashboard").classList.remove("is-hidden");
   document.getElementById("registrationForm").classList.add("is-hidden");
   document.getElementById("loginForm").classList.add("is-hidden");
   document.getElementById("formTitle").textContent = "Seller Dashboard";
+  document.getElementById("sellerWelcomeTitle").textContent = `${seller.storeName || "Your store"} dashboard`;
 
   renderCounts();
   renderProducts();
   renderOffers();
   renderOrders();
+  setSellerView("overview");
 }
 
 function hideDashboard() {
+  document.body.classList.remove("seller-dashboard-active");
   document.getElementById("sellerDashboard").classList.add("is-hidden");
+  document.getElementById("sellerAuthSection").classList.remove("is-hidden");
   setCurrentSeller(null);
   document.getElementById("formTitle").textContent = "New Seller Registration";
 }
@@ -241,6 +247,10 @@ function currentSeller() {
 }
 
 function setCurrentSeller(seller) {
+  if (!seller) {
+    window.localStorage.removeItem(STORAGE_KEYS.currentSeller);
+    return;
+  }
   writeStorage(STORAGE_KEYS.currentSeller, seller);
 }
 
@@ -302,6 +312,9 @@ function renderProducts() {
   container.innerHTML = sellerProducts
     .map((product) => `
       <article class="list-card">
+        <div class="seller-product-media">
+          ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}" loading="lazy">` : product.productCategory}
+        </div>
         <div class="section-head">
           <strong>${product.productName}</strong>
           <span class="status-pill status-pill--approved">${product.productCategory}</span>
@@ -327,6 +340,7 @@ function renderProducts() {
       document.querySelector('[name="productPrice"]').value = product.productPrice;
       document.querySelector('[name="productStock"]').value = product.productStock;
       document.querySelector('[name="productDeal"]').value = product.productOffer || "";
+      document.querySelector('[name="productImageUrl"]').value = product.productImage || "";
       document.getElementById("saveProductBtn").textContent = "Update Product";
       showToast("Product loaded for editing.", "info");
     });
@@ -490,13 +504,29 @@ function buildSellerPayload(formData) {
       latitude,
       longitude,
       paymentMethods,
-      status: "approved",
+      businessType: String(formData.get("businessType")).trim(),
+      county: String(formData.get("county")).trim(),
+      status: "pending",
       createdAt: new Date().toISOString()
     }
   };
 }
 
-function buildProductPayload(formData) {
+async function fileToDataUrl(file) {
+  return new Promise((resolve) => {
+    if (!file || !file.size) {
+      resolve("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+
+async function buildProductPayload(formData) {
   const seller = currentSeller();
   if (!seller) {
     return { ok: false, message: "Please login before adding products." };
@@ -507,10 +537,15 @@ function buildProductPayload(formData) {
     return { ok: false, message: "Enter a valid product price." };
   }
 
+  const productId = String(formData.get("productId")).trim();
+  const existingProduct = products().find((product) => product.id === productId);
+  const uploadedImage = await fileToDataUrl(formData.get("productImageFile"));
+  const productImage = uploadedImage || String(formData.get("productImageUrl")).trim() || existingProduct?.productImage || "";
+
   return {
     ok: true,
     payload: {
-      id: String(formData.get("productId")).trim() || createId("product"),
+      id: productId || createId("product"),
       sellerId: seller.id,
       storeName: seller.storeName,
       productName: String(formData.get("productName")).trim(),
@@ -518,6 +553,7 @@ function buildProductPayload(formData) {
       productPrice: price,
       productStock: String(formData.get("productStock")).trim(),
       productOffer: String(formData.get("productDeal")).trim(),
+      productImage,
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }
@@ -559,6 +595,28 @@ function resetOfferForm() {
   document.getElementById("saveOfferBtn").textContent = "Save Offer";
 }
 
+function setSellerView(view) {
+  const panels = document.querySelectorAll("[data-seller-panel]");
+  const buttons = document.querySelectorAll("[data-seller-view]");
+  const nav = document.getElementById("sellerWorkspaceNav");
+  const toggle = document.getElementById("sellerWorkspaceToggle");
+
+  panels.forEach((panel) => {
+    panel.classList.toggle("seller-dashboard-hidden", view !== "overview" && panel.dataset.sellerPanel !== view);
+  });
+
+  buttons.forEach((button) => {
+    const active = button.dataset.sellerView === view;
+    button.classList.toggle("button-primary", active);
+    button.classList.toggle("button-ghost", !active);
+  });
+
+  if (nav && toggle) {
+    nav.classList.remove("is-open");
+    toggle.setAttribute("aria-expanded", "false");
+  }
+}
+
 function bindForms() {
   document.getElementById("sellerRegistrationForm").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -571,10 +629,9 @@ function bindForms() {
 
     const seller = result.payload;
     writeStorage(STORAGE_KEYS.sellers, [...sellers(), seller]);
-    setCurrentSeller(seller);
     event.currentTarget.reset();
-    showDashboard();
-    showToast("Registration successful. Welcome to your seller dashboard!", "success");
+    toggleForms(false);
+    showToast("Registration sent. Please wait for admin approval before logging in.", "success");
   });
 
   document.getElementById("sellerLoginForm").addEventListener("submit", (event) => {
@@ -589,6 +646,12 @@ function bindForms() {
       return;
     }
 
+    if (seller.status !== "approved") {
+      document.getElementById("loginStatus").textContent = "Your seller account is waiting for admin approval.";
+      showToast("Your seller account is pending approval.", "warn");
+      return;
+    }
+
     setCurrentSeller(seller);
     event.currentTarget.reset();
     document.getElementById("loginStatus").textContent = "";
@@ -596,10 +659,10 @@ function bindForms() {
     showToast("Login successful. You can now manage your store.", "success");
   });
 
-  document.getElementById("productForm").addEventListener("submit", (event) => {
+  document.getElementById("productForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const result = buildProductPayload(formData);
+    const result = await buildProductPayload(formData);
     if (!result.ok) {
       showToast(result.message, "warn");
       return;
@@ -650,6 +713,16 @@ function bindActions() {
     hideDashboard();
     toggleForms(true);
     showToast("Logged out successfully.", "info");
+  });
+
+  document.getElementById("sellerWorkspaceToggle").addEventListener("click", () => {
+    const nav = document.getElementById("sellerWorkspaceNav");
+    const isOpen = nav.classList.toggle("is-open");
+    document.getElementById("sellerWorkspaceToggle").setAttribute("aria-expanded", String(isOpen));
+  });
+
+  document.querySelectorAll("[data-seller-view]").forEach((button) => {
+    button.addEventListener("click", () => setSellerView(button.dataset.sellerView));
   });
 }
 
