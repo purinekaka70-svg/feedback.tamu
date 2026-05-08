@@ -814,6 +814,26 @@ body.seller-dashboard-active .footer {
   overflow-wrap: anywhere;
 }
 
+.order-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.order-detail-panel {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid rgba(21, 128, 61, 0.14);
+  border-radius: 12px;
+  background: rgba(240, 253, 244, 0.72);
+}
+
 .mini-list-card {
   display: flex;
   align-items: center;
@@ -858,15 +878,16 @@ body.seller-dashboard-active .footer {
 #productList,
 #offerList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 7px;
   align-items: stretch;
 }
 
 .seller-catalog-card {
   align-content: start;
-  gap: 7px;
-  padding: 8px;
+  gap: 4px;
+  min-height: 174px;
+  padding: 6px;
   border-radius: 12px;
   background: #fff;
   border-color: rgba(17, 24, 39, 0.1);
@@ -880,14 +901,18 @@ body.seller-dashboard-active .footer {
 }
 
 .seller-catalog-card .seller-product-media {
-  min-height: 112px;
-  height: 112px;
-  border-radius: 10px;
-  font-size: 0.76rem;
+  position: relative;
+  min-height: 88px;
+  height: 88px;
+  border-radius: 8px;
+  font-size: 0.66rem;
+  background: #f8fafc;
 }
 
 .seller-catalog-card .seller-product-media img {
-  height: 112px;
+  height: 88px;
+  object-fit: contain;
+  background: #f8fafc;
 }
 
 .seller-catalog-copy {
@@ -898,23 +923,24 @@ body.seller-dashboard-active .footer {
 
 .seller-catalog-copy strong {
   display: -webkit-box;
-  min-height: 2.25em;
+  min-height: 2.1em;
   overflow: hidden;
-  font-size: 0.88rem;
-  line-height: 1.25;
+  font-size: 0.74rem;
+  line-height: 1.18;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .seller-catalog-price {
   color: #ef4444;
-  font-size: 0.98rem;
+  font-size: 0.84rem;
   font-weight: 950;
 }
 
 .seller-catalog-tag {
   overflow: hidden;
   color: var(--accent-strong);
+  font-size: 0.6rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -922,15 +948,31 @@ body.seller-dashboard-active .footer {
 .seller-catalog-card .button-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: auto;
 }
 
 .seller-catalog-card .button {
-  min-height: 30px;
-  padding-inline: 8px;
-  border-radius: 8px;
-  font-size: 0.74rem;
+  min-height: 27px;
+  padding-inline: 5px;
+  border-radius: 7px;
+  font-size: 0.64rem;
+}
+
+.seller-catalog-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 900;
+  box-shadow: 0 6px 14px rgba(17, 24, 39, 0.16);
 }
 
 .seller-offer-card {
@@ -1267,6 +1309,10 @@ body.seller-dashboard-active .footer {
   }
 
   .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-toolbar {
     grid-template-columns: 1fr;
   }
 

@@ -1,31 +1,14 @@
 let cachedApplications = [];
+let cachedProducts = [];
+let cachedCategories = [];
+let cachedOffers = [];
 const STORAGE_KEYS = {
-  cart: "tamu_market_cart",
-  sellers: "tamu_market_sellers",
-  categories: "tamu_market_categories",
-  sellerApplications: "tamu_market_seller_applications",
-  sellerProducts: "tamu_market_seller_products",
-  sellerOffers: "tamu_market_seller_offers",
-  sellerDrafts: "tamu_market_seller_drafts",
+  cartSession: "tamu_market_cart_session",
   buyerProfile: "tamu_market_buyer_profile",
-  adminSession: "tamu_market_admin_session"
+  adminSession: "tamu_market_admin_session",
+  previewState: "tamu_market_preview_state"
 };
 
-const ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
-};
-
-const defaultCategories = [
-  "Beverages",
-  "Drinks",
-  "Groceries",
-  "Fresh Foods",
-  "Household",
-  "Snacks",
-  "Dairy",
-  "Wholesale Packs"
-];
 const fallbackLocationImages = [
   "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=70",
   "https://images.unsplash.com/photo-1543168256-418811576931?auto=format&fit=crop&w=900&q=70",
@@ -90,12 +73,24 @@ const categoryImagePools = {
 const state = {
   selectedType: "all",
   selectedCategory: "all",
-  focusedLocation: "all",
-  focusedStoreId: "all",
-  focusedBusinessCategory: "all",
+  focusedLocation: readStorage(STORAGE_KEYS.previewState, {}).focusedLocation || "all",
+  focusedStoreId: readStorage(STORAGE_KEYS.previewState, {}).focusedStoreId || "all",
+  focusedBusinessCategory: readStorage(STORAGE_KEYS.previewState, {}).focusedBusinessCategory || "all",
+  activeShopStoreId: readStorage(STORAGE_KEYS.previewState, {}).activeShopStoreId || "",
+  shopQuery: readStorage(STORAGE_KEYS.previewState, {}).shopQuery || "",
+  locationSearch: "",
   search: "",
-  cart: readStorage(STORAGE_KEYS.cart, [])
+  cart: []
 };
+
+function cartSessionId() {
+  let id = window.localStorage.getItem(STORAGE_KEYS.cartSession);
+  if (!id) {
+    id = createId("cart-session");
+    window.localStorage.setItem(STORAGE_KEYS.cartSession, id);
+  }
+  return id;
+}
 
 function readStorage(key, fallback) {
   try {
@@ -106,52 +101,6 @@ function readStorage(key, fallback) {
   }
 }
 
-function portalSellers() {
-  return readStorage("tamu_sellers", [])
-    .filter((seller) => seller.status === "approved")
-    .map((seller) => {
-      const [latitude = "", longitude = ""] = String(seller.coordinates || "")
-        .split(",")
-        .map((part) => part.trim());
-
-      return {
-        id: seller.id,
-        storeName: seller.name || seller.email || "Approved seller",
-        businessType: seller.businessType || "retail",
-        location: seller.coordinates || "Seller location",
-        latitude,
-        longitude,
-        prepTime: seller.prepTime || "30-60 min",
-        paymentOptions: seller.paymentOptions || ["M-Pesa", "Cash on Delivery"],
-        status: "approved"
-      };
-    });
-}
-
-function portalProducts() {
-  const stores = new Map(portalSellers().map((seller) => [seller.id, seller]));
-
-  return readStorage("tamu_products", [])
-    .filter((product) => stores.has(product.sellerId))
-    .map((product) => {
-      const store = stores.get(product.sellerId);
-
-      return {
-        id: product.id,
-        storeId: product.sellerId,
-        storeName: product.sellerName || store.storeName,
-        productName: product.name || "Seller product",
-        productCategory: product.category || "Other",
-        productPrice: Number(product.price) || 0,
-        productStock: product.stock || "Available",
-        productOffer: product.offer || "",
-        productImage: product.image || "",
-        createdAt: product.createdAt || new Date().toISOString(),
-        updatedAt: product.updatedAt || product.createdAt || new Date().toISOString()
-      };
-    });
-}
-
 function writeStorage(key, value) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
@@ -160,33 +109,138 @@ function writeStorage(key, value) {
   }
 }
 
-function seedCategories() {
-  if (!readStorage(STORAGE_KEYS.categories, null)) {
-    writeStorage(STORAGE_KEYS.categories, defaultCategories);
+async function postJson(url, payload) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, data };
+  } catch (error) {
+    return { ok: false, data: { ok: false, message: "Backend service is unavailable." } };
   }
 }
 
-function migrateLegacyProducts() {
-  const currentProducts = readStorage(STORAGE_KEYS.sellerProducts, null);
-  if (currentProducts !== null) {
-    return;
+async function loadCartFromBackend() {
+  try {
+    const response = await fetch(`./api/cart/index.php?sessionId=${encodeURIComponent(cartSessionId())}`, { cache: "no-store" });
+    const data = await response.json();
+    state.cart = response.ok && data.ok
+      ? (data.items || []).map((item) => ({
+          productId: String(item.product_id || item.productId || ""),
+          quantity: Number(item.quantity || 1)
+        })).filter((item) => item.productId)
+      : [];
+  } catch (error) {
+    state.cart = [];
   }
+}
 
-  const legacyDrafts = readStorage(STORAGE_KEYS.sellerDrafts, []);
-  const convertedProducts = legacyDrafts.map((draft) => ({
-    id: draft.id,
-    storeId: draft.storeId || "",
-    storeName: draft.storeName || "",
-    productName: draft.productName || "",
-    productCategory: draft.productCategory || "",
-    productPrice: Number(draft.productPrice) || 0,
-    productStock: draft.productStock || "",
-    productOffer: draft.productDeal || "",
-    createdAt: draft.createdAt || new Date().toISOString(),
-    updatedAt: draft.updatedAt || draft.createdAt || new Date().toISOString()
-  }));
+async function saveCartItemToBackend(productId, quantity) {
+  const product = getProduct(productId);
+  if (!product) return;
+  await postJson("./api/cart/index.php", {
+    sessionId: cartSessionId(),
+    productId,
+    businessId: product.storeId,
+    quantity
+  });
+}
 
-  writeStorage(STORAGE_KEYS.sellerProducts, convertedProducts);
+async function clearCartBackend() {
+  try {
+    await fetch("./api/cart/index.php", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: cartSessionId() })
+    });
+  } catch (error) {
+    // Backend errors are surfaced when cart reloads.
+  }
+}
+
+function createId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
+
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "item";
+}
+
+function normalizeBusinessRecord(record = {}) {
+  const name = String(record.name || record.storeName || record.businessName || record.email || "Business").trim();
+  const location = String(record.location || record.county || record.locationName || record.locationId || "Unknown location").trim();
+  const type = String(record.type || record.businessType || "retail").trim().toLowerCase();
+  const logo = record.logo || record.logoImage || record.businessImage || record.image || "";
+
+  return {
+    ...record,
+    name,
+    storeName: record.storeName || name,
+    locationId: record.locationId || slugify(location),
+    location,
+    county: record.county || location,
+    type,
+    businessType: record.businessType || type,
+    logo,
+    logoImage: record.logoImage || logo,
+    rating: Number(record.rating) || 4.5
+  };
+}
+
+function normalizeProductRecord(product = {}) {
+  const businessId = String(product.businessId || product.storeId || product.sellerId || "").trim();
+  const categoryName = String(product.categoryName || product.productCategory || product.category || "Other").trim();
+  const categoryId = product.categoryId || `${businessId || "business"}-${slugify(categoryName)}`;
+  const name = String(product.name || product.productName || "Product").trim();
+  const image = product.image || product.productImage || "";
+  const price = Number(product.price ?? product.productPrice) || 0;
+  const stock = String(product.stock || product.productStock || "In stock").trim();
+  const offerFlag = Boolean(product.offerFlag || product.isOffer || product.productOffer);
+  const productOffer = product.productOffer || product.offerText || product.offer || (offerFlag ? "Offer" : "");
+
+  return {
+    ...product,
+    businessId,
+    sellerId: product.sellerId || businessId,
+    storeId: product.storeId || businessId,
+    businessName: product.businessName || product.storeName || product.sellerName || "",
+    sellerName: product.sellerName || product.storeName || product.businessName || "",
+    storeName: product.storeName || product.businessName || product.sellerName || "",
+    categoryId,
+    categoryName,
+    productCategory: product.productCategory || categoryName,
+    name,
+    productName: product.productName || name,
+    image,
+    productImage: product.productImage || image,
+    price,
+    productPrice: price,
+    stock,
+    productStock: stock,
+    offerFlag,
+    productOffer
+  };
+}
+
+function savePreviewState() {
+  writeStorage(STORAGE_KEYS.previewState, {
+    selectedType: state.selectedType,
+    selectedCategory: state.selectedCategory,
+    focusedLocation: state.focusedLocation,
+    focusedStoreId: state.focusedStoreId,
+    focusedBusinessCategory: state.focusedBusinessCategory,
+    activeShopStoreId: state.activeShopStoreId,
+    shopQuery: state.shopQuery,
+    search: state.search,
+    updatedAt: new Date().toISOString()
+  });
 }
 
 function currency(value) {
@@ -205,10 +259,8 @@ function normalizePaymentOptions(options) {
 }
 
 function applications() {
-  const localSellers = readStorage(STORAGE_KEYS.sellers, []);
-  const localApplications = readStorage(STORAGE_KEYS.sellerApplications, []);
   const byId = new Map();
-  [...cachedApplications, ...localApplications, ...localSellers, ...portalSellers()].forEach((application) => {
+  [...cachedApplications].forEach((application) => {
     const key = application.id || application.email;
     if (!key) return;
     const current = byId.get(key) || {};
@@ -218,32 +270,33 @@ function applications() {
     }
     byId.set(key, merged);
   });
-  return [...byId.values()];
+  return [...byId.values()].map(normalizeBusinessRecord);
 }
 
 async function loadMarketData() {
   try {
-    const res = await fetch('./api/admin/applications.php?status=approved');
+    const res = await fetch('./api/marketplace/list.php', { cache: 'no-store' });
     if (!res.ok) {
       return;
     }
     const data = await res.json();
     if (data.ok) {
-      cachedApplications = data.applications || [];
+      cachedApplications = data.businesses || [];
+      cachedProducts = (data.products || []).map(normalizeProductRecord);
+      cachedCategories = data.categories || [];
+      cachedOffers = data.offers || [];
     }
   } catch (error) {
     cachedApplications = [];
+    cachedProducts = [];
+    cachedCategories = [];
+    cachedOffers = [];
   }
 }
 
 function sellerProducts() {
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
-  const localProducts = readStorage(STORAGE_KEYS.sellerProducts, []).map((product) => ({
-    ...product,
-    storeId: product.storeId || product.sellerId || "",
-    storeName: product.storeName || product.sellerName || ""
-  })).filter((product) => approvedStoreIds.has(product.storeId));
-  const merged = [...localProducts, ...portalProducts().filter((product) => approvedStoreIds.has(product.storeId))];
+  const merged = cachedProducts.filter((product) => approvedStoreIds.has(product.storeId));
   return merged.filter((product, index, list) =>
     list.findIndex((item) => item.id === product.id) === index
   );
@@ -251,9 +304,9 @@ function sellerProducts() {
 
 function sellerOffers() {
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
-  return readStorage(STORAGE_KEYS.sellerOffers, []).map((offer) => ({
+  return cachedOffers.map((offer) => ({
     ...offer,
-    storeId: offer.storeId || offer.sellerId || "",
+    storeId: String(offer.storeId || offer.sellerId || offer.businessId || ""),
     title: offer.title || offer.offerTitle || "",
     note: offer.note || offer.offerNote || "",
     image: offer.image || offer.offerImage || ""
@@ -307,6 +360,25 @@ function fallbackImageFor(value, pool = fallbackLocationImages) {
   const text = String(value || "market");
   const index = [...text].reduce((sum, char) => sum + char.charCodeAt(0), 0) % pool.length;
   return pool[index];
+}
+
+function escapeAttribute(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function cardImageHtml(src, alt, fallbackSeed = "market image") {
+  const image = src || fallbackImageFor(fallbackSeed);
+  const safeImage = escapeAttribute(image);
+  const safeAlt = escapeAttribute(alt || "Marketplace image");
+  const fallback = escapeAttribute(fallbackImageFor(fallbackSeed));
+  return `
+    <img src="${safeImage}" alt="${safeAlt}" loading="lazy" decoding="async" data-fallback-src="${fallback}" data-view-image data-image-title="${safeAlt}">
+    <button class="image-view-button" type="button" data-view-image data-image-src="${safeImage}" data-image-title="${safeAlt}" aria-label="View ${safeAlt} image">View</button>
+  `;
 }
 
 function normalizeBusinessType(value) {
@@ -403,7 +475,9 @@ function locationCardImage(location, stores, storeProducts = []) {
 }
 
 function currentCategories() {
-  const storedCategories = readStorage(STORAGE_KEYS.categories, defaultCategories);
+  const storedCategories = cachedCategories
+    .map((category) => typeof category === "string" ? category : category?.name)
+    .filter(Boolean);
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
   const liveCategories = sellerProducts()
     .filter((product) => approvedStoreIds.has(product.storeId))
@@ -466,18 +540,6 @@ function visibleProducts() {
 
 function catalogOffers() {
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
-  const explicitOffers = sellerOffers()
-    .filter((offer) => approvedStoreIds.has(offer.storeId))
-    .map((offer) => ({
-      id: offer.id,
-      storeId: offer.storeId,
-      title: offer.offerTitle,
-      note: offer.offerNote,
-      expires: offer.offerExpiry,
-      image: offer.image || offer.offerImage || "",
-      productId: ""
-    }));
-
   const productOffers = sellerProducts()
     .filter((product) => approvedStoreIds.has(product.storeId) && product.productOffer)
     .map((product) => ({
@@ -489,8 +551,20 @@ function catalogOffers() {
       image: product.productImage || "",
       productId: product.id
     }));
-
-  return [...explicitOffers, ...productOffers];
+  const standaloneOffers = sellerOffers()
+    .filter((offer) => approvedStoreIds.has(offer.storeId))
+    .map((offer) => ({
+      id: offer.id,
+      storeId: offer.storeId,
+      title: offer.title,
+      note: offer.note,
+      expires: offer.expires || offer.offerExpiry || "Active offer",
+      image: offer.image || "",
+      productId: offer.productId || ""
+    }));
+  return [...productOffers, ...standaloneOffers].filter((offer, index, list) =>
+    list.findIndex((item) => item.id === offer.id) === index
+  );
 }
 
 function visibleOffers() {
@@ -528,6 +602,36 @@ function haversineDistanceKm(from, to) {
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatDistance(distanceKm) {
+  const distance = Number(distanceKm);
+  if (!Number.isFinite(distance)) {
+    return "Distance pending";
+  }
+  if (distance < 1) {
+    return `${Math.round(distance * 1000)} m`;
+  }
+  return `${distance.toFixed(1)} km`;
+}
+
+function calculateAffordableDeliveryFee(distanceKm) {
+  const distance = Math.max(0, Number(distanceKm) || 0);
+  let fee;
+
+  if (distance <= 2) {
+    fee = 40 + distance * 20;
+  } else if (distance <= 5) {
+    fee = 80 + (distance - 2) * 20;
+  } else if (distance <= 10) {
+    fee = 150 + (distance - 5) * 25;
+  } else if (distance <= 20) {
+    fee = 300 + (distance - 10) * 18;
+  } else {
+    fee = 500 + (distance - 20) * 20;
+  }
+
+  return Math.min(1000, Math.max(40, Math.round(fee / 10) * 10));
+}
+
 function buildDeliverySummary(cartItems, profile = buyerProfile()) {
   if (!cartItems.length) {
     return {
@@ -560,22 +664,39 @@ function buildDeliverySummary(cartItems, profile = buyerProfile()) {
       .map((product) => product.storeId)
   )];
 
-  const fee = uniqueStoreIds.reduce((sum, storeId) => {
+  const breakdown = uniqueStoreIds.map((storeId) => {
     const store = getStore(storeId);
     if (!store) {
-      return sum;
+      return null;
+    }
+    const storeLatitude = Number(store.latitude);
+    const storeLongitude = Number(store.longitude);
+    if (!Number.isFinite(storeLatitude) || !Number.isFinite(storeLongitude)) {
+      return null;
     }
 
     const distanceKm = haversineDistanceKm(buyerPoint, {
-      latitude: Number(store.latitude),
-      longitude: Number(store.longitude)
+      latitude: storeLatitude,
+      longitude: storeLongitude
     });
-    return sum + Math.max(120, Math.round((90 + distanceKm * 28) / 10) * 10);
-  }, 0);
+    const fee = calculateAffordableDeliveryFee(distanceKm);
+    return {
+      storeId: store.id,
+      storeName: store.storeName,
+      distanceKm,
+      distanceText: formatDistance(distanceKm),
+      fee
+    };
+  }).filter(Boolean);
+
+  const consolidationFee = breakdown.length > 1 ? (breakdown.length - 1) * 25 : 0;
+  const fee = breakdown.reduce((sum, entry) => sum + entry.fee, 0) + consolidationFee;
 
   return {
     subtotal,
     fee,
+    breakdown,
+    consolidationFee,
     label: currency(fee)
   };
 }
@@ -597,6 +718,101 @@ function availableCheckoutMethods(cartItems) {
 
   const first = methodsByStore[0];
   return first.filter((method) => methodsByStore.every((storeMethods) => storeMethods.includes(method)));
+}
+
+async function createLocalOrderFromStore(storeId) {
+  const store = getStore(storeId);
+  const storeCart = state.cart.filter((item) => {
+    const product = getProduct(item.productId);
+    return product && product.storeId === storeId;
+  });
+
+  if (!store || !storeCart.length) {
+    showToast("Add an item from this business first.", "warn");
+    return;
+  }
+
+  const profile = buyerProfile();
+  const delivery = buildDeliverySummary(storeCart, profile);
+  const items = storeCart
+    .map((item) => {
+      const product = getProduct(item.productId);
+      if (!product) return null;
+      return {
+        productId: product.id,
+        businessId: store.id,
+        categoryId: product.categoryId,
+        name: product.productName,
+        productName: product.productName,
+        categoryName: product.productCategory,
+        storeId: store.id,
+        storeName: store.storeName,
+        quantity: item.quantity,
+        price: product.productPrice,
+        unitPrice: product.productPrice,
+        total: product.productPrice * item.quantity,
+        lineTotal: product.productPrice * item.quantity
+      };
+    })
+    .filter(Boolean);
+  const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+  const mpesaRef = profile.mpesaReference || "";
+  const order = {
+    id: createId("order"),
+    userId: profile.userId || profile.phone || "guest",
+    customer: profile.fullName || "Customer",
+    mpesaName: profile.mpesaName || profile.fullName || "Customer",
+    mpesaNumber: profile.phone || "",
+    paymentRef: mpesaRef,
+    mpesaReference: mpesaRef,
+    phone: profile.phone || "",
+    buyerLocation: profile.location || "Location pending",
+    buyerLatitude: Number(profile.latitude) || "",
+    buyerLongitude: Number(profile.longitude) || "",
+    paymentMethod: "Business direct payment",
+    paymentStatus: "pending_payment",
+    status: "pending_payment",
+    deliveryStatus: "pending",
+    storeName: store.storeName,
+    stores: [store.storeName],
+    subtotal,
+    deliveryFee: delivery.fee || 0,
+    total: subtotal + Number(delivery.fee || 0),
+    routeBreakdown: delivery.breakdown || [],
+    businessPayments: [{
+      storeId: store.id,
+      storeName: store.storeName,
+      amount: subtotal,
+      method: "M-Pesa",
+      reference: mpesaRef,
+      tillNumber: storeTillNumber(store),
+      pochiNumber: storePochiNumber(store),
+      bankAccount: storeCardAccount(store),
+      status: mpesaRef ? "submitted" : "pending_payment"
+    }],
+    sellerPaymentStatus: {
+      [store.id]: mpesaRef ? "submitted" : "pending_payment"
+    },
+    deliveryPayment: {
+      tillNumber: "7312380",
+      amount: delivery.fee || 0,
+      reference: mpesaRef,
+      status: mpesaRef ? "submitted" : "pending_payment"
+    },
+    items,
+    sessionId: cartSessionId(),
+    createdAt: new Date().toISOString()
+  };
+
+  const response = await postJson('./api/orders/create.php', order);
+  if (!response.ok || response.data?.ok === false) {
+    showToast(response.data?.message || "Order submission failed.", "warn");
+    return;
+  }
+  state.cart = [];
+  await clearCartBackend();
+  renderCartSummary();
+  showToast("Order placed. Admin and seller can see it now.", "success");
 }
 
 function storeTillNumber(store) {
@@ -621,7 +837,6 @@ function sanitizeCart() {
   const cleanCart = state.cart.filter((item) => validProducts.has(item.productId));
   if (cleanCart.length !== state.cart.length) {
     state.cart = cleanCart;
-    writeStorage(STORAGE_KEYS.cart, cleanCart);
   }
 }
 
@@ -708,25 +923,33 @@ function initAdminTrigger() {
     button.addEventListener("click", closeModal);
   });
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
-
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+    try {
+      const response = await fetch('./api/admin/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        status.textContent = result.message || "Invalid admin credentials.";
+        return;
+      }
       window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
       status.textContent = "Login successful. Redirecting...";
       window.setTimeout(() => {
         window.location.href = "./admin.html";
       }, 450);
-      return;
+    } catch (error) {
+      status.textContent = "Admin login service is unavailable.";
     }
-
-    status.textContent = "Invalid admin credentials.";
   });
 }
 
-function addToCart(productId) {
+async function addToCart(productId) {
   const product = getProduct(productId);
   if (!product || !getStore(product.storeId)) {
     showToast("This product is not available right now.", "warn");
@@ -740,7 +963,9 @@ function addToCart(productId) {
     state.cart.push({ productId, quantity: 1 });
   }
 
-  writeStorage(STORAGE_KEYS.cart, state.cart);
+  const nextQuantity = state.cart.find((item) => item.productId === productId)?.quantity || 1;
+  await saveCartItemToBackend(productId, nextQuantity);
+  savePreviewState();
   renderCartSummary();
   showToast("Item added to cart.");
 }
@@ -767,8 +992,10 @@ function renderTypeFilters() {
   container.querySelectorAll("[data-type]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedType = button.dataset.type;
+      state.focusedLocation = "all";
       state.focusedStoreId = "all";
       state.focusedBusinessCategory = "all";
+      savePreviewState();
       renderMarket();
     });
   });
@@ -790,7 +1017,10 @@ function renderCategoryFilters() {
   container.querySelectorAll("[data-category]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedCategory = button.dataset.category;
+      state.focusedLocation = "all";
+      state.focusedStoreId = "all";
       state.focusedBusinessCategory = "all";
+      savePreviewState();
       renderMarket();
     });
   });
@@ -810,12 +1040,12 @@ function renderDeals() {
       const store = getStore(offer.storeId);
       const button = offer.productId
         ? `<button class="button button-primary button-small" data-offer-product="${offer.productId}" type="button">Add offer</button>`
-        : `<button class="button button-outline button-small" data-offer-store="${offer.storeId}" type="button">View store</button>`;
+        : `<button class="button button-outline button-small" data-offer-store="${offer.storeId}" type="button">Open store</button>`;
 
       return `
         <article class="deal-card">
           <div class="deal-visual">
-            ${offer.image ? `<img src="${offer.image}" alt="${offer.title}">` : `<span>${offer.title.charAt(0)}</span>`}
+            ${cardImageHtml(offer.image, offer.title, offer.title)}
           </div>
           <div class="deal-copy">
             <div class="deal-head">
@@ -834,8 +1064,8 @@ function renderDeals() {
     .join("");
 
   container.querySelectorAll("[data-offer-product]").forEach((button) => {
-    button.addEventListener("click", () => {
-      addToCart(button.dataset.offerProduct);
+    button.addEventListener("click", async () => {
+      await addToCart(button.dataset.offerProduct);
     });
   });
 
@@ -845,8 +1075,9 @@ function renderDeals() {
       state.focusedLocation = store ? String(store.location || store.county || state.focusedLocation) : state.focusedLocation;
       state.focusedStoreId = button.dataset.offerStore;
       state.focusedBusinessCategory = "all";
+      savePreviewState();
       renderMarket();
-      document.getElementById("productGrid").scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 }
@@ -866,11 +1097,21 @@ function renderStores() {
     const query = state.search.toLowerCase();
     return matchesType && (!query || String(store.storeName || "").toLowerCase().includes(query) || String(store.location || store.county || "").toLowerCase().includes(query));
   });
+  const locationQuery = state.locationSearch.trim().toLowerCase();
   const profile = buyerProfile();
   const hasBuyerCoordinates =
     Number.isFinite(Number(profile.latitude)) && Number.isFinite(Number(profile.longitude));
 
-  summary.textContent = state.focusedLocation === "all" ? `${allStores.length} businesses by location` : `${list.length} sellers visible`;
+  summary.textContent = state.focusedStoreId !== "all"
+    ? "Business selected"
+    : state.focusedLocation === "all"
+      ? `${new Set(allStores.map((store) => String(store.location || store.county || "Unknown location")).filter((location) => !locationQuery || location.toLowerCase().includes(locationQuery))).size} locations`
+      : `${list.length} businesses`;
+
+  if (state.focusedStoreId !== "all") {
+    container.innerHTML = "";
+    return;
+  }
 
   if (state.focusedLocation === "all") {
     const grouped = allStores.reduce((map, store) => {
@@ -881,12 +1122,16 @@ function renderStores() {
       return map;
     }, new Map());
 
-    if (!grouped.size) {
-      container.innerHTML = '<div class="card">No approved sellers match the current filters yet.</div>';
+    const locationEntries = [...grouped.entries()].filter(([location]) =>
+      !locationQuery || location.toLowerCase().includes(locationQuery)
+    );
+
+    if (!locationEntries.length) {
+      container.innerHTML = '<div class="card location-empty-state">No locations match your search.</div>';
       return;
     }
 
-    container.innerHTML = [...grouped.entries()].map(([location, stores]) => {
+    container.innerHTML = locationEntries.map(([location, stores]) => {
       const storeProducts = sellerProducts().filter((product) => stores.some((store) => store.id === product.storeId));
       const productCount = storeProducts.length;
       const locationImage = locationCardImage(location, stores, storeProducts);
@@ -897,17 +1142,11 @@ function renderStores() {
       return `
         <article class="store-card location-card">
           <div class="location-card-media">
-            <img src="${image}" alt="${location} businesses">
+            ${cardImageHtml(image, `${location} businesses`, location)}
           </div>
           <div class="compact-card-body">
             <div>
-              <p class="eyebrow">Location</p>
               <h3>${location}</h3>
-            </div>
-            <span class="market-type-badge market-type-badge--${locationImage.type}">${locationImage.label}</span>
-            <p>${productCount} products across ${categories.length || 1} aisles.</p>
-            <div class="tag-row">
-              ${categories.slice(0, 3).map((category) => `<span class="store-chip">${category}</span>`).join("")}
             </div>
             <div class="compact-card-footer">
               <span class="summary-chip">${stores.length} businesses</span>
@@ -921,8 +1160,12 @@ function renderStores() {
     container.querySelectorAll("[data-focus-location]").forEach((button) => {
       button.addEventListener("click", () => {
         state.focusedLocation = button.dataset.focusLocation;
+        state.locationSearch = "";
         state.focusedStoreId = "all";
         state.focusedBusinessCategory = "all";
+        state.activeShopStoreId = "";
+        state.shopQuery = "";
+        savePreviewState();
         renderMarket();
       });
     });
@@ -935,16 +1178,8 @@ function renderStores() {
   }
 
   container.innerHTML = `
-    <article class="store-card">
-      <div class="section-head">
-        <strong>${state.focusedLocation}</strong>
-        <button class="button button-outline button-small" data-clear-location type="button">All locations</button>
-      </div>
-    </article>
     ${list
     .map((store) => {
-      const county = store.county || store.location || state.focusedLocation || "Location";
-      const localArea = store.location || store.county || "Business location";
       const paymentLabel = storeTillNumber(store)
         ? `Till ${storeTillNumber(store)}`
         : storePochiNumber(store)
@@ -959,33 +1194,28 @@ function renderStores() {
       const deliveryLabel = store.deliveryAvailability || store.deliveryStatus || "Delivery available";
       const categories = [...new Set(storeProducts.map((product) => product.productCategory).filter(Boolean))];
       const description = store.description || store.deliveryNotes || `${categories.slice(0, 3).join(", ") || "Retail and wholesale items"} from ${store.storeName}.`;
-
       return `
         <article class="store-card business-directory-card ${state.focusedStoreId === store.id ? "is-active" : ""}">
           <div class="business-logo">
-              ${image ? `<img src="${image}" alt="${store.storeName}">` : `<span>${String(store.storeName || "S").charAt(0)}</span>`}
+              ${cardImageHtml(image, store.storeName, store.storeName)}
           </div>
           <div class="compact-card-body">
             <div class="business-card-title-row">
               <h3>${store.storeName}</h3>
               <span class="business-rating">★ ${storeRating(store, productCount)}</span>
             </div>
-            <p class="business-description">${description}</p>
             <div class="business-meta-row">
-              <span>${county}</span>
-              <span>${localArea}</span>
               <span>${productCount} items</span>
-            </div>
-            <div class="business-meta-row">
               <span>${deliveryLabel}</span>
-              <span>${paymentLabel}</span>
             </div>
+            <span class="market-type-badge">${store.businessType || "Retail"}</span>
             <div class="compact-card-footer">
               <a class="business-cart-button" href="./cart.html" aria-label="Open cart for ${store.storeName}">Cart</a>
               <button class="button button-primary business-menu-button" data-focus-store="${store.id}" type="button">
-                ${state.focusedStoreId === store.id ? "Close" : "View"}
+                Open
               </button>
             </div>
+            <button class="button button-outline button-small shop-here-button" data-shop-store="${store.id}" type="button">Shop Here</button>
           </div>
         </article>
       `;
@@ -996,6 +1226,7 @@ function renderStores() {
     state.focusedLocation = "all";
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
+    savePreviewState();
     renderMarket();
   });
 
@@ -1003,8 +1234,23 @@ function renderStores() {
     button.addEventListener("click", () => {
       state.focusedStoreId = state.focusedStoreId === button.dataset.focusStore ? "all" : button.dataset.focusStore;
       state.focusedBusinessCategory = "all";
+      state.activeShopStoreId = "";
+      state.shopQuery = "";
+      savePreviewState();
       renderMarket();
-      document.getElementById("productGrid").scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  container.querySelectorAll("[data-shop-store]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeShopStoreId = button.dataset.shopStore;
+      state.focusedStoreId = button.dataset.shopStore;
+      state.focusedBusinessCategory = "all";
+      state.shopQuery = "";
+      savePreviewState();
+      renderMarket();
+      document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 }
@@ -1025,13 +1271,88 @@ function renderProducts() {
     }
     return;
   }
+  const selectedStore = getStore(state.focusedStoreId);
+  const isShopMode = state.activeShopStoreId === state.focusedStoreId;
+  if (isShopMode && selectedStore) {
+    const query = state.shopQuery.trim().toLowerCase();
+    const matches = sellerProducts().filter((product) => {
+      if (product.storeId !== selectedStore.id) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return `${product.productName} ${product.productCategory} ${product.description || ""} ${product.productOffer || ""}`
+        .toLowerCase()
+        .includes(query);
+    });
+    const offerMatches = matches.filter((product) => product.productOffer);
+    const regularMatches = matches.filter((product) => !product.productOffer);
+
+    summary.textContent = `${matches.length} item${matches.length === 1 ? "" : "s"} in ${selectedStore.storeName}`;
+    container.innerHTML = `
+      <section class="shop-mode-panel">
+        <div class="shop-mode-head">
+          <div>
+            <p class="eyebrow">Shop Here</p>
+            <h3>${selectedStore.storeName}</h3>
+            <p class="tiny">${selectedStore.location || selectedStore.county || "Selected business"} | Search this store only</p>
+          </div>
+          <button class="button button-primary button-small" data-shop-place-order="${selectedStore.id}" type="button">Place Order</button>
+        </div>
+        <label class="field shop-mode-search">
+          <span class="field-label">What do you want to buy?</span>
+          <input class="input shop-here-input" data-shop-search="${selectedStore.id}" type="search" value="${state.shopQuery}" placeholder="Search rice, sugar, phone, drinks..." />
+        </label>
+      </section>
+      ${offerMatches.length ? `
+        <section class="business-offers-first">
+          <div class="section-head shelf-head">
+            <div>
+              <p class="eyebrow">Offers</p>
+              <h3>Promotions</h3>
+            </div>
+            <span class="summary-chip">${offerMatches.length} deal${offerMatches.length === 1 ? "" : "s"}</span>
+          </div>
+          <div class="product-grid product-grid--shelf">
+            ${offerMatches.map((product) => productCardHtml(product)).join("")}
+          </div>
+        </section>
+      ` : ""}
+      ${regularMatches.length ? `
+        <section class="standard-products-section">
+          <div class="section-head shelf-head">
+            <div>
+              <p class="eyebrow">Products</p>
+              <h3>Regular items</h3>
+            </div>
+            <span class="summary-chip">${regularMatches.length} item${regularMatches.length === 1 ? "" : "s"}</span>
+          </div>
+          <div class="product-grid product-grid--shelf shop-mode-grid">
+            ${regularMatches.map((product) => productCardHtml(product)).join("")}
+          </div>
+        </section>
+      ` : ""}
+      ${!matches.length ? '<div class="card empty-shop-result">No matching products in this business.</div>' : ""}
+    `;
+    bindProductCardActions(container);
+    bindShopModeActions(container);
+    window.setTimeout(() => {
+      const input = container.querySelector(`[data-shop-search="${state.activeShopStoreId}"]`);
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
+    }, 0);
+    return;
+  }
   const list = visibleProducts();
+  const offerProducts = list.filter((product) => product.productOffer);
+  const regularProducts = list.filter((product) => !product.productOffer);
   summary.textContent =
     state.focusedStoreId === "all"
-      ? `${list.length} products`
+      ? `${regularProducts.length} products`
       : state.focusedBusinessCategory === "all"
-        ? `${new Set(list.map((product) => product.productCategory || "Other")).size} categories from selected seller`
-        : `${list.length} products in ${state.focusedBusinessCategory}`;
+        ? `${new Set(regularProducts.map((product) => product.productCategory || "Other")).size} categories from selected seller`
+        : `${regularProducts.length} products in ${state.focusedBusinessCategory}`;
 
   if (!list.length) {
     container.innerHTML = '<div class="card">No products match the current filters yet.</div>';
@@ -1039,7 +1360,7 @@ function renderProducts() {
   }
 
   if (state.focusedStoreId !== "all") {
-    const grouped = list.reduce((map, product) => {
+    const grouped = regularProducts.reduce((map, product) => {
       const key = product.productCategory || "Other";
       const current = map.get(key) || [];
       current.push(product);
@@ -1047,9 +1368,49 @@ function renderProducts() {
       return map;
     }, new Map());
 
+    if (state.focusedBusinessCategory === "all") {
+      container.innerHTML = `
+        ${offerProducts.length ? `
+          <section class="business-offers-first">
+            <div class="section-head shelf-head">
+              <div>
+                <p class="eyebrow">Offers</p>
+                <h3>Deals from this business</h3>
+              </div>
+              <span class="summary-chip">${offerProducts.length} offer${offerProducts.length === 1 ? "" : "s"}</span>
+            </div>
+            <div class="product-grid product-grid--shelf">
+              ${offerProducts.map((product) => productCardHtml(product)).join("")}
+            </div>
+          </section>
+        ` : ""}
+        ${grouped.size ? `
+          <div class="category-card-grid">
+            ${[...grouped.entries()].map(([category, products]) => {
+            const imageProduct = products.find((product) => product.productImage) || products[0];
+            return `
+              <article class="category-market-card" role="button" tabindex="0" data-open-business-category="${escapeAttribute(category)}">
+                <div class="category-card-image">
+                  ${cardImageHtml(imageProduct?.productImage || "", category, category)}
+                </div>
+                <div class="category-card-copy">
+                  <strong>${category}</strong>
+                  <span>${products.length} item${products.length === 1 ? "" : "s"}</span>
+                </div>
+              </article>
+            `;
+            }).join("")}
+          </div>
+        ` : ""}
+      `;
+      bindProductCardActions(container);
+      bindCategoryCardActions(container);
+      return;
+    }
+
     const shelfEntries = state.focusedBusinessCategory === "all"
       ? [...grouped.entries()]
-      : [[state.focusedBusinessCategory, list]];
+      : [[state.focusedBusinessCategory, regularProducts]];
 
     container.innerHTML = shelfEntries.map(([category, products]) => `
       <section class="category-shelf supermarket-shelf">
@@ -1060,38 +1421,172 @@ function renderProducts() {
           </div>
           <span class="summary-chip">${products.length} item${products.length === 1 ? "" : "s"}</span>
         </div>
-        <div class="product-grid product-grid--shelf">
+        <div class="product-grid product-grid--shelf product-row-scroll">
           ${products.map((product) => productCardHtml(product)).join("")}
         </div>
       </section>
     `).join("");
   } else {
-    container.innerHTML = list.map(productCardHtml).join("");
+    container.innerHTML = regularProducts.length
+      ? regularProducts.map(productCardHtml).join("")
+      : '<div class="card">No regular products match the current filters.</div>';
   }
 
-  container.querySelectorAll("[data-add-product]").forEach((button) => {
-    button.addEventListener("click", () => {
-      addToCart(button.dataset.addProduct);
+  bindProductCardActions(container);
+}
+
+function bindCategoryCardActions(container) {
+  container.querySelectorAll("[data-open-business-category]").forEach((button) => {
+    const openCategory = (event) => {
+      if (event.target.closest("[data-view-image]")) {
+        return;
+      }
+      state.focusedBusinessCategory = button.dataset.openBusinessCategory;
+      savePreviewState();
+      renderMarket();
+      document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    button.addEventListener("click", openCategory);
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openCategory(event);
+      }
     });
   });
 }
 
+function bindProductCardActions(container) {
+  container.querySelectorAll("[data-add-product], [data-shop-add-product]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await addToCart(button.dataset.addProduct || button.dataset.shopAddProduct);
+    });
+  });
+  container.querySelectorAll("[data-view-product]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const product = getProduct(button.dataset.viewProduct);
+      if (!product) return;
+      openImageViewer(product.productImage || fallbackImageFor(product.productName || product.productCategory), product.productName);
+    });
+  });
+}
+
+function bindShopModeActions(container) {
+  container.querySelectorAll("[data-shop-search]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.activeShopStoreId = input.dataset.shopSearch;
+      state.focusedStoreId = input.dataset.shopSearch;
+      state.shopQuery = input.value;
+      renderMarket();
+    });
+  });
+
+  container.querySelectorAll("[data-shop-place-order]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await createLocalOrderFromStore(button.dataset.shopPlaceOrder);
+    });
+  });
+}
+
+function openImageViewer(src, title) {
+  if (!src) {
+    return;
+  }
+  let modal = document.getElementById("imageViewerModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "imageViewerModal";
+    modal.className = "image-viewer is-closed";
+    modal.setAttribute("aria-hidden", "true");
+    modal.innerHTML = `
+      <div class="image-viewer-overlay" data-close-image-viewer></div>
+      <figure class="image-viewer-dialog" role="dialog" aria-modal="true" aria-label="Image preview">
+        <button class="image-viewer-close" type="button" data-close-image-viewer aria-label="Close image preview">X</button>
+        <img id="imageViewerImage" src="" alt="">
+        <figcaption id="imageViewerCaption"></figcaption>
+      </figure>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  const image = modal.querySelector("#imageViewerImage");
+  const caption = modal.querySelector("#imageViewerCaption");
+  image.src = src;
+  image.alt = title || "Marketplace image";
+  caption.textContent = title || "Marketplace image";
+  window.requestAnimationFrame(() => {
+    modal.classList.remove("is-closed");
+  });
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("is-image-viewing");
+}
+
+function closeImageViewer() {
+  const modal = document.getElementById("imageViewerModal");
+  if (!modal) {
+    return;
+  }
+  modal.classList.add("is-closed");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("is-image-viewing");
+}
+
+function initImageViewer() {
+  document.addEventListener("click", (event) => {
+    const closeTrigger = event.target.closest("[data-close-image-viewer]");
+    if (closeTrigger) {
+      closeImageViewer();
+      return;
+    }
+
+    const trigger = event.target.closest("[data-view-image]");
+    if (!trigger) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const src = trigger.dataset.imageSrc || trigger.currentSrc || trigger.src;
+    openImageViewer(src, trigger.dataset.imageTitle || trigger.alt || "Marketplace image");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeImageViewer();
+    }
+  });
+
+  document.addEventListener("error", (event) => {
+    const image = event.target;
+    if (!(image instanceof HTMLImageElement) || !image.dataset.fallbackSrc || image.dataset.fallbackApplied) {
+      return;
+    }
+    image.dataset.fallbackApplied = "true";
+    image.src = image.dataset.fallbackSrc;
+  }, true);
+}
+
 function productCardHtml(product) {
   const store = getStore(product.storeId);
+  const isOffer = Boolean(product.productOffer);
+  const badge = isOffer ? "HOT DEAL" : "New";
   return `
-    <article class="product-card supermarket-product-card">
+    <article class="product-card supermarket-product-card ${isOffer ? "is-offer-product" : ""}">
       <div class="product-visual">
-        ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}">` : `<span>${product.productCategory}</span>`}
+        ${cardImageHtml(product.productImage, product.productName, product.productName || product.productCategory)}
+        <span class="product-card-badge">${badge}</span>
       </div>
       <div class="product-head">
         <div>
           <h3>${product.productName}</h3>
-          <p class="tiny">${product.productCategory || "Product"} | ${store ? store.storeName : "Seller"}</p>
+          <p class="tiny">${product.productCategory || "Product"}</p>
         </div>
       </div>
       <strong class="product-price">${currency(product.productPrice)}</strong>
-      ${product.productOffer ? `<p class="product-offer-label">${product.productOffer}</p>` : '<p class="product-offer-label product-offer-label--muted">Everyday item</p>'}
-      <button class="button button-primary button-small" data-add-product="${product.id}" type="button">Add to cart</button>
+      ${product.productOffer ? `<p class="product-offer-label">${product.productOffer}</p>` : ""}
+      <div class="product-card-actions">
+        <button class="button button-primary button-small" data-add-product="${product.id}" type="button">Add</button>
+        <button class="button button-outline button-small" data-view-product="${product.id}" type="button">View</button>
+      </div>
     </article>
   `;
 }
@@ -1147,6 +1642,9 @@ function renderMarket() {
   ) {
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
+    state.activeShopStoreId = "";
+    state.shopQuery = "";
+    savePreviewState();
   }
 
   if (
@@ -1156,6 +1654,7 @@ function renderMarket() {
     )
   ) {
     state.focusedBusinessCategory = "all";
+    savePreviewState();
   }
 
   renderTypeFilters();
@@ -1164,11 +1663,61 @@ function renderMarket() {
   renderStores();
   renderProducts();
   renderCartSummary();
+  updateMarketplaceViewShell();
+  savePreviewState();
+}
+
+function updateMarketplaceViewShell() {
+  const browseControlsSection = document.getElementById("browseControlsSection");
+  const filters = document.querySelector(".filter-stack")?.closest(".hero, .card, article");
+  const offersSection = document.getElementById("offersSection");
+  const marketSection = document.getElementById("marketBrowserSection");
+  const productSection = document.getElementById("productBrowserSection");
+  const marketTitle = marketSection?.querySelector(".section-title");
+  const marketEyebrow = marketSection?.querySelector(".eyebrow");
+  const locationSearchWrap = document.getElementById("locationSearchWrap");
+  const productTitle = productSection?.querySelector(".section-title");
+  const productBackButton = document.getElementById("productBackButton");
+  const marketBackButton = document.getElementById("marketBackButton");
+  const selectedStore = getStore(state.focusedStoreId);
+
+  browseControlsSection?.classList.add("is-hidden");
+  offersSection?.classList.add("is-hidden");
+  filters?.classList.add("is-hidden");
+  marketSection?.classList.toggle("is-hidden", state.focusedStoreId !== "all");
+  productSection?.classList.toggle("is-hidden", state.focusedStoreId === "all");
+  locationSearchWrap?.classList.toggle("is-hidden", state.focusedLocation !== "all" || state.focusedStoreId !== "all");
+
+  if (marketTitle) {
+    marketTitle.textContent = state.focusedLocation === "all" ? "Choose your location." : "Choose a business.";
+  }
+  if (marketEyebrow) {
+    marketEyebrow.textContent = state.focusedLocation === "all" ? "Locations" : state.focusedLocation;
+  }
+  if (productTitle) {
+    productTitle.textContent = selectedStore && state.activeShopStoreId === selectedStore.id
+      ? `Shop ${selectedStore.storeName}.`
+      : selectedStore && state.focusedBusinessCategory !== "all"
+        ? `${state.focusedBusinessCategory}.`
+      : selectedStore
+        ? `${selectedStore.storeName} categories.`
+        : "Products.";
+  }
+  if (productBackButton) {
+    productBackButton.textContent = state.focusedBusinessCategory !== "all" ? "Back to categories" : "Back to businesses";
+  }
+  marketBackButton?.classList.toggle("is-hidden", state.focusedLocation === "all" || state.focusedStoreId !== "all");
 }
 
 function bindEvents() {
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) {
+    searchInput.value = state.search;
+  }
+
   document.getElementById("searchInput").addEventListener("input", (event) => {
     state.search = event.target.value.trim();
+    savePreviewState();
     renderMarket();
   });
 
@@ -1178,33 +1727,85 @@ function bindEvents() {
     state.focusedLocation = "all";
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
+    state.locationSearch = "";
     state.search = "";
     document.getElementById("searchInput").value = "";
+    savePreviewState();
     renderMarket();
   });
 
+  document.getElementById("marketBackButton")?.addEventListener("click", () => {
+    state.focusedLocation = "all";
+    state.locationSearch = "";
+    state.focusedStoreId = "all";
+    state.focusedBusinessCategory = "all";
+    state.activeShopStoreId = "";
+    state.shopQuery = "";
+    savePreviewState();
+    renderMarket();
+  });
+
+  document.getElementById("productBackButton")?.addEventListener("click", () => {
+    if (state.focusedBusinessCategory !== "all") {
+      state.focusedBusinessCategory = "all";
+    } else {
+      state.focusedStoreId = "all";
+      state.activeShopStoreId = "";
+      state.shopQuery = "";
+    }
+    savePreviewState();
+    renderMarket();
+  });
+
+  const locationSearchInput = document.getElementById("locationSearchInput");
+  if (locationSearchInput) {
+    locationSearchInput.value = state.locationSearch;
+    locationSearchInput.addEventListener("input", (event) => {
+      state.locationSearch = event.target.value;
+      renderMarket();
+      window.setTimeout(() => {
+        const input = document.getElementById("locationSearchInput");
+        input?.focus();
+        input?.setSelectionRange(input.value.length, input.value.length);
+      }, 0);
+    });
+  }
+
   const clearCartButton = document.getElementById("clearCartButton");
   if (clearCartButton) {
-    clearCartButton.addEventListener("click", () => {
+    clearCartButton.addEventListener("click", async () => {
       state.cart = [];
-      writeStorage(STORAGE_KEYS.cart, state.cart);
+      await clearCartBackend();
+      savePreviewState();
       renderCartSummary();
       showToast("Cart cleared.", "warn");
     });
   }
 
   window.addEventListener("storage", () => {
-    state.cart = readStorage(STORAGE_KEYS.cart, []);
+    const savedState = readStorage(STORAGE_KEYS.previewState, {});
+    state.focusedLocation = savedState.focusedLocation || state.focusedLocation;
+    state.focusedStoreId = savedState.focusedStoreId || state.focusedStoreId;
+    state.focusedBusinessCategory = savedState.focusedBusinessCategory || state.focusedBusinessCategory;
+    state.activeShopStoreId = savedState.activeShopStoreId || "";
+    state.shopQuery = savedState.shopQuery || "";
+    state.selectedType = "all";
+    state.selectedCategory = "all";
+    state.search = "";
+    const search = document.getElementById("searchInput");
+    if (search) {
+      search.value = state.search;
+    }
     renderMarket();
   });
 }
 
 async function boot() {
-  seedCategories();
-  migrateLegacyProducts();
   await loadMarketData();
+  await loadCartFromBackend();
   initReveal();
   initAdminTrigger();
+  initImageViewer();
   bindEvents();
   renderMarket();
 }

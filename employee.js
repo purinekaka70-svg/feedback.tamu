@@ -1,24 +1,8 @@
 const EMPLOYEE_KEYS = {
-  adminOrders: "tamu_market_admin_orders",
   employeeSession: "tamu_market_employee_session",
   employeeAccounts: "tamu_market_employee_accounts",
-  adminPhone: "tamu_market_admin_phone",
-  sellers: "tamu_market_sellers",
-  sellerApplications: "tamu_market_seller_applications",
-  legacySellers: "tamu_sellers"
+  adminPhone: "tamu_market_admin_phone"
 };
-
-const defaultEmployees = [
-  {
-    id: "employee-demo-1",
-    name: "Delivery Employee",
-    email: "employee@tamu.local",
-    password: "delivery123",
-    phone: "254700000000",
-    status: "active",
-    role: "rider"
-  }
-];
 
 const employeeViewMeta = {
   dashboard: "Dashboard",
@@ -36,6 +20,8 @@ let activeEmployeeView = "dashboard";
 let employeeMap = null;
 let routeLayer = null;
 let markerLayer = null;
+let cachedEmployeeOrders = [];
+let cachedBusinesses = [];
 
 function readStorage(key, fallback) {
   try {
@@ -51,12 +37,6 @@ function writeStorage(key, value) {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     return;
-  }
-}
-
-function ensureEmployeeSeed() {
-  if (!readStorage(EMPLOYEE_KEYS.employeeAccounts, null)) {
-    writeStorage(EMPLOYEE_KEYS.employeeAccounts, defaultEmployees);
   }
 }
 
@@ -85,13 +65,6 @@ function showToast(message, tone = "success") {
   window.setTimeout(() => toast.remove(), 2600);
 }
 
-function passwordMatches(account, password) {
-  if (!account) return false;
-  if (account.password && account.password === password) return true;
-  if (account.passwordHash && account.passwordHash === window.btoa(password)) return true;
-  return false;
-}
-
 function firebaseConfig() {
   if (window.tamuFirebaseConfig) {
     return window.tamuFirebaseConfig;
@@ -117,10 +90,8 @@ async function loadFirebaseEmployees() {
 }
 
 async function employeeAccounts() {
-  ensureEmployeeSeed();
-  const localAccounts = readStorage(EMPLOYEE_KEYS.employeeAccounts, defaultEmployees);
   const firebaseAccounts = await loadFirebaseEmployees();
-  return [...firebaseAccounts, ...localAccounts].filter((account, index, list) =>
+  return [...firebaseAccounts].filter((account, index, list) =>
     list.findIndex((item) => (item.id && item.id === account.id) || (item.email && item.email === account.email)) === index
   );
 }
@@ -130,9 +101,53 @@ function isEmployeeActive(account) {
   return status === "active" || status === "approved" || account?.approved === true;
 }
 
+async function loadEmployeeOrders() {
+  try {
+    const [orderRes, marketRes] = await Promise.all([
+      fetch('./api/orders/list.php', { cache: 'no-store' }),
+      fetch('./api/marketplace/list.php', { cache: 'no-store' })
+    ]);
+    const orderData = await orderRes.json();
+    const marketData = await marketRes.json();
+    cachedEmployeeOrders = orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
+    cachedBusinesses = marketRes.ok && marketData.ok ? (marketData.businesses || []) : [];
+  } catch (error) {
+    cachedEmployeeOrders = [];
+    cachedBusinesses = [];
+  }
+}
+
 async function findEmployeeByEmail(email) {
   const accounts = await employeeAccounts();
   return accounts.find((account) => String(account.email || "").toLowerCase() === email.toLowerCase());
+}
+
+async function signInEmployee(email, password) {
+  const config = firebaseConfig();
+  if (!config || !window.firebase?.auth || !window.firebase?.firestore) {
+    return { ok: false, message: "Firebase Auth is not configured." };
+  }
+
+  if (!window.firebase.apps.length) {
+    window.firebase.initializeApp(config);
+  }
+
+  try {
+    const credential = await window.firebase.auth().signInWithEmailAndPassword(email, password);
+    const user = credential.user;
+    const doc = await window.firebase.firestore().collection("employees").doc(user.uid).get();
+    const data = doc.exists ? doc.data() : await findEmployeeByEmail(email);
+    const account = { id: user.uid, uid: user.uid, email: user.email, ...data };
+
+    if (!isEmployeeActive(account)) {
+      await window.firebase.auth().signOut();
+      return { ok: false, message: "Employee account is not approved." };
+    }
+
+    return { ok: true, account };
+  } catch (error) {
+    return { ok: false, message: "Invalid employee credentials or Firebase Auth failed." };
+  }
 }
 
 function showLogin() {
@@ -145,19 +160,48 @@ function showDashboard() {
   document.getElementById("employeeDashboardView")?.classList.remove("is-hidden");
 }
 
+function normalizeOrderItem(item = {}) {
+  const businessId = item.businessId || item.storeId || item.sellerId || "";
+  const name = item.name || item.productName || "Product";
+  const price = Number(item.price ?? item.unitPrice ?? item.productPrice) || 0;
+  const quantity = Number(item.quantity || 1);
+  const total = Number(item.total ?? item.lineTotal ?? price * quantity) || 0;
+
+  return {
+    ...item,
+    productId: item.productId || item.id || "",
+    businessId,
+    sellerId: item.sellerId || businessId,
+    storeId: item.storeId || businessId,
+    categoryId: item.categoryId || "",
+    name,
+    productName: item.productName || name,
+    quantity,
+    price,
+    unitPrice: Number(item.unitPrice ?? price) || 0,
+    total,
+    lineTotal: Number(item.lineTotal ?? total) || 0
+  };
+}
+
 function normalizeOrder(order) {
-  const subtotal = Number(order.subtotal || asArray(order.items).reduce((sum, item) => sum + Number(item.lineTotal || 0), 0));
+  const items = asArray(order.items).map(normalizeOrderItem);
+  const subtotal = Number(order.subtotal || items.reduce((sum, item) => sum + Number(item.lineTotal || item.total || 0), 0));
   const deliveryFee = Number(order.deliveryFee || order.deliveryPayment?.amount || 0);
   const total = Number(order.total || subtotal + deliveryFee);
+  const paymentRef = order.paymentRef || order.mpesaReference || order.deliveryPayment?.reference || "";
   return {
     ...order,
     id: order.id || order.publicId || `order-${Date.now()}`,
+    userId: order.userId || order.customerId || order.phone || "guest",
     customer: order.customer || order.customerName || "Customer",
     phone: order.phone || order.customerPhone || order.mpesaNumber || "",
     buyerLocation: order.buyerLocation || order.location || "Customer location pending",
+    paymentRef,
+    mpesaReference: order.mpesaReference || paymentRef,
     status: String(order.status || "pending_payment").toLowerCase(),
     deliveryStatus: String(order.deliveryStatus || order.status || "pending").toLowerCase(),
-    items: asArray(order.items),
+    items,
     businessPayments: asArray(order.businessPayments),
     subtotal,
     deliveryFee,
@@ -166,19 +210,15 @@ function normalizeOrder(order) {
 }
 
 function orders() {
-  return readStorage(EMPLOYEE_KEYS.adminOrders, []).map(normalizeOrder);
+  return cachedEmployeeOrders.map(normalizeOrder);
 }
 
 function saveOrders(nextOrders) {
-  writeStorage(EMPLOYEE_KEYS.adminOrders, nextOrders.map(normalizeOrder));
+  cachedEmployeeOrders = nextOrders.map(normalizeOrder);
 }
 
 function applications() {
-  return [
-    ...readStorage(EMPLOYEE_KEYS.sellers, []),
-    ...readStorage(EMPLOYEE_KEYS.sellerApplications, []),
-    ...readStorage(EMPLOYEE_KEYS.legacySellers, [])
-  ];
+  return cachedBusinesses;
 }
 
 function currentEmployeeId() {
@@ -261,6 +301,11 @@ function updateOrder(orderId, patch) {
     : order);
   saveOrders(nextOrders);
   renderEmployee();
+  fetch('./api/orders/update.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: orderId, status: patch.status })
+  }).catch(() => {});
 }
 
 function acceptDelivery(orderId) {
@@ -520,6 +565,21 @@ function closeEmployeeMenu() {
   document.body.classList.remove("employee-menu-open");
 }
 
+function closeOtherMenusForEmployee() {
+  document.querySelectorAll(".admin-sidebar.is-open, .seller-workspace-nav.is-open, .seller-sidebar[data-open='true']")
+    .forEach((menu) => {
+      menu.classList.remove("is-open");
+      if (menu.dataset.open) {
+        menu.dataset.open = "false";
+      }
+    });
+  document.querySelectorAll(".admin-sidebar-overlay.is-open, .seller-menu-overlay.is-open, .seller-sidebar-overlay.is-open")
+    .forEach((overlay) => overlay.classList.remove("is-open"));
+  document.querySelectorAll("#adminMenuToggle, #sellerWorkspaceToggle, .seller-menu-toggle")
+    .forEach((button) => button.setAttribute("aria-expanded", "false"));
+  document.body.classList.remove("admin-menu-open", "seller-menu-open", "legacy-seller-menu-open");
+}
+
 function setEmployeeView(view) {
   activeEmployeeView = employeeViewMeta[view] ? view : "dashboard";
   document.getElementById("employeeViewTitle").textContent = employeeViewMeta[activeEmployeeView];
@@ -539,7 +599,14 @@ function bindNavigation() {
   const toggle = document.getElementById("employeeMenuToggle");
   const sidebar = document.getElementById("employeeSidebar");
   const overlay = document.getElementById("employeeSidebarOverlay");
+  if (toggle?.dataset.bound === "true") {
+    return;
+  }
+  if (toggle) {
+    toggle.dataset.bound = "true";
+  }
   toggle?.addEventListener("click", () => {
+    closeOtherMenusForEmployee();
     const isOpen = sidebar.classList.toggle("is-open");
     overlay.classList.toggle("is-open", isOpen);
     toggle.setAttribute("aria-expanded", String(isOpen));
@@ -561,22 +628,25 @@ function bindNavigation() {
     renderEmployee();
     showToast("Orders refreshed.");
   });
-  document.getElementById("employeeLogoutButton")?.addEventListener("click", () => {
+  document.getElementById("employeeLogoutButton")?.addEventListener("click", async () => {
+    if (window.firebase?.auth) {
+      await window.firebase.auth().signOut().catch(() => {});
+    }
     window.localStorage.removeItem(EMPLOYEE_KEYS.employeeSession);
     currentEmployee = null;
     showLogin();
   });
-  window.addEventListener("storage", (event) => {
-    if (event.key === EMPLOYEE_KEYS.adminOrders) {
-      renderEmployee();
-    }
-  });
+  window.setInterval(async () => {
+    if (!currentEmployee) return;
+    await loadEmployeeOrders();
+    renderEmployee();
+  }, 12000);
 }
 
 async function restoreSession() {
   const session = readStorage(EMPLOYEE_KEYS.employeeSession, null);
   if (!session?.email) return false;
-  const account = await findEmployeeByEmail(session.email);
+  const account = await findEmployeeByEmail(session.email) || session;
   if (!account || !isEmployeeActive(account)) return false;
   currentEmployee = account;
   return true;
@@ -590,13 +660,14 @@ function bindLogin() {
     const formData = new FormData(form);
     const email = String(formData.get("email") || "").trim();
     const password = String(formData.get("password") || "").trim();
-    const account = await findEmployeeByEmail(email);
+    const result = await signInEmployee(email, password);
 
-    if (!account || !isEmployeeActive(account) || !passwordMatches(account, password)) {
-      status.textContent = "Invalid employee credentials or account is not active.";
+    if (!result.ok) {
+      status.textContent = result.message;
       return;
     }
 
+    const account = result.account;
     currentEmployee = account;
     writeStorage(EMPLOYEE_KEYS.employeeSession, {
       id: account.id,
@@ -613,7 +684,7 @@ function bindLogin() {
 }
 
 async function boot() {
-  ensureEmployeeSeed();
+  await loadEmployeeOrders();
   bindLogin();
   bindNavigation();
 

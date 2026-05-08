@@ -13,16 +13,19 @@ $password = trim_string($payload['password']);
 
 try {
     $pdo = tamu_pdo();
+    if (!table_exists($pdo, 'users')) {
+        json_response(['ok' => false, 'message' => 'Users table is not installed.'], 500);
+    }
     $statement = $pdo->prepare(
-        'SELECT id, username, display_name, password_hash
-         FROM admins
-         WHERE username = :username
-         LIMIT 1'
+        "SELECT id, email, name, password
+         FROM users
+         WHERE email = :username AND role = 'admin' AND status IN ('approved', 'active')
+         LIMIT 1"
     );
     $statement->execute(['username' => $username]);
     $admin = $statement->fetch();
 
-    if (!$admin || !password_verify($password, $admin['password_hash'])) {
+    if (!$admin || !password_verify($password, (string) $admin['password'])) {
         json_response([
             'ok' => false,
             'message' => 'Invalid admin credentials.',
@@ -30,15 +33,15 @@ try {
     }
 
     session_start();
-    $_SESSION['admin_id'] = (int) $admin['id'];
+    $_SESSION['admin_id'] = $admin['id'];
 
     json_response([
         'ok' => true,
         'message' => 'Admin login successful.',
         'admin' => [
-            'id' => (int) $admin['id'],
-            'username' => $admin['username'],
-            'displayName' => $admin['display_name'],
+            'id' => $admin['id'],
+            'username' => $admin['email'],
+            'displayName' => $admin['name'],
         ],
     ]);
 } catch (PDOException $error) {

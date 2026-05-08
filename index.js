@@ -3,14 +3,6 @@ const STORAGE_KEYS = {
 };
 
 const ADMIN_LOGIN_ENDPOINT = "./api/admin/login.php";
-const LOCAL_ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
-};
-
-function isLocalAdmin(username, password) {
-  return username === LOCAL_ADMIN_CREDENTIALS.username && password === LOCAL_ADMIN_CREDENTIALS.password;
-}
 
 function openAdminDashboard(status) {
   window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
@@ -77,11 +69,6 @@ function initAdminTrigger() {
       return;
     }
 
-    if (isLocalAdmin(username, password)) {
-      openAdminDashboard(status);
-      return;
-    }
-
     status.textContent = "Checking credentials...";
 
     try {
@@ -101,7 +88,7 @@ function initAdminTrigger() {
 
       status.textContent = data && data.message ? data.message : "Invalid admin credentials.";
     } catch (error) {
-      status.textContent = "Could not reach admin login service. Use the local admin credentials.";
+      status.textContent = "Could not reach admin login service.";
     }
 
   });

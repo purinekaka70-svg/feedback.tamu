@@ -1,22 +1,20 @@
 ﻿const STORAGE_KEYS = {
-  sellers: "tamu_market_sellers",
-  sellerApplications: "tamu_market_seller_applications",
   currentSeller: "tamu_market_current_seller",
-  categories: "tamu_market_categories",
-  sellerCategories: "tamu_market_seller_categories",
-  sellerProducts: "tamu_market_seller_products",
-  sellerOffers: "tamu_market_seller_offers",
-  adminOrders: "tamu_market_admin_orders",
   adminSession: "tamu_market_admin_session"
-};
-
-const ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
 };
 
 let map;
 let marker;
+let cachedProducts = [];
+let cachedOrders = [];
+let cachedCategories = [];
+let cachedOffers = [];
+const sellerOrderFilters = {
+  search: "",
+  status: "all",
+  payment: "all",
+  date: "all"
+};
 
 function readStorage(key, fallback) {
   try {
@@ -37,6 +35,73 @@ function writeStorage(key, value) {
 
 function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+}
+
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "item";
+}
+
+function normalizeProductRecord(product = {}) {
+  const businessId = String(product.businessId || product.storeId || product.sellerId || "").trim();
+  const categoryName = String(product.categoryName || product.productCategory || product.category || "Other").trim();
+  const categoryId = product.categoryId || `${businessId || "business"}-${slugify(categoryName)}`;
+  const name = String(product.name || product.productName || "Product").trim();
+  const image = product.image || product.productImage || "";
+  const price = Number(product.price ?? product.productPrice) || 0;
+  const stock = String(product.stock || product.productStock || "In stock").trim();
+  const offerFlag = Boolean(product.offerFlag || product.isOffer || product.productOffer);
+  const productOffer = product.productOffer || product.offerText || product.offer || (offerFlag ? "Offer" : "");
+
+  return {
+    ...product,
+    businessId,
+    sellerId: product.sellerId || businessId,
+    storeId: product.storeId || businessId,
+    businessName: product.businessName || product.storeName || product.sellerName || "",
+    sellerName: product.sellerName || product.storeName || product.businessName || "",
+    storeName: product.storeName || product.businessName || product.sellerName || "",
+    categoryId,
+    categoryName,
+    productCategory: product.productCategory || categoryName,
+    name,
+    productName: product.productName || name,
+    image,
+    productImage: product.productImage || image,
+    price,
+    productPrice: price,
+    stock,
+    productStock: stock,
+    offerFlag,
+    productOffer
+  };
+}
+
+function normalizeOrderItem(item = {}) {
+  const businessId = item.businessId || item.storeId || item.sellerId || "";
+  const name = item.name || item.productName || "Product";
+  const price = Number(item.price ?? item.unitPrice ?? item.productPrice) || 0;
+  const quantity = Number(item.quantity || 1);
+  const total = Number(item.total ?? item.lineTotal ?? price * quantity) || 0;
+
+  return {
+    ...item,
+    productId: item.productId || item.id || "",
+    businessId,
+    sellerId: item.sellerId || businessId,
+    storeId: item.storeId || businessId,
+    categoryId: item.categoryId || "",
+    name,
+    productName: item.productName || name,
+    quantity,
+    price,
+    unitPrice: Number(item.unitPrice ?? price) || 0,
+    total,
+    lineTotal: Number(item.lineTotal ?? total) || 0
+  };
 }
 
 async function postJson(url, payload) {
@@ -240,23 +305,17 @@ function toggleForms(showRegistration) {
 }
 
 function showDashboard() {
-  const sessionSeller = currentSeller();
-  if (!sessionSeller) {
+  const seller = currentSeller();
+  if (!seller) {
     return;
   }
-  const latestSeller = allSellerRecords().find((record) =>
-    record.id === sessionSeller.id || record.email === sessionSeller.email
-  ) || sessionSeller;
 
-  if (!isSellerActive(latestSeller)) {
+  if (!isSellerActive(seller)) {
     setCurrentSeller(null);
     toggleForms(false);
     document.getElementById("loginStatus").textContent = "Your seller account is not approved yet.";
     return;
   }
-
-  const seller = syncApprovedSellerRecord(latestSeller);
-  setCurrentSeller(seller);
 
   document.body.classList.add("seller-dashboard-active");
   document.getElementById("sellerAuthSection").classList.add("is-hidden");
@@ -352,55 +411,55 @@ function initAdminTrigger() {
     button.addEventListener("click", closeModal);
   });
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
-
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+    try {
+      const response = await fetch('./api/admin/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        status.textContent = result.message || "Invalid admin credentials.";
+        return;
+      }
       window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
       status.textContent = "Login successful. Redirecting...";
       window.setTimeout(() => {
         window.location.href = "./admin.html";
       }, 450);
-      return;
+    } catch (error) {
+      status.textContent = "Admin login service is unavailable.";
     }
-
-    status.textContent = "Invalid admin credentials.";
   });
-}
-
-function sellers() {
-  return readStorage(STORAGE_KEYS.sellers, []);
-}
-
-function sellerApplications() {
-  return readStorage(STORAGE_KEYS.sellerApplications, []);
-}
-
-function allSellerRecords() {
-  const byEmail = new Map();
-  [...sellers(), ...sellerApplications()].forEach((record) => {
-    const key = String(record.email || record.id || "").trim().toLowerCase();
-    if (!key) return;
-    const current = byEmail.get(key) || {};
-    const merged = { ...current, ...record };
-    if (current.status === "approved" || record.status === "approved") {
-      merged.status = "approved";
-      merged.approvedAt = record.approvedAt || current.approvedAt;
-      merged.activatedAt = record.activatedAt || current.activatedAt;
-      merged.expiresAt = record.expiresAt || current.expiresAt;
-    }
-    if (!merged.password && current.password) {
-      merged.password = current.password;
-    }
-    byEmail.set(key, merged);
-  });
-  return [...byEmail.values()];
 }
 
 function currentSeller() {
   return readStorage(STORAGE_KEYS.currentSeller, null);
+}
+
+async function loadSellerData() {
+  const seller = currentSeller();
+  try {
+    const [marketRes, orderRes] = await Promise.all([
+      fetch('./api/marketplace/list.php', { cache: 'no-store' }),
+      fetch(`./api/orders/list.php${seller ? `?businessId=${encodeURIComponent(seller.id)}` : ''}`, { cache: 'no-store' })
+    ]);
+    const marketData = await marketRes.json();
+    const orderData = await orderRes.json();
+    cachedProducts = marketRes.ok && marketData.ok ? (marketData.products || []) : [];
+    cachedCategories = marketRes.ok && marketData.ok ? (marketData.categories || []) : [];
+    cachedOffers = marketRes.ok && marketData.ok ? (marketData.offers || []) : [];
+    cachedOrders = orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
+  } catch (error) {
+    cachedProducts = [];
+    cachedCategories = [];
+    cachedOffers = [];
+    cachedOrders = [];
+  }
 }
 
 function isSellerActive(seller) {
@@ -422,56 +481,43 @@ function setCurrentSeller(seller) {
   writeStorage(STORAGE_KEYS.currentSeller, seller);
 }
 
-function passwordMatches(seller, password) {
-  if (!seller || !password) {
-    return false;
-  }
-
-  if (seller.password === password) {
-    return true;
-  }
-
-  try {
-    return atob(seller.password) === password;
-  } catch (error) {
-    return false;
-  }
-}
-
-function syncApprovedSellerRecord(seller) {
-  const currentSellers = sellers();
-  const existing = currentSellers.find((item) => item.id === seller.id || item.email === seller.email);
-  const nextSeller = { ...existing, ...seller };
-
-  if (existing) {
-    writeStorage(STORAGE_KEYS.sellers, currentSellers.map((item) =>
-      item.id === existing.id || item.email === existing.email ? nextSeller : item
-    ));
-  } else {
-    writeStorage(STORAGE_KEYS.sellers, [...currentSellers, nextSeller]);
-  }
-
-  writeStorage(STORAGE_KEYS.sellerApplications, sellerApplications().map((item) =>
-    item.id === seller.id || item.email === seller.email ? { ...item, ...nextSeller } : item
-  ));
-
-  return nextSeller;
-}
-
 function products() {
-  return readStorage(STORAGE_KEYS.sellerProducts, []);
+  const seller = currentSeller();
+  return cachedProducts
+    .map(normalizeProductRecord)
+    .filter((product) => !seller || product.storeId === seller.id || product.businessId === seller.id);
 }
 
 function offers() {
-  return readStorage(STORAGE_KEYS.sellerOffers, []);
+  return cachedOffers.map((offer) => ({
+    ...offer,
+    id: String(offer.id || offer.publicId || ""),
+    sellerId: String(offer.sellerId || offer.storeId || offer.businessId || ""),
+    storeId: String(offer.storeId || offer.sellerId || offer.businessId || ""),
+    storeName: offer.storeName || offer.businessName || "",
+    offerTitle: offer.offerTitle || offer.title || offer.productName || "Offer",
+    offerNote: offer.offerNote || offer.note || offer.productOffer || "Store offer",
+    offerExpiry: offer.offerExpiry || offer.expires || "Active offer",
+    offerImage: offer.offerImage || offer.image || offer.productImage || ""
+  }));
 }
 
 function sellerCategories() {
-  return readStorage(STORAGE_KEYS.sellerCategories, []);
+  const seller = currentSeller();
+  return cachedCategories
+    .map((category) => ({
+      id: category.id || category.name,
+      businessId: category.businessId || "",
+      sellerId: category.businessId || "",
+      storeName: seller?.storeName || "",
+      name: category.name || category,
+      image: category.image || ""
+    }))
+    .filter((category) => !seller || !category.businessId || category.businessId === seller.id);
 }
 
 function categoriesForSeller(seller = currentSeller()) {
-  const globalCategories = readStorage(STORAGE_KEYS.categories, []);
+  const globalCategories = cachedCategories.map((category) => category.name || category).filter(Boolean);
   const storeCategories = sellerCategories()
     .filter((category) => !seller || category.sellerId === seller.id)
     .map((category) => category.name);
@@ -479,17 +525,23 @@ function categoriesForSeller(seller = currentSeller()) {
 }
 
 function orders() {
-  return readStorage(STORAGE_KEYS.adminOrders, []);
+  return cachedOrders.map((order) => ({
+    ...order,
+    userId: order.userId || order.customerId || order.phone || "guest",
+    paymentRef: order.paymentRef || order.mpesaReference || order.deliveryPayment?.reference || "",
+    mpesaReference: order.mpesaReference || order.paymentRef || order.deliveryPayment?.reference || "",
+    items: Array.isArray(order.items) ? order.items.map(normalizeOrderItem) : []
+  }));
 }
 
 function sellerOrders(seller) {
   return orders().filter((order) => {
-    if (order.sellerId === seller.id) {
+    if (order.sellerId === seller.id || order.businessId === seller.id) {
       return true;
     }
 
     if (Array.isArray(order.items)) {
-      return order.items.some((item) => item.sellerId === seller.id || item.storeId === seller.id);
+      return order.items.some((item) => item.sellerId === seller.id || item.storeId === seller.id || item.businessId === seller.id);
     }
 
     return false;
@@ -532,6 +584,7 @@ function renderProducts() {
       <article class="list-card seller-catalog-card">
         <div class="seller-product-media">
           ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}" loading="lazy">` : product.productCategory}
+          <span class="seller-catalog-badge">${product.productOffer ? "Offer" : "New"}</span>
         </div>
         <div class="seller-catalog-copy">
           <strong>${product.productName}</strong>
@@ -565,9 +618,13 @@ function renderProducts() {
   });
 
   container.querySelectorAll("[data-delete-product]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const remaining = products().filter((item) => item.id !== button.dataset.deleteProduct);
-      writeStorage(STORAGE_KEYS.sellerProducts, remaining);
+    button.addEventListener("click", async () => {
+      const response = await postJson('./api/products/delete.php', { id: button.dataset.deleteProduct });
+      if (!response.ok || response.data?.ok === false) {
+        showToast(response.data?.message || "Product delete failed.", "warn");
+        return;
+      }
+      await loadSellerData();
       renderCounts();
       renderProducts();
       renderSellerAnalytics();
@@ -599,11 +656,13 @@ function renderSellerCategories() {
     : '<div class="list-card">No custom categories yet. Add your first store aisle above.</div>';
 
   container.querySelectorAll("[data-delete-category]").forEach((button) => {
-    button.addEventListener("click", () => {
-      writeStorage(
-        STORAGE_KEYS.sellerCategories,
-        sellerCategories().filter((category) => category.id !== button.dataset.deleteCategory)
-      );
+    button.addEventListener("click", async () => {
+      const response = await postJson('./api/categories/delete.php', { id: button.dataset.deleteCategory });
+      if (!response.ok || response.data?.ok === false) {
+        showToast(response.data?.message || "Category delete failed.", "warn");
+        return;
+      }
+      await loadSellerData();
       renderSellerCategories();
       showToast("Category deleted.", "warn");
     });
@@ -661,9 +720,13 @@ function renderOffers() {
   });
 
   container.querySelectorAll("[data-delete-offer]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const remaining = offers().filter((item) => item.id !== button.dataset.deleteOffer);
-      writeStorage(STORAGE_KEYS.sellerOffers, remaining);
+    button.addEventListener("click", async () => {
+      const response = await postJson('./api/offers/delete.php', { id: button.dataset.deleteOffer });
+      if (!response.ok || response.data?.ok === false) {
+        showToast(response.data?.message || "Offer delete failed.", "warn");
+        return;
+      }
+      await loadSellerData();
       renderCounts();
       renderOffers();
       renderSellerAnalytics();
@@ -682,9 +745,10 @@ function renderOrders() {
     return;
   }
 
-  const sellerOrderList = sellerOrders(seller).slice().reverse();
+  const allSellerOrders = sellerOrders(seller);
+  const sellerOrderList = filteredSellerOrders(seller).slice().reverse();
   if (!sellerOrderList.length) {
-    container.innerHTML = '<div class="list-card">No orders yet for your store.</div>';
+    container.innerHTML = '<div class="list-card">No orders match the current filters for your store.</div>';
     return;
   }
 
@@ -700,21 +764,33 @@ function renderOrders() {
         ? order.items.filter((item) => item.storeId === seller.id || item.sellerId === seller.id)
         : [];
       const sellerTotal = businessPayment?.amount || sellerItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
+      const paymentRef = order.mpesaReference || businessPayment?.reference || "No reference submitted";
       return `
       <article class="list-card">
         <div class="section-head">
-          <strong>${order.id}</strong>
+          <div>
+            <strong>${order.id}</strong>
+            <p class="tiny">${order.createdAt ? new Date(order.createdAt).toLocaleString() : "Date pending"}</p>
+          </div>
           <span class="status-pill status-pill--${orderStatus}">
             ${labelize(orderStatus)}
           </span>
         </div>
         <p>${order.customer || "Customer"} | ${order.phone || ""}</p>
-        <p class="tiny">M-Pesa: ${order.mpesaName || order.customer || "Name pending"} | ${order.mpesaNumber || order.phone || "Number pending"} | Ref: ${order.mpesaReference || businessPayment?.reference || "No reference submitted"}</p>
+        <p class="tiny">Payment: ${order.paymentMethod || "Business direct payment"} | M-Pesa: ${order.mpesaName || order.customer || "Name pending"} | ${order.mpesaNumber || order.phone || "Number pending"} | Ref: ${paymentRef}</p>
         <p class="tiny">${sellerItems.map((item) => `${item.productName} x${item.quantity}`).join(", ") || "Products pending"}</p>
         <p class="tiny">Business amount: ${currency(sellerTotal)} | Ref: ${businessPayment?.reference || "No reference submitted"} | ${labelize(paymentStatus)}</p>
+        <p class="tiny">Customer location: ${order.buyerLocation || "Location pending"}</p>
+        <p class="tiny">Distance: ${sellerOrderDistance(order, seller.id)}</p>
         <p class="tiny">Delivery: ${currency(order.deliveryFee || 0)} to till ${order.deliveryPayment?.tillNumber || "7312380"} | Ref: ${order.deliveryPayment?.reference || "Pending"}</p>
         <p class="tiny">Delivery status: ${labelize(order.deliveryStatus || order.status || "pending")} | Employee: ${order.assignedEmployeeName || order.assignedEmployeeEmail || "Not assigned"}</p>
+        <div class="order-detail-panel is-hidden" data-seller-order-detail="${order.id}">
+          <p class="tiny">Items: ${sellerItems.map((item) => `${item.productName} x${item.quantity} (${currency(item.lineTotal || 0)})`).join(" | ") || "Items pending"}</p>
+          <p class="tiny">Order total: Products ${currency(order.subtotal || sellerTotal)} + Delivery ${currency(order.deliveryFee || 0)} = ${currency(order.total || sellerTotal)}</p>
+          <p class="tiny">Payment status: ${labelize(paymentStatus)} | Order status: ${labelize(orderStatus)}</p>
+        </div>
         <div class="button-row">
+          <button class="button button-outline button-small" data-view-seller-order="${order.id}" type="button">View details</button>
           ${paymentStatus !== "paid" ? `<button class="button button-primary button-small" data-mark-paid="${order.id}" type="button">Confirm Paid</button>` : ""}
           ${orderStatus !== "processing" && !["delivered", "cancelled"].includes(orderStatus) ? `<button class="button button-outline button-small" data-mark-processing="${order.id}" type="button">Processing</button>` : ""}
           ${orderStatus !== "delivered" ? `<button class="button button-outline button-small" data-mark-delivered="${order.id}" type="button">Delivered</button>` : ""}
@@ -725,6 +801,12 @@ function renderOrders() {
     `;
     })
     .join("");
+
+  container.querySelectorAll("[data-view-seller-order]").forEach((button) => {
+    button.addEventListener("click", () => {
+      container.querySelector(`[data-seller-order-detail="${button.dataset.viewSellerOrder}"]`)?.classList.toggle("is-hidden");
+    });
+  });
 
   container.querySelectorAll("[data-mark-paid]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -751,7 +833,8 @@ function renderOrders() {
           updatedAt: new Date().toISOString()
         };
       });
-      writeStorage(STORAGE_KEYS.adminOrders, updated);
+      cachedOrders = updated;
+      postJson('./api/orders/update.php', { id: orderId, status: "paid", paymentStatus: "paid" });
       renderCounts();
       renderOrders();
       renderSellerNotifications();
@@ -781,9 +864,10 @@ function renderOrders() {
   });
 
   container.querySelectorAll("[data-delete-order]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const updated = orders().filter((order) => order.id !== button.dataset.deleteOrder);
-      writeStorage(STORAGE_KEYS.adminOrders, updated);
+      cachedOrders = updated;
+      await postJson('./api/orders/delete.php', { id: button.dataset.deleteOrder });
       renderCounts();
       renderOrders();
       renderSellerNotifications();
@@ -792,6 +876,57 @@ function renderOrders() {
       renderSellerAnalytics();
       showToast("Order deleted.", "warn");
     });
+  });
+}
+
+function sellerOrderDistance(order, sellerId) {
+  const route = Array.isArray(order.routeBreakdown)
+    ? order.routeBreakdown.find((entry) => entry.storeId === sellerId) || order.routeBreakdown[0]
+    : null;
+  return route ? `${Number(route.distanceKm || 0).toFixed(1)} km` : "Distance pending";
+}
+
+function sellerOrderSearchText(order, seller) {
+  return [
+    order.id,
+    order.customer,
+    order.phone,
+    order.buyerLocation,
+    order.mpesaReference,
+    order.deliveryPayment?.reference,
+    order.paymentMethod,
+    Array.isArray(order.items) ? order.items.filter((item) => item.storeId === seller.id || item.sellerId === seller.id).map((item) => item.productName).join(" ") : "",
+    Array.isArray(order.businessPayments) ? order.businessPayments.map((payment) => `${payment.storeName} ${payment.reference}`).join(" ") : ""
+  ].join(" ").toLowerCase();
+}
+
+function sellerOrderInDateRange(order, range) {
+  if (range === "all") return true;
+  const created = new Date(order.createdAt || order.updatedAt || 0).getTime();
+  if (!Number.isFinite(created) || created <= 0) return false;
+  if (range === "today") {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return created >= start;
+  }
+  const days = Number(range);
+  return Number.isFinite(days) ? created >= Date.now() - days * 24 * 60 * 60 * 1000 : true;
+}
+
+function filteredSellerOrders(seller) {
+  const query = sellerOrderFilters.search.trim().toLowerCase();
+  return sellerOrders(seller).filter((order) => {
+    const businessPayment = Array.isArray(order.businessPayments)
+      ? order.businessPayments.find((payment) => payment.storeId === seller.id)
+      : null;
+    const sellerStatus = order.sellerPaymentStatus?.[seller.id] || businessPayment?.status || "pending";
+    const paymentStatus = sellerStatus === "paid" ? "paid" : sellerStatus;
+    const orderStatus = normalizeOrderStatus(order.status);
+    const matchesSearch = !query || sellerOrderSearchText(order, seller).includes(query);
+    const matchesStatus = sellerOrderFilters.status === "all" || orderStatus === sellerOrderFilters.status;
+    const matchesPayment = sellerOrderFilters.payment === "all" || paymentStatus === sellerOrderFilters.payment;
+    const matchesDate = sellerOrderInDateRange(order, sellerOrderFilters.date);
+    return matchesSearch && matchesStatus && matchesPayment && matchesDate;
   });
 }
 
@@ -805,7 +940,8 @@ function updateSellerOrderStatus(orderId, status) {
         updatedAt: new Date().toISOString()
       }
     : order);
-  writeStorage(STORAGE_KEYS.adminOrders, updated);
+  cachedOrders = updated;
+  postJson('./api/orders/update.php', { id: orderId, status });
   renderCounts();
   renderOrders();
   renderSellerNotifications();
@@ -955,14 +1091,11 @@ function buildSellerPayload(formData) {
     return { ok: false, message: "Enter your bank account number." };
   }
 
-  if (sellers().some((seller) => seller.email === email)) {
-    return { ok: false, message: "A seller account with this email already exists." };
-  }
-
   return {
     ok: true,
     payload: {
       id: createId("seller"),
+      name: String(formData.get("storeName")).trim(),
       storeName: String(formData.get("storeName")).trim(),
       ownerName: String(formData.get("ownerName")).trim(),
       phone: String(formData.get("phone")).trim(),
@@ -976,9 +1109,14 @@ function buildSellerPayload(formData) {
       pochiNumber,
       cardAccount,
       bankAccount: cardAccount,
+      type: String(formData.get("businessType")).trim(),
       businessType: String(formData.get("businessType")).trim(),
       county: String(formData.get("county")).trim(),
+      locationId: slugify(String(formData.get("county")).trim()),
       location: String(formData.get("county")).trim(),
+      logo: "",
+      logoImage: "",
+      rating: 4.5,
       status: "pending",
       createdAt: new Date().toISOString()
     }
@@ -1014,19 +1152,34 @@ async function buildProductPayload(formData) {
   const existingProduct = products().find((product) => product.id === productId);
   const uploadedImage = await fileToDataUrl(formData.get("productImageFile"));
   const productImage = uploadedImage || String(formData.get("productImageUrl")).trim() || existingProduct?.productImage || "";
+  const productName = String(formData.get("productName")).trim();
+  const productCategory = String(formData.get("productCategory")).trim();
+  const productStock = String(formData.get("productStock")).trim();
+  const productOffer = String(formData.get("productDeal")).trim();
+  const businessId = seller.id;
+  const categoryId = `${businessId}-${slugify(productCategory)}`;
 
   return {
     ok: true,
     payload: {
       id: productId || createId("product"),
+      businessId,
       sellerId: seller.id,
       storeId: seller.id,
+      businessName: seller.name || seller.storeName,
       storeName: seller.storeName,
-      productName: String(formData.get("productName")).trim(),
-      productCategory: String(formData.get("productCategory")).trim(),
+      categoryId,
+      name: productName,
+      productName,
+      categoryName: productCategory,
+      productCategory,
+      price,
       productPrice: price,
-      productStock: String(formData.get("productStock")).trim(),
-      productOffer: String(formData.get("productDeal")).trim(),
+      stock: productStock,
+      productStock,
+      offerFlag: Boolean(productOffer),
+      productOffer,
+      image: productImage,
       productImage,
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
@@ -1115,6 +1268,25 @@ function closeSellerMenu() {
   document.body.classList.remove("seller-menu-open");
 }
 
+function closeOtherMenusForSeller() {
+  document.querySelectorAll(".admin-sidebar.is-open, .employee-sidebar.is-open, .seller-sidebar[data-open='true']")
+    .forEach((menu) => {
+      menu.classList.remove("is-open");
+      if (menu.dataset.open) {
+        menu.dataset.open = "false";
+      }
+    });
+  document.querySelectorAll(".admin-sidebar-overlay.is-open, .employee-sidebar-overlay.is-open, .seller-sidebar-overlay.is-open")
+    .forEach((overlay) => overlay.classList.remove("is-open"));
+  document.querySelectorAll("#adminMenuToggle, #employeeMenuToggle, .seller-menu-toggle")
+    .forEach((button) => {
+      if (button.id !== "sellerWorkspaceToggle") {
+        button.setAttribute("aria-expanded", "false");
+      }
+    });
+  document.body.classList.remove("admin-menu-open", "employee-menu-open", "legacy-seller-menu-open");
+}
+
 function toggleSellerMenu() {
   const nav = document.getElementById("sellerWorkspaceNav");
   const overlay = document.getElementById("sellerMenuOverlay");
@@ -1128,6 +1300,7 @@ function toggleSellerMenu() {
     return;
   }
 
+  closeOtherMenusForSeller();
   const isOpen = nav.classList.toggle("is-open");
   overlay.classList.toggle("is-open", isOpen);
   toggle.setAttribute("aria-expanded", String(isOpen));
@@ -1135,7 +1308,7 @@ function toggleSellerMenu() {
 }
 
 function bindForms() {
-  document.getElementById("sellerRegistrationForm").addEventListener("submit", (event) => {
+  document.getElementById("sellerRegistrationForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const result = buildSellerPayload(formData);
@@ -1145,8 +1318,14 @@ function bindForms() {
     }
 
     const seller = result.payload;
-    writeStorage(STORAGE_KEYS.sellers, [...sellers(), seller]);
-    writeStorage(STORAGE_KEYS.sellerApplications, [...sellerApplications(), seller]);
+    const response = await postJson('./api/sellers/register.php', {
+      ...seller,
+      password: String(formData.get("password"))
+    });
+    if (!response.ok || response.data?.ok === false) {
+      showToast(response.data?.message || "Registration failed.", "warn");
+      return;
+    }
     event.currentTarget.reset();
     syncPaymentFields();
     toggleForms(false);
@@ -1154,29 +1333,20 @@ function bindForms() {
     showToast("Registration sent. Please wait for admin approval before logging in.", "success");
   });
 
-  document.getElementById("sellerLoginForm").addEventListener("submit", (event) => {
+  document.getElementById("sellerLoginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email")).trim().toLowerCase();
     const password = String(formData.get("password"));
-
-    const emailRecords = allSellerRecords().filter((item) => String(item.email || "").toLowerCase() === email);
-    const seller = emailRecords.find((item) => passwordMatches(item, password));
-    if (!seller) {
-      document.getElementById("loginStatus").textContent = emailRecords.length
-        ? "Invalid password for this seller account."
-        : "Seller account not found. Register first and wait for admin approval.";
+    const response = await postJson('./api/sellers/login.php', { email, password });
+    if (!response.ok || response.data?.ok === false) {
+      document.getElementById("loginStatus").textContent = response.data?.message || "Invalid seller credentials.";
       return;
     }
 
-    if (!isSellerActive(seller)) {
-      document.getElementById("loginStatus").textContent = "Your seller account is waiting for admin approval.";
-      showToast("Your seller account is pending approval.", "warn");
-      return;
-    }
-
-    const loginSeller = syncApprovedSellerRecord(seller);
+    const loginSeller = response.data.seller;
     setCurrentSeller(loginSeller);
+    await loadSellerData();
     event.currentTarget.reset();
     document.getElementById("loginStatus").textContent = "";
     showDashboard();
@@ -1194,11 +1364,22 @@ function bindForms() {
 
     const nextProduct = result.payload;
     const existing = products().find((item) => item.id === nextProduct.id);
-    const nextProducts = existing
-      ? products().map((item) => (item.id === nextProduct.id ? { ...item, ...nextProduct, createdAt: item.createdAt || new Date().toISOString() } : item))
-      : [...products(), nextProduct];
-
-    writeStorage(STORAGE_KEYS.sellerProducts, nextProducts);
+    const response = await postJson('./api/products/save.php', {
+      id: nextProduct.id,
+      businessId: nextProduct.businessId,
+      categoryId: nextProduct.productCategory,
+      name: nextProduct.productName,
+      image: nextProduct.productImage,
+      price: nextProduct.productPrice,
+      offerFlag: nextProduct.offerFlag,
+      stock: nextProduct.productStock,
+      description: nextProduct.description || ""
+    });
+    if (!response.ok || response.data?.ok === false) {
+      showToast(response.data?.message || "Product save failed.", "warn");
+      return;
+    }
+    await loadSellerData();
     renderCounts();
     renderSellerCategories();
     renderProducts();
@@ -1218,11 +1399,12 @@ function bindForms() {
 
     const nextOffer = result.payload;
     const existing = offers().find((item) => item.id === nextOffer.id);
-    const nextOffers = existing
-      ? offers().map((item) => (item.id === nextOffer.id ? { ...item, ...nextOffer, createdAt: item.createdAt || new Date().toISOString() } : item))
-      : [...offers(), nextOffer];
-
-    writeStorage(STORAGE_KEYS.sellerOffers, nextOffers);
+    const response = await postJson('./api/offers/save.php', nextOffer);
+    if (!response.ok || response.data?.ok === false) {
+      showToast(response.data?.message || "Offer save failed.", "warn");
+      return;
+    }
+    await loadSellerData();
     renderCounts();
     renderOffers();
     renderSellerAnalytics();
@@ -1230,7 +1412,7 @@ function bindForms() {
     showToast(existing ? "Offer updated." : "Offer created.", "success");
   });
 
-  document.getElementById("sellerCategoryForm").addEventListener("submit", (event) => {
+  document.getElementById("sellerCategoryForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const seller = currentSeller();
     const formData = new FormData(event.currentTarget);
@@ -1243,30 +1425,32 @@ function bindForms() {
       return;
     }
 
-    writeStorage(STORAGE_KEYS.sellerCategories, [
-      ...sellerCategories(),
-      { id: createId("category"), sellerId: seller.id, storeName: seller.storeName, name, createdAt: new Date().toISOString() }
-    ]);
-    writeStorage(STORAGE_KEYS.categories, [...new Set([...readStorage(STORAGE_KEYS.categories, []), name])]);
+    const response = await postJson('./api/categories/save.php', { name });
+    if (!response.ok || response.data?.ok === false) {
+      showToast(response.data?.message || "Category save failed.", "warn");
+      return;
+    }
+    await loadSellerData();
     event.currentTarget.reset();
     renderSellerCategories();
     showToast("Category added.", "success");
   });
 
-  document.getElementById("sellerLocationForm").addEventListener("submit", (event) => {
+  document.getElementById("sellerLocationForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    updateCurrentSellerRecord({
+    const updated = await updateCurrentSellerRecord({
       location: String(formData.get("location")).trim(),
       county: String(formData.get("location")).trim(),
+      locationId: slugify(String(formData.get("location")).trim()),
       latitude: Number(formData.get("latitude")),
       longitude: Number(formData.get("longitude")),
       updatedAt: new Date().toISOString()
     });
-    showToast("Business location updated.", "success");
+    if (updated) showToast("Business location updated.", "success");
   });
 
-  document.getElementById("sellerPaymentForm").addEventListener("submit", (event) => {
+  document.getElementById("sellerPaymentForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const paymentMethods = [];
@@ -1274,7 +1458,7 @@ function bindForms() {
     if (String(formData.get("pochiNumber")).trim()) paymentMethods.push("M-Pesa Pochi");
     if (String(formData.get("bankAccount")).trim()) paymentMethods.push("Bank Account");
 
-    updateCurrentSellerRecord({
+    const updated = await updateCurrentSellerRecord({
       tillNumber: String(formData.get("tillNumber")).trim(),
       pochiNumber: String(formData.get("pochiNumber")).trim(),
       bankAccount: String(formData.get("bankAccount")).trim(),
@@ -1283,29 +1467,34 @@ function bindForms() {
       paymentOptions: paymentMethods,
       updatedAt: new Date().toISOString()
     });
-    showToast("Payment details updated.", "success");
+    if (updated) showToast("Payment details updated.", "success");
   });
 
-  document.getElementById("sellerDeliveryForm").addEventListener("submit", (event) => {
+  document.getElementById("sellerDeliveryForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    updateCurrentSellerRecord({
+    const updated = await updateCurrentSellerRecord({
       deliveryAvailability: String(formData.get("deliveryAvailability")).trim(),
       deliveryNotes: String(formData.get("deliveryNotes")).trim(),
       updatedAt: new Date().toISOString()
     });
-    showToast("Delivery settings updated.", "success");
+    if (updated) showToast("Delivery settings updated.", "success");
   });
 }
 
-function updateCurrentSellerRecord(patch) {
+async function updateCurrentSellerRecord(patch) {
   const seller = currentSeller();
-  if (!seller) return;
-  const updatedSeller = { ...seller, ...patch };
+  if (!seller) return false;
+  const response = await postJson('./api/sellers/update.php', { id: seller.id, ...patch });
+  if (!response.ok || response.data?.ok === false) {
+    showToast(response.data?.message || "Seller update failed.", "warn");
+    return false;
+  }
+  const updatedSeller = { ...seller, ...(response.data?.seller || patch) };
   setCurrentSeller(updatedSeller);
-  writeStorage(STORAGE_KEYS.sellers, sellers().map((item) => item.id === seller.id ? { ...item, ...patch } : item));
-  writeStorage(STORAGE_KEYS.sellerApplications, sellerApplications().map((item) => item.id === seller.id ? { ...item, ...patch } : item));
+  await loadSellerData();
   fillSellerSettingsForms();
+  return true;
 }
 
 function syncPaymentFields() {
@@ -1377,6 +1566,28 @@ function bindActions() {
   syncPaymentFields();
 }
 
+function bindSellerOrderFilters() {
+  const bindings = [
+    ["sellerOrderSearch", "search"],
+    ["sellerOrderStatusFilter", "status"],
+    ["sellerOrderPaymentFilter", "payment"],
+    ["sellerOrderDateFilter", "date"]
+  ];
+  bindings.forEach(([id, key]) => {
+    const input = document.getElementById(id);
+    if (!input || input.dataset.bound === "true") return;
+    input.dataset.bound = "true";
+    input.addEventListener("input", () => {
+      sellerOrderFilters[key] = input.value;
+      renderOrders();
+    });
+    input.addEventListener("change", () => {
+      sellerOrderFilters[key] = input.value;
+      renderOrders();
+    });
+  });
+}
+
 function refreshSellerOrderViews() {
   if (!currentSeller()) {
     return;
@@ -1394,23 +1605,26 @@ function bindLiveOrderUpdates() {
     return;
   }
   window.__tamuSellerLiveOrdersBound = true;
-  window.addEventListener("storage", (event) => {
-    if (event.key === STORAGE_KEYS.adminOrders) {
+  window.setInterval(async () => {
+    if (currentSeller()) {
+      await loadSellerData();
       refreshSellerOrderViews();
     }
-  });
+  }, 12000);
 }
 
-function boot() {
+async function boot() {
   initReveal();
   initAdminTrigger();
   initMap();
   bindForms();
   bindActions();
+  bindSellerOrderFilters();
   bindLiveOrderUpdates();
 
   const seller = currentSeller();
   if (seller) {
+    await loadSellerData();
     showDashboard();
   } else {
     toggleForms(true);

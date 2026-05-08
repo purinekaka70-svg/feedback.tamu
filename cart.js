@@ -1,28 +1,23 @@
 const STORAGE_KEYS = {
-  cart: "tamu_market_cart",
-  sellers: "tamu_market_sellers",
-  sellerApplications: "tamu_market_seller_applications",
-  sellerProducts: "tamu_market_seller_products",
-  sellerDrafts: "tamu_market_seller_drafts",
+  cartSession: "tamu_market_cart_session",
   buyerProfile: "tamu_market_buyer_profile",
-  adminOrders: "tamu_market_admin_orders",
   adminSession: "tamu_market_admin_session"
 };
 
 const API_ENDPOINTS = {
   createOrder: "./api/orders/create.php",
+  cart: "./api/cart/index.php",
   adminLogin: "./api/admin/login.php"
 };
 
-const LOCAL_ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
-};
 const DELIVERY_TILL_NUMBER = "7312380";
 
-let cart = readStorage(STORAGE_KEYS.cart, []);
+let cart = [];
 let buyerMap;
 let buyerMarker;
+let cachedApplications = [];
+let cachedProducts = [];
+let cachedOrders = [];
 
 function readStorage(key, fallback) {
   try {
@@ -41,34 +36,82 @@ function writeStorage(key, value) {
   }
 }
 
-function migrateLegacyProducts() {
-  const currentProducts = readStorage(STORAGE_KEYS.sellerProducts, null);
-  if (currentProducts !== null) {
-    return;
+function cartSessionId() {
+  let id = window.localStorage.getItem(STORAGE_KEYS.cartSession);
+  if (!id) {
+    id = createId("cart-session");
+    window.localStorage.setItem(STORAGE_KEYS.cartSession, id);
   }
+  return id;
+}
 
-  const legacyDrafts = readStorage(STORAGE_KEYS.sellerDrafts, []);
-  const convertedProducts = legacyDrafts.map((draft) => ({
-    id: draft.id,
-    storeId: draft.storeId || "",
-    storeName: draft.storeName || "",
-    productName: draft.productName || "",
-    productCategory: draft.productCategory || "",
-    productPrice: Number(draft.productPrice) || 0,
-    productStock: draft.productStock || "",
-    productOffer: draft.productDeal || "",
-    createdAt: draft.createdAt || new Date().toISOString(),
-    updatedAt: draft.updatedAt || draft.createdAt || new Date().toISOString()
-  }));
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "item";
+}
 
-  writeStorage(STORAGE_KEYS.sellerProducts, convertedProducts);
+function normalizeBusinessRecord(record = {}) {
+  const name = String(record.name || record.storeName || record.businessName || record.email || "Business").trim();
+  const location = String(record.location || record.county || record.locationName || record.locationId || "Unknown location").trim();
+  const type = String(record.type || record.businessType || "retail").trim().toLowerCase();
+  const logo = record.logo || record.logoImage || record.businessImage || record.image || "";
+
+  return {
+    ...record,
+    name,
+    storeName: record.storeName || name,
+    locationId: record.locationId || slugify(location),
+    location,
+    county: record.county || location,
+    type,
+    businessType: record.businessType || type,
+    logo,
+    logoImage: record.logoImage || logo,
+    rating: Number(record.rating) || 4.5
+  };
+}
+
+function normalizeProductRecord(product = {}) {
+  const businessId = String(product.businessId || product.storeId || product.sellerId || "").trim();
+  const categoryName = String(product.categoryName || product.productCategory || product.category || "Other").trim();
+  const categoryId = product.categoryId || `${businessId || "business"}-${slugify(categoryName)}`;
+  const name = String(product.name || product.productName || "Product").trim();
+  const image = product.image || product.productImage || "";
+  const price = Number(product.price ?? product.productPrice) || 0;
+  const stock = String(product.stock || product.productStock || "In stock").trim();
+  const offerFlag = Boolean(product.offerFlag || product.isOffer || product.productOffer);
+  const productOffer = product.productOffer || product.offerText || product.offer || (offerFlag ? "Offer" : "");
+
+  return {
+    ...product,
+    businessId,
+    sellerId: product.sellerId || businessId,
+    storeId: product.storeId || businessId,
+    businessName: product.businessName || product.storeName || product.sellerName || "",
+    sellerName: product.sellerName || product.storeName || product.businessName || "",
+    storeName: product.storeName || product.businessName || product.sellerName || "",
+    categoryId,
+    categoryName,
+    productCategory: product.productCategory || categoryName,
+    name,
+    productName: product.productName || name,
+    image,
+    productImage: product.productImage || image,
+    price,
+    productPrice: price,
+    stock,
+    productStock: stock,
+    offerFlag,
+    productOffer
+  };
 }
 
 function applications() {
-  const localApplications = readStorage(STORAGE_KEYS.sellerApplications, []);
-  const localSellers = readStorage(STORAGE_KEYS.sellers, []);
   const byKey = new Map();
-  [...localApplications, ...localSellers].forEach((application) => {
+  [...cachedApplications].forEach((application) => {
     const key = String(application.email || application.id || "").trim().toLowerCase();
     if (!key) return;
     const current = byKey.get(key) || {};
@@ -80,15 +123,73 @@ function applications() {
     }
     byKey.set(key, merged);
   });
-  return [...byKey.values()];
+  return [...byKey.values()].map(normalizeBusinessRecord);
 }
 
 function sellerProducts() {
-  return readStorage(STORAGE_KEYS.sellerProducts, []).map((product) => ({
-    ...product,
-    storeId: product.storeId || product.sellerId || "",
-    storeName: product.storeName || product.sellerName || ""
-  }));
+  return cachedProducts.map(normalizeProductRecord);
+}
+
+async function loadMarketData() {
+  try {
+    const res = await fetch('./api/marketplace/list.php', { cache: 'no-store' });
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      cachedApplications = data.businesses || [];
+      cachedProducts = data.products || [];
+    }
+  } catch (error) {
+    cachedApplications = [];
+    cachedProducts = [];
+  }
+}
+
+async function loadOrders() {
+  try {
+    const res = await fetch('./api/orders/list.php', { cache: 'no-store' });
+    const data = await res.json();
+    cachedOrders = res.ok && data.ok ? (data.orders || []) : [];
+  } catch (error) {
+    cachedOrders = [];
+  }
+}
+
+async function loadCartFromBackend() {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.cart}?sessionId=${encodeURIComponent(cartSessionId())}`, { cache: "no-store" });
+    const data = await response.json();
+    cart = response.ok && data.ok
+      ? (data.items || []).map((item) => ({
+          productId: String(item.product_id || item.productId || ""),
+          quantity: Number(item.quantity || 1)
+        })).filter((item) => item.productId)
+      : [];
+  } catch (error) {
+    cart = [];
+  }
+}
+
+async function saveCartItem(productId, quantity) {
+  const product = getProduct(productId);
+  if (!product) return;
+  await postJson(API_ENDPOINTS.cart, {
+    sessionId: cartSessionId(),
+    productId,
+    businessId: product.storeId,
+    quantity
+  });
+}
+
+async function deleteCartItem(productId = "") {
+  try {
+    await fetch(API_ENDPOINTS.cart, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: cartSessionId(), productId })
+    });
+  } catch (error) {
+    // Backend errors are handled by the next cart reload.
+  }
 }
 
 function approvedStores() {
@@ -203,10 +304,6 @@ function escapeAttr(value) {
 
 function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-}
-
-function isLocalAdmin(username, password) {
-  return username === LOCAL_ADMIN_CREDENTIALS.username && password === LOCAL_ADMIN_CREDENTIALS.password;
 }
 
 function openAdminDashboard(status) {
@@ -416,6 +513,25 @@ function haversineDistanceKm(from, to) {
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function calculateAffordableDeliveryFee(distanceKm) {
+  const distance = Math.max(0, Number(distanceKm) || 0);
+  let fee;
+
+  if (distance <= 2) {
+    fee = 40 + distance * 20;
+  } else if (distance <= 5) {
+    fee = 80 + (distance - 2) * 20;
+  } else if (distance <= 10) {
+    fee = 150 + (distance - 5) * 25;
+  } else if (distance <= 20) {
+    fee = 300 + (distance - 10) * 18;
+  } else {
+    fee = 500 + (distance - 20) * 20;
+  }
+
+  return Math.min(1000, Math.max(40, Math.round(fee / 10) * 10));
+}
+
 function buildDeliverySummary(items, profile = buyerProfile()) {
   if (!items.length) {
     return {
@@ -474,17 +590,23 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
       if (!store) {
         return null;
       }
+      const storeLatitude = Number(store.latitude);
+      const storeLongitude = Number(store.longitude);
+      if (!Number.isFinite(storeLatitude) || !Number.isFinite(storeLongitude)) {
+        return null;
+      }
 
       const distanceKm = haversineDistanceKm(buyerPoint, {
-        latitude: Number(store.latitude),
-        longitude: Number(store.longitude)
+        latitude: storeLatitude,
+        longitude: storeLongitude
       });
-      const routeFee = Math.max(120, Math.round((90 + distanceKm * 28) / 10) * 10);
+      const routeFee = calculateAffordableDeliveryFee(distanceKm);
 
       return {
         storeId: store.id,
         storeName: store.storeName,
         distanceKm,
+        distanceText: formatDistance(distanceKm),
         fee: routeFee,
         quantity: group.quantity,
         subtotal: group.subtotal
@@ -492,7 +614,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
     })
     .filter(Boolean);
 
-  const consolidationFee = breakdown.length > 1 ? (breakdown.length - 1) * 40 : 0;
+  const consolidationFee = breakdown.length > 1 ? (breakdown.length - 1) * 25 : 0;
   const fee = breakdown.reduce((sum, entry) => sum + entry.fee, 0) + consolidationFee;
 
   return {
@@ -534,7 +656,6 @@ function sanitizeCart() {
   const cleanCart = cart.filter((item) => validProducts.has(item.productId));
   if (cleanCart.length !== cart.length) {
     cart = cleanCart;
-    writeStorage(STORAGE_KEYS.cart, cart);
   }
 }
 
@@ -656,11 +777,6 @@ function initAdminTrigger() {
       return;
     }
 
-    if (isLocalAdmin(username, password)) {
-      openAdminDashboard(status);
-      return;
-    }
-
     status.textContent = "Checking credentials...";
 
     try {
@@ -680,12 +796,12 @@ function initAdminTrigger() {
 
       status.textContent = data && data.message ? data.message : "Invalid admin credentials.";
     } catch (error) {
-      status.textContent = "Could not reach admin login service. Use the local admin credentials.";
+      status.textContent = "Could not reach admin login service.";
     }
   });
 }
 
-function updateQuantity(productId, nextQuantity) {
+async function updateQuantity(productId, nextQuantity) {
   const current = cart.find((item) => item.productId === productId);
   if (!current) {
     return;
@@ -693,11 +809,12 @@ function updateQuantity(productId, nextQuantity) {
 
   if (nextQuantity <= 0) {
     cart = cart.filter((item) => item.productId !== productId);
+    await deleteCartItem(productId);
   } else {
     current.quantity = nextQuantity;
+    await saveCartItem(productId, nextQuantity);
   }
 
-  writeStorage(STORAGE_KEYS.cart, cart);
   renderCart();
 }
 
@@ -886,7 +1003,7 @@ function renderCart() {
     .join("");
 
   document.querySelectorAll("[data-cart-action]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const productId = button.dataset.productId;
       const item = cart.find((entry) => entry.productId === productId);
       if (!item) {
@@ -894,15 +1011,15 @@ function renderCart() {
       }
 
       if (button.dataset.cartAction === "increase") {
-        updateQuantity(productId, item.quantity + 1);
+        await updateQuantity(productId, item.quantity + 1);
       }
 
       if (button.dataset.cartAction === "decrease") {
-        updateQuantity(productId, item.quantity - 1);
+        await updateQuantity(productId, item.quantity - 1);
       }
 
       if (button.dataset.cartAction === "remove") {
-        updateQuantity(productId, 0);
+        await updateQuantity(productId, 0);
         showToast("Item removed from cart.", "info");
       }
     });
@@ -917,7 +1034,7 @@ function renderPlacedOrders() {
     return;
   }
 
-  const list = readStorage(STORAGE_KEYS.adminOrders, []).slice().reverse();
+  const list = cachedOrders.slice().reverse();
   if (!list.length) {
     container.innerHTML = '<div class="cart-item">No orders placed yet. Submit checkout and the order will appear here.</div>';
     return;
@@ -957,11 +1074,17 @@ function buildOrderPayload(profile, delivery) {
 
       return {
         productId: product.id,
+        businessId: store.id,
+        categoryId: product.categoryId,
+        name: product.productName,
         productName: product.productName,
+        categoryName: product.productCategory,
         storeId: store.id,
         storeName: store.storeName,
         quantity: item.quantity,
+        price: product.productPrice,
         unitPrice: product.productPrice,
+        total: product.productPrice * item.quantity,
         lineTotal: product.productPrice * item.quantity
       };
     })
@@ -992,9 +1115,11 @@ function buildOrderPayload(profile, delivery) {
 
   return {
     id: createId("order"),
+    userId: profile.userId || profile.phone || "guest",
     customer: profile.fullName,
     mpesaName: profile.mpesaName,
     mpesaNumber: profile.phone,
+    paymentRef: profile.mpesaReference,
     mpesaReference: profile.mpesaReference,
     phone: profile.phone,
     buyerLocation: profile.location,
@@ -1057,30 +1182,32 @@ async function handleCheckout() {
   }
 
   const order = buildOrderPayload(profile, delivery);
-  const existingOrders = readStorage(STORAGE_KEYS.adminOrders, []);
-  writeStorage(STORAGE_KEYS.adminOrders, [...existingOrders, order]);
+  order.sessionId = cartSessionId();
   writeStorage(STORAGE_KEYS.buyerProfile, profile);
 
   const response = await postJson(API_ENDPOINTS.createOrder, order);
   document.getElementById("checkoutStatus").textContent = response.ok
     ? "Order submitted."
-    : "Order submitted locally.";
+    : "Order submission failed.";
+
+  if (!response.ok || response.data?.ok === false) {
+    showToast(response.data?.message || "Could not save order.", "warn");
+    return;
+  }
 
   cart = [];
-  writeStorage(STORAGE_KEYS.cart, cart);
+  await deleteCartItem();
   document.getElementById("checkoutSection")?.classList.add("is-hidden");
   renderCart();
+  await loadOrders();
   renderPlacedOrders();
-  showToast(
-    response.ok ? "Order placed successfully." : "Order placed locally and queued for backend setup.",
-    response.ok ? "success" : "info"
-  );
+  showToast("Order placed successfully.", "success");
 }
 
 function bindEvents() {
-  document.getElementById("clearCartButton").addEventListener("click", () => {
+  document.getElementById("clearCartButton").addEventListener("click", async () => {
     cart = [];
-    writeStorage(STORAGE_KEYS.cart, cart);
+    await deleteCartItem();
     renderCart();
     showToast("Cart cleared.", "warn");
   });
@@ -1111,16 +1238,18 @@ function bindEvents() {
     saveBuyerProfileFromForm();
   });
 
-  window.addEventListener("storage", () => {
-    cart = readStorage(STORAGE_KEYS.cart, []);
+  window.addEventListener("storage", async () => {
+    await loadCartFromBackend();
     fillCheckoutForm();
     renderCart();
     renderPlacedOrders();
   });
 }
 
-function boot() {
-  migrateLegacyProducts();
+async function boot() {
+  await loadMarketData();
+  await loadCartFromBackend();
+  await loadOrders();
   initReveal();
   initAdminTrigger();
   fillCheckoutForm();

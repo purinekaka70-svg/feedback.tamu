@@ -22,6 +22,10 @@ if ($publicId === '') {
 try {
     $pdo = tamu_pdo();
 
+    if (!table_exists($pdo, 'seller_offers')) {
+        json_response(['ok' => false, 'message' => 'Seller offers table is not installed.'], 500);
+    }
+
     $insertOffer = $pdo->prepare(
         'INSERT INTO seller_offers
         (
@@ -42,7 +46,14 @@ try {
             :offer_note,
             :offer_expiry,
             :offer_image
-        )'
+        )
+        ON DUPLICATE KEY UPDATE
+            seller_public_id = VALUES(seller_public_id),
+            store_name = VALUES(store_name),
+            offer_title = VALUES(offer_title),
+            offer_note = VALUES(offer_note),
+            offer_expiry = VALUES(offer_expiry),
+            offer_image = VALUES(offer_image)'
     );
 
     $insertOffer->execute([

@@ -36,7 +36,7 @@
     </header>
 
     <main class="content-shell">
-      <section class="section-stack reveal reveal-delay-1">
+      <section id="browseControlsSection" class="section-stack reveal reveal-delay-1">
         <div class="section-head">
           <div>
             <p class="eyebrow">Browse Marketplace</p>
@@ -109,7 +109,7 @@
         </article>
       </section>
 
-      <section class="section-stack reveal reveal-delay-3">
+      <section id="offersSection" class="section-stack reveal reveal-delay-3">
         <article class="card">
           <div class="section-head">
             <h3>Seller offers</h3>
@@ -119,24 +119,35 @@
         </article>
       </section>
 
-      <section class="section-stack reveal">
+      <section id="marketBrowserSection" class="section-stack reveal">
         <div class="section-head">
           <div>
             <p class="eyebrow">Approved Sellers</p>
             <h2 class="section-title">Registered businesses visible to buyers.</h2>
           </div>
+          <button id="marketBackButton" class="button button-outline button-small is-hidden" type="button">Back to locations</button>
+        </div>
+
+        <div id="locationSearchWrap" class="location-search-wrap">
+          <label class="location-search-field" aria-label="Search locations">
+            <span class="location-search-icon" aria-hidden="true">⌕</span>
+            <input id="locationSearchInput" class="input location-search-input" type="search" placeholder="Search location..." autocomplete="off">
+          </label>
         </div>
 
         <div id="storeGrid" class="store-grid"></div>
       </section>
 
-      <section class="section-stack reveal reveal-delay-1">
+      <section id="productBrowserSection" class="section-stack reveal reveal-delay-1">
         <div class="section-head">
           <div>
             <p class="eyebrow">Product Board</p>
             <h2 class="section-title">Products added by sellers.</h2>
           </div>
-          <div id="productCountSummary" class="summary-chip">0 products</div>
+          <div class="button-row">
+            <button id="productBackButton" class="button button-outline button-small" type="button">Back to businesses</button>
+            <div id="productCountSummary" class="summary-chip">0 products</div>
+          </div>
         </div>
 
         <div id="productGrid" class="product-grid"></div>
@@ -150,10 +161,6 @@
         <span>Teams Technologies</span>
       </p>
       <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
-      <div class="footer-links">
-        <a class="footer-link-word" href="./about.html" data-footer-link>About Us</a>
-        <a class="footer-link-word" href="./contact.html" data-footer-link>Contact Us</a>
-      </div>
     </footer>
   </div>
 
@@ -201,6 +208,5 @@
 
   <script src="./categories.js"></script>
   <script src="./pwa.js"></script>
-<script src="seller-portal.js"></script>
 </body>
 </html>

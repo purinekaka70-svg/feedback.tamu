@@ -96,7 +96,7 @@ try {
         'subtotal' => float_value($payload['subtotal']),
         'delivery_fee' => float_value($payload['deliveryFee']),
         'total' => float_value($payload['total']),
-        'status' => trim_string($payload['status'] ?? 'pending'),
+        'status' => trim_string($payload['status'] ?? 'pending_payment'),
     ]);
 
     $orderId = (int) $pdo->lastInsertId();
@@ -174,6 +174,50 @@ try {
                 'subtotal' => float_value($route['subtotal'] ?? 0),
             ]);
         }
+    }
+
+    if (table_exists($pdo, 'payments')) {
+        $insertPayment = $pdo->prepare(
+            'INSERT INTO payments (order_public_id, business_id, method, reference, amount, status)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $businessPayments = is_array($payload['businessPayments'] ?? null) ? $payload['businessPayments'] : [];
+        foreach ($businessPayments as $payment) {
+            $reference = trim_string($payment['reference'] ?? $payload['mpesaReference'] ?? '');
+            if ($reference === '') {
+                continue;
+            }
+            $insertPayment->execute([
+                $publicId,
+                trim_string($payment['storeId'] ?? $payment['businessId'] ?? ''),
+                trim_string($payment['method'] ?? $payload['paymentMethod']),
+                $reference,
+                float_value($payment['amount'] ?? 0),
+                trim_string($payment['status'] ?? 'submitted'),
+            ]);
+        }
+    }
+
+    if (table_exists($pdo, 'deliveries')) {
+        $insertDelivery = $pdo->prepare(
+            'INSERT INTO deliveries (order_public_id, status, distance_km, delivery_fee)
+             VALUES (?, ?, ?, ?)'
+        );
+        $maxDistance = 0.0;
+        foreach ($routeBreakdown as $route) {
+            $maxDistance = max($maxDistance, float_value($route['distanceKm'] ?? 0));
+        }
+        $insertDelivery->execute([
+            $publicId,
+            trim_string($payload['deliveryStatus'] ?? 'pending'),
+            $maxDistance,
+            float_value($payload['deliveryFee']),
+        ]);
+    }
+
+    if (table_exists($pdo, 'cart') && trim_string($payload['sessionId'] ?? '') !== '') {
+        $clearCart = $pdo->prepare('DELETE FROM cart WHERE session_id = ?');
+        $clearCart->execute([trim_string($payload['sessionId'])]);
     }
 
     $pdo->commit();

@@ -6,7 +6,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $status = $_GET['status'] ?? null;
     try {
         $pdo = tamu_pdo();
-        $sql = 'SELECT * FROM sellers';
+        if (!table_exists($pdo, 'businesses')) {
+            json_response(['ok' => false, 'message' => 'Businesses table is not installed.'], 500);
+        }
+        $sql = 'SELECT * FROM businesses';
         $params = [];
         if ($status) {
             $sql .= ' WHERE status = ?';
@@ -19,6 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Decode JSON fields for frontend
         foreach ($sellers as &$s) {
             $s['paymentOptions'] = json_decode($s['payment_methods'] ?? '[]', true);
+            $s['store_name'] = $s['store_name'] ?? $s['name'] ?? '';
+            $s['business_type'] = $s['business_type'] ?? $s['type'] ?? 'retail';
+            $s['location'] = $s['location'] ?? $s['location_name'] ?? '';
         }
 
         json_response(['ok' => true, 'applications' => $sellers]);
@@ -30,8 +36,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     require_fields($payload, ['id', 'status']);
     try {
         $pdo = tamu_pdo();
-        $stmt = $pdo->prepare('UPDATE sellers SET status = ? WHERE id = ?');
+        if (!table_exists($pdo, 'businesses')) {
+            json_response(['ok' => false, 'message' => 'Businesses table is not installed.'], 500);
+        }
+        $stmt = $pdo->prepare('UPDATE businesses SET status = ? WHERE id = ?');
         $stmt->execute([$payload['status'], $payload['id']]);
+        if (table_exists($pdo, 'users')) {
+            $user = $pdo->prepare(
+                "UPDATE users u
+                 JOIN businesses b ON b.user_id = u.id
+                 SET u.status = ?
+                 WHERE b.id = ?"
+            );
+            $user->execute([$payload['status'], $payload['id']]);
+        }
         json_response(['ok' => true]);
     } catch (PDOException $e) {
         json_response(['ok' => false, 'message' => $e->getMessage()], 500);

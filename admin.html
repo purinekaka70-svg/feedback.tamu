@@ -48,7 +48,7 @@
               <input id="adminAccessPassword" class="input" name="password" type="password" placeholder="Password" autocomplete="current-password" required />
             </label>
 
-            <p class="tiny">Use the local admin account. Database data loads only when the backend is available.</p>
+            <p class="tiny">Sign in with the admin account stored in the backend database.</p>
             <button class="button button-primary" type="submit">Login</button>
             <p id="adminAccessStatus" class="tiny login-status"></p>
           </form>
@@ -147,6 +147,43 @@
                     <h2 class="section-title">Orders placed by users.</h2>
                   </div>
                   <span id="orderCountSummary" class="summary-chip">0 orders</span>
+                </div>
+
+                <div class="order-toolbar">
+                  <label class="field">
+                    <span class="field-label">Search orders</span>
+                    <input id="adminOrderSearch" class="input" type="search" placeholder="Order ID, customer, ref, location..." />
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Status</span>
+                    <select id="adminOrderStatusFilter" class="input">
+                      <option value="all">All statuses</option>
+                      <option value="pending_payment">Pending</option>
+                      <option value="paid">Paid</option>
+                      <option value="processing">Processing</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Payment</span>
+                    <select id="adminOrderPaymentFilter" class="input">
+                      <option value="all">All payments</option>
+                      <option value="pending_payment">Pending</option>
+                      <option value="submitted">Submitted</option>
+                      <option value="partially_paid">Partial</option>
+                      <option value="paid">Paid</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Date</span>
+                    <select id="adminOrderDateFilter" class="input">
+                      <option value="all">All dates</option>
+                      <option value="today">Today</option>
+                      <option value="7">Last 7 days</option>
+                      <option value="30">Last 30 days</option>
+                    </select>
+                  </label>
                 </div>
 
                 <div id="orderList" class="item-list order-list"></div>
@@ -259,10 +296,6 @@
         <span>Teams Technologies</span>
       </p>
       <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
-      <div class="footer-links">
-        <a class="footer-link-word" href="./about.html">About Us</a>
-        <a class="footer-link-word" href="./contact.html">Contact Us</a>
-      </div>
     </footer>
   </div>
 

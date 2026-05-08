@@ -99,3 +99,33 @@ function generate_public_id(string $prefix): string
         return $prefix . '-' . uniqid();
     }
 }
+
+function table_exists(PDO $pdo, string $table): bool
+{
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM information_schema.tables
+             WHERE table_schema = DATABASE() AND table_name = ?'
+        );
+        $stmt->execute([$table]);
+        return (int) $stmt->fetchColumn() > 0;
+    } catch (PDOException $error) {
+        return false;
+    }
+}
+
+function column_exists(PDO $pdo, string $table, string $column): bool
+{
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?'
+        );
+        $stmt->execute([$table, $column]);
+        return (int) $stmt->fetchColumn() > 0;
+    } catch (PDOException $error) {
+        return false;
+    }
+}

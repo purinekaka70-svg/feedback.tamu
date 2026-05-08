@@ -1,34 +1,12 @@
 let cachedApplications = [];
+let cachedOrders = [];
+let cachedCategories = [];
+let cachedProducts = [];
 const STORAGE_KEYS = {
-  sellers: "tamu_market_sellers",
-  sellerApplications: "tamu_market_seller_applications",
-  legacySellers: "tamu_sellers",
-  legacyProducts: "tamu_products",
-  legacyOrders: "tamu_orders",
-  sellerProducts: "tamu_market_seller_products",
-  categories: "tamu_market_categories",
-  adminOrders: "tamu_market_admin_orders",
   adminSession: "tamu_market_admin_session"
 };
 
-const DEMO_ORDER_IDS = new Set(["order-1001", "order-1002", "order-1003", "order-1004"]);
-
-const defaultCategories = [
-  "Beverages",
-  "Drinks",
-  "Groceries",
-  "Fresh Foods",
-  "Household",
-  "Snacks",
-  "Dairy",
-  "Wholesale Packs"
-];
-
 const orderStages = ["pending_payment", "paid", "processing", "delivered", "cancelled"];
-const LOCAL_ADMIN_CREDENTIALS = {
-  username: "TamuAdmin@2025",
-  password: "ummeats"
-};
 const adminViewMeta = {
   overview: {
     title: "Dashboard overview.",
@@ -72,6 +50,12 @@ const adminViewMeta = {
   }
 };
 let activeAdminView = "overview";
+const adminOrderFilters = {
+  search: "",
+  status: "all",
+  payment: "all",
+  date: "all"
+};
 
 function readStorage(key, fallback) {
   try {
@@ -98,19 +82,7 @@ function writeStorage(key, value) {
   }
 }
 
-function seedStorage() {
-  if (!readStorage(STORAGE_KEYS.categories, null)) {
-    writeStorage(STORAGE_KEYS.categories, defaultCategories);
-  }
-
-  if (!readStorage(STORAGE_KEYS.adminOrders, null)) {
-    writeStorage(STORAGE_KEYS.adminOrders, []);
-  }
-
-  if (!readStorage(STORAGE_KEYS.sellerApplications, null)) {
-    writeStorage(STORAGE_KEYS.sellerApplications, []);
-  }
-}
+function seedStorage() {}
 
 function currency(value) {
   return `KSh ${Number(value).toLocaleString()}`;
@@ -118,6 +90,35 @@ function currency(value) {
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "item";
+}
+
+function normalizeBusinessRecord(record = {}) {
+  const name = String(record.name || record.storeName || record.store_name || record.businessName || record.email || "Business").trim();
+  const location = String(record.location || record.county || record.locationName || record.location_name || record.locationId || "Location pending").trim();
+  const type = String(record.type || record.businessType || record.business_type || "retail").trim().toLowerCase();
+  const logo = record.logo || record.logoImage || record.logo_image || record.businessImage || record.image || "";
+
+  return {
+    ...record,
+    name,
+    storeName: record.storeName || name,
+    locationId: record.locationId || slugify(location),
+    location,
+    county: record.county || location,
+    type,
+    businessType: record.businessType || type,
+    logo,
+    logoImage: record.logoImage || logo,
+    rating: Number(record.rating) || 4.5
+  };
 }
 
 function capitalize(value) {
@@ -165,21 +166,30 @@ function bindAdminLogin() {
     return;
   }
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
     const username = String(formData.get("username") || "").trim();
     const password = String(formData.get("password") || "").trim();
 
-    if (username !== LOCAL_ADMIN_CREDENTIALS.username || password !== LOCAL_ADMIN_CREDENTIALS.password) {
-      status.textContent = "Invalid admin credentials.";
-      return;
+    try {
+      const response = await fetch('./api/admin/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        status.textContent = result.message || "Invalid admin credentials.";
+        return;
+      }
+      window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
+      status.textContent = "";
+      form.reset();
+      startDashboard();
+    } catch (error) {
+      status.textContent = "Admin login service is unavailable.";
     }
-
-    window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
-    status.textContent = "";
-    form.reset();
-    startDashboard();
   });
 }
 
@@ -208,24 +218,12 @@ function initReveal() {
 }
 
 function applications() {
-  const localSellers = readStorage(STORAGE_KEYS.sellers, []);
-  const localApplications = readStorage(STORAGE_KEYS.sellerApplications, []);
-  const legacySellers = readStorage(STORAGE_KEYS.legacySellers, []).map((seller) => ({
-    id: seller.id || seller.email,
-    storeName: seller.storeName || seller.name || seller.businessName || seller.email,
-    ownerName: seller.ownerName || seller.name || "",
-    email: seller.email || "",
-    phone: seller.phone || "",
-    businessType: seller.businessType || "seller",
-    location: seller.location || seller.coordinates || "Location pending",
-    status: seller.status || "pending",
-    createdAt: seller.createdAt || "",
-    updatedAt: seller.updatedAt || ""
-  }));
-  const merged = [...localSellers, ...localApplications, ...legacySellers, ...cachedApplications];
-  return merged.filter((application, index, list) =>
-    list.findIndex((item) => (item.id && item.id === application.id) || (item.email && item.email === application.email)) === index
-  );
+  const merged = [...cachedApplications];
+  return merged
+    .filter((application, index, list) =>
+      list.findIndex((item) => (item.id && item.id === application.id) || (item.email && item.email === application.email)) === index
+    )
+    .map(normalizeBusinessRecord);
 }
 
 function isBusinessActive(application) {
@@ -271,54 +269,93 @@ function formatDate(value) {
 
 async function loadData() {
   try {
-    const res = await fetch('./api/admin/applications.php');
-    if (!res.ok) {
-      return;
-    }
-    const data = await res.json();
-    if (data.ok) {
-      cachedApplications = data.applications || [];
-    }
+    const [applicationRes, marketRes, orderRes] = await Promise.all([
+      fetch('./api/admin/applications.php', { cache: 'no-store' }),
+      fetch('./api/marketplace/list.php', { cache: 'no-store' }),
+      fetch('./api/orders/list.php', { cache: 'no-store' })
+    ]);
+    const applicationData = await applicationRes.json();
+    const marketData = await marketRes.json();
+    const orderData = await orderRes.json();
+    cachedApplications = applicationRes.ok && applicationData.ok ? (applicationData.applications || []) : [];
+    cachedCategories = marketRes.ok && marketData.ok ? (marketData.categories || []) : [];
+    cachedProducts = marketRes.ok && marketData.ok ? (marketData.products || []) : [];
+    cachedOrders = orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
   } catch (error) {
     cachedApplications = [];
+    cachedCategories = [];
+    cachedProducts = [];
+    cachedOrders = [];
   }
 }
 
 function categories() {
-  return readStorage(STORAGE_KEYS.categories, defaultCategories);
+  return cachedCategories.map((category) => category.name || category).filter(Boolean);
 }
 
 function findLegacyProduct(productId) {
-  return readStorage(STORAGE_KEYS.legacyProducts, []).find((product) => product.id === productId);
+  return cachedProducts.find((product) => String(product.id) === String(productId));
+}
+
+function normalizeOrderItem(item = {}) {
+  const businessId = item.businessId || item.storeId || item.sellerId || "";
+  const name = item.name || item.productName || item.title || "Product";
+  const price = Number(item.price ?? item.unitPrice ?? item.productPrice) || 0;
+  const quantity = Number(item.quantity || 1);
+  const total = Number(item.total ?? item.lineTotal ?? price * quantity) || 0;
+
+  return {
+    ...item,
+    productId: item.productId || item.id || "",
+    businessId,
+    sellerId: item.sellerId || businessId,
+    storeId: item.storeId || businessId,
+    categoryId: item.categoryId || "",
+    name,
+    productName: item.productName || name,
+    categoryName: item.categoryName || item.productCategory || "",
+    quantity,
+    price,
+    unitPrice: Number(item.unitPrice ?? price) || 0,
+    total,
+    lineTotal: Number(item.lineTotal ?? total) || 0
+  };
 }
 
 function normalizeOrder(order) {
   const product = order.productId ? findLegacyProduct(order.productId) : null;
   const items = asArray(order.items).length
-    ? order.items
+    ? order.items.map(normalizeOrderItem)
     : product
-      ? [{
+      ? [normalizeOrderItem({
           productId: product.id,
+          businessId: product.sellerId || product.storeId || "",
           productName: product.name || product.productName || "Product",
           storeId: product.sellerId || product.storeId || "",
           storeName: product.sellerName || product.storeName || "Seller",
           quantity: Number(order.quantity || 1),
+          price: Number(product.price || product.productPrice || order.total || 0),
           unitPrice: Number(product.price || product.productPrice || order.total || 0),
+          total: Number(order.total || product.price || product.productPrice || 0) * Number(order.quantity || 1),
           lineTotal: Number(order.total || product.price || product.productPrice || 0) * Number(order.quantity || 1)
-        }]
+        })]
       : [];
 
-  const subtotal = Number(order.subtotal || items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0));
+  const subtotal = Number(order.subtotal || items.reduce((sum, item) => sum + Number(item.lineTotal || item.total || 0), 0));
   const deliveryFee = Number(order.deliveryFee || 0);
   const total = Number(order.total || subtotal + deliveryFee);
+  const paymentRef = order.paymentRef || order.mpesaReference || order.deliveryPayment?.reference || "";
 
   return {
     ...order,
     id: order.id || order.publicId || `order-${order.createdAt || Date.now()}`,
+    userId: order.userId || order.customerId || order.phone || "guest",
     customer: order.customer || order.customerName || order.buyerName || "Customer",
     phone: order.phone || order.customerPhone || "",
     buyerLocation: order.buyerLocation || order.location || "Buyer location pending",
     paymentMethod: order.paymentMethod || "Payment pending",
+    paymentRef,
+    mpesaReference: order.mpesaReference || paymentRef,
     paymentStatus: order.paymentStatus || "pending_payment",
     businessPayments: asArray(order.businessPayments),
     deliveryPayment: order.deliveryPayment || {
@@ -339,20 +376,37 @@ function normalizeOrder(order) {
 }
 
 function orders() {
-  const currentOrders = readStorage(STORAGE_KEYS.adminOrders, []).map(normalizeOrder);
-  const cleanOrders = currentOrders.filter((order) => !DEMO_ORDER_IDS.has(order.id));
-  if (cleanOrders.length !== currentOrders.length) {
-    writeStorage(STORAGE_KEYS.adminOrders, cleanOrders);
-  }
-
-  const legacyOrders = readStorage(STORAGE_KEYS.legacyOrders, []).map(normalizeOrder);
-  return [...cleanOrders, ...legacyOrders].filter((order, index, list) =>
+  return cachedOrders.map(normalizeOrder).filter((order, index, list) =>
     list.findIndex((item) => item.id === order.id) === index
   );
 }
 
 function saveOrders(nextOrders) {
-  writeStorage(STORAGE_KEYS.adminOrders, nextOrders.map(normalizeOrder));
+  cachedOrders = nextOrders.map(normalizeOrder);
+}
+
+async function updateOrderBackend(orderId, patch) {
+  try {
+    await fetch('./api/orders/update.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: orderId, ...patch })
+    });
+  } catch (error) {
+    return;
+  }
+}
+
+async function deleteOrderBackend(orderId) {
+  try {
+    await fetch('./api/orders/delete.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: orderId })
+    });
+  } catch (error) {
+    return;
+  }
 }
 
 function renderOverview() {
@@ -408,49 +462,6 @@ async function updateApplicationStatus(applicationId, status) {
     patch.expiresAt = new Date().toISOString();
   }
 
-  const localSellers = readStorage(STORAGE_KEYS.sellers, []);
-  const localApplications = readStorage(STORAGE_KEYS.sellerApplications, []);
-  const targetApplication = [...localSellers, ...localApplications].find((record) =>
-    record.id === applicationId || record.email === applicationId
-  );
-  const targetEmail = targetApplication?.email || "";
-  const updatedSellers = localSellers.map((seller) =>
-    seller.id === applicationId || seller.email === applicationId || (targetEmail && seller.email === targetEmail)
-      ? { ...seller, ...patch }
-      : seller
-  );
-
-  const updatedApplications = localApplications.map((application) =>
-    application.id === applicationId || application.email === applicationId || (targetEmail && application.email === targetEmail)
-      ? { ...application, ...patch }
-      : application
-  );
-
-  const updatedApplication = updatedApplications.find((application) =>
-    application.id === applicationId || application.email === applicationId || (targetEmail && application.email === targetEmail)
-  );
-  const sellerExists = updatedSellers.some((seller) =>
-    seller.id === applicationId || seller.email === updatedApplication?.email || (targetEmail && seller.email === targetEmail)
-  );
-  const nextSellers = sellerExists || !updatedApplication
-    ? updatedSellers
-    : [...updatedSellers, { ...updatedApplication, ...patch }];
-
-  if (nextSellers.some((seller, index) => seller !== localSellers[index]) || nextSellers.length !== localSellers.length) {
-    writeStorage(STORAGE_KEYS.sellers, nextSellers);
-  }
-  if (updatedApplications.some((application, index) => application !== localApplications[index])) {
-    writeStorage(STORAGE_KEYS.sellerApplications, updatedApplications);
-  }
-
-  const legacySellers = readStorage(STORAGE_KEYS.legacySellers, []);
-  const updatedLegacySellers = legacySellers.map((seller) =>
-    seller.id === applicationId || seller.email === applicationId ? { ...seller, ...patch } : seller
-  );
-  if (updatedLegacySellers.some((seller, index) => seller !== legacySellers[index])) {
-    writeStorage(STORAGE_KEYS.legacySellers, updatedLegacySellers);
-  }
-
   try {
     const response = await fetch('./api/admin/applications.php', {
       method: 'POST',
@@ -461,9 +472,7 @@ async function updateApplicationStatus(applicationId, status) {
     if (result.ok) {
       await loadData();
     }
-  } catch (error) {
-    // Local seller approvals still work when the PHP API is unavailable.
-  }
+  } catch (error) {}
 
   renderOverview();
   renderApprovals();
@@ -591,6 +600,28 @@ function moveOrder(orderId) {
   renderNotifications();
   renderAdminUtilityPanels();
   showToast("Order moved to the next stage.");
+  const nextOrder = nextOrders.find((order) => order.id === orderId);
+  updateOrderBackend(orderId, { status: normalizeOrderStatus(nextOrder?.status) });
+}
+
+function markOrderProcessing(orderId) {
+  const nextOrders = orders().map((order) => order.id === orderId
+    ? {
+        ...order,
+        status: "processing",
+        deliveryStatus: order.deliveryStatus === "delivered" ? "delivered" : "processing",
+        updatedAt: new Date().toISOString()
+      }
+    : order);
+
+  saveOrders(nextOrders);
+  renderOverview();
+  renderOrderList();
+  renderOrders();
+  renderNotifications();
+  renderAdminUtilityPanels();
+  showToast("Order marked as processing.");
+  updateOrderBackend(orderId, { status: "processing" });
 }
 
 function markOrderPaid(orderId) {
@@ -631,6 +662,7 @@ function markOrderPaid(orderId) {
   renderNotifications();
   renderAdminUtilityPanels();
   showToast("Order payment marked as paid.");
+  updateOrderBackend(orderId, { status: "paid", paymentStatus: "paid" });
 }
 
 function markOrderDelivered(orderId) {
@@ -651,6 +683,7 @@ function markOrderDelivered(orderId) {
   renderNotifications();
   renderAdminUtilityPanels();
   showToast("Order marked as delivered.");
+  updateOrderBackend(orderId, { status: "delivered" });
 }
 
 function cancelOrder(orderId) {
@@ -669,6 +702,7 @@ function cancelOrder(orderId) {
   renderNotifications();
   renderAdminUtilityPanels();
   showToast("Order cancelled.", "warn");
+  updateOrderBackend(orderId, { status: "cancelled" });
 }
 
 function deleteOrder(orderId) {
@@ -679,12 +713,25 @@ function deleteOrder(orderId) {
   renderNotifications();
   renderAdminUtilityPanels();
   showToast("Order deleted.", "warn");
+  deleteOrderBackend(orderId);
 }
 
 function bindOrderActionButtons(container) {
+  container.querySelectorAll("[data-view-order]").forEach((button) => {
+    button.addEventListener("click", () => {
+      container.querySelector(`[data-order-detail="${button.dataset.viewOrder}"]`)?.classList.toggle("is-hidden");
+    });
+  });
+
   container.querySelectorAll("[data-move-order]").forEach((button) => {
     button.addEventListener("click", () => {
       moveOrder(button.dataset.moveOrder);
+    });
+  });
+
+  container.querySelectorAll("[data-process-order]").forEach((button) => {
+    button.addEventListener("click", () => {
+      markOrderProcessing(button.dataset.processOrder);
     });
   });
 
@@ -717,31 +764,86 @@ function renderOrders() {
   renderOrderList();
 }
 
+function orderDistanceText(order) {
+  const breakdown = asArray(order.routeBreakdown);
+  if (!breakdown.length) {
+    return "Distance pending";
+  }
+  return breakdown
+    .map((entry) => `${entry.storeName || "Store"}: ${Number(entry.distanceKm || 0).toFixed(1)} km`)
+    .join(" | ");
+}
+
+function orderSearchText(order) {
+  return [
+    order.id,
+    order.customer,
+    order.phone,
+    order.buyerLocation,
+    order.paymentMethod,
+    order.mpesaReference,
+    order.deliveryPayment?.reference,
+    order.storeName,
+    asArray(order.items).map((item) => item.productName).join(" "),
+    asArray(order.businessPayments).map((payment) => `${payment.storeName} ${payment.reference}`).join(" ")
+  ].join(" ").toLowerCase();
+}
+
+function orderInDateRange(order, range) {
+  if (range === "all") return true;
+  const created = new Date(order.createdAt || order.updatedAt || 0).getTime();
+  if (!Number.isFinite(created) || created <= 0) return false;
+  const now = new Date();
+  if (range === "today") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return created >= start;
+  }
+  const days = Number(range);
+  return Number.isFinite(days) ? created >= Date.now() - days * 24 * 60 * 60 * 1000 : true;
+}
+
+function filteredAdminOrders() {
+  const query = adminOrderFilters.search.trim().toLowerCase();
+  return orders().filter((order) => {
+    const status = normalizeOrderStatus(order.status);
+    const payment = String(order.paymentStatus || "pending_payment");
+    const matchesSearch = !query || orderSearchText(order).includes(query);
+    const matchesStatus = adminOrderFilters.status === "all" || status === adminOrderFilters.status;
+    const matchesPayment = adminOrderFilters.payment === "all" || payment === adminOrderFilters.payment;
+    const matchesDate = orderInDateRange(order, adminOrderFilters.date);
+    return matchesSearch && matchesStatus && matchesPayment && matchesDate;
+  });
+}
+
 function renderOrderList() {
   const container = document.getElementById("orderList");
   if (!container) return;
-  const list = orders().slice().reverse();
+  const allOrders = orders();
+  const list = filteredAdminOrders().slice().reverse();
   const summary = document.getElementById("orderCountSummary");
   if (summary) {
-    summary.textContent = `${list.length} order${list.length === 1 ? "" : "s"}`;
+    summary.textContent = `${list.length}/${allOrders.length} order${allOrders.length === 1 ? "" : "s"}`;
   }
 
   if (!list.length) {
-    container.innerHTML = '<div class="list-card">No orders placed yet. Orders from checkout will appear here immediately.</div>';
+    container.innerHTML = '<div class="list-card">No orders match the current filters. Orders from checkout will appear here immediately.</div>';
     return;
   }
 
-  container.innerHTML = list.map((order) => `
+  container.innerHTML = list.map((order) => {
+    const orderStatus = normalizeOrderStatus(order.status);
+    const paymentReference = order.mpesaReference || order.businessPayments?.[0]?.reference || "pending";
+    return `
     <article class="list-card order-menu-card">
       <div class="section-head">
         <div>
           <strong>${order.id}</strong>
           <p class="tiny">${order.customer || "Customer"} | ${order.phone || "Phone pending"}</p>
         </div>
-        <span class="status-pill status-pill--${order.status || "pending"}">${capitalize(order.status || "pending")}</span>
+        <span class="status-pill status-pill--${orderStatus}">${capitalize(orderStatus)}</span>
       </div>
       <p>${order.storeName || order.storeNames?.join(", ") || "Store pending"}</p>
-      <p class="tiny">M-Pesa: ${order.mpesaName || order.customer || "Name pending"} | ${order.mpesaNumber || order.phone || "Number pending"} | Ref ${order.mpesaReference || order.businessPayments?.[0]?.reference || "pending"}</p>
+      <p class="tiny">Payment: ${order.paymentMethod || "Business direct payment"} | M-Pesa: ${order.mpesaName || order.customer || "Name pending"} | ${order.mpesaNumber || order.phone || "Number pending"} | Ref ${paymentReference}</p>
       ${asArray(order.items).length
         ? `<p class="tiny">Items: ${order.items.map((item) => `${item.productName || "Product"} x${item.quantity || 1}`).join(", ")}</p>`
         : ""}
@@ -749,27 +851,35 @@ function renderOrderList() {
         ? `<p class="tiny">Business refs: ${order.businessPayments.map((payment) => `${payment.storeName || "Business"} ${payment.reference || "pending"} (${capitalize(payment.status || "pending")})`).join(" | ")}</p>`
         : ""}
       <p class="tiny">${order.buyerLocation || "Buyer location pending"} | ${order.paymentMethod || "Payment pending"}</p>
+      <p class="tiny">Distance: ${orderDistanceText(order)}</p>
       <p class="tiny">Payment status: ${capitalize(String(order.paymentStatus || "pending").replace("_", " "))}</p>
       <p class="tiny">Delivery status: ${capitalize(order.deliveryStatus || order.status || "pending")} | Employee: ${order.assignedEmployeeName || order.assignedEmployeeEmail || "Not assigned"}</p>
       <p class="tiny">Delivery till ${order.deliveryPayment?.tillNumber || "7312380"} | Ref ${order.deliveryPayment?.reference || "pending"} | ${capitalize(order.deliveryPayment?.status || "pending")}</p>
       <p class="tiny">Delivery ${currency(order.deliveryFee || 0)} | Total ${currency(order.total || 0)}</p>
+      <div class="order-detail-panel is-hidden" data-order-detail="${order.id}">
+        <p class="tiny">Created: ${order.createdAt ? new Date(order.createdAt).toLocaleString() : "Date pending"}</p>
+        <p class="tiny">Customer location: ${order.buyerLocation || "Location pending"}</p>
+        <p class="tiny">Route: ${orderDistanceText(order)}</p>
+        <p class="tiny">Order total: Products ${currency(order.subtotal || 0)} + Delivery ${currency(order.deliveryFee || 0)} = ${currency(order.total || 0)}</p>
+      </div>
       <div class="button-row">
+        <button class="button button-outline button-small" data-view-order="${order.id}" type="button">View details</button>
         ${order.paymentStatus !== "paid"
-          ? `<button class="button button-primary button-small" data-paid-order="${order.id}" type="button">Mark paid</button>`
+          ? `<button class="button button-primary button-small" data-paid-order="${order.id}" type="button">Confirm payment</button>`
           : ""}
-        ${!["delivered", "cancelled"].includes(order.status)
-          ? `<button class="button button-outline button-small" data-move-order="${order.id}" type="button">Move next</button>`
+        ${!["processing", "delivered", "cancelled"].includes(orderStatus)
+          ? `<button class="button button-outline button-small" data-process-order="${order.id}" type="button">Processing</button>`
           : ""}
-        ${order.status !== "delivered"
+        ${orderStatus !== "delivered"
           ? `<button class="button button-outline button-small" data-deliver-order="${order.id}" type="button">Delivered</button>`
           : ""}
-        ${order.status !== "cancelled"
+        ${orderStatus !== "cancelled"
           ? `<button class="button button-outline button-small" data-cancel-order="${order.id}" type="button">Cancel</button>`
           : ""}
         <button class="button button-ghost button-small" data-delete-order="${order.id}" type="button">Delete</button>
       </div>
     </article>
-  `).join("");
+  `; }).join("");
 
   bindOrderActionButtons(container);
 }
@@ -817,7 +927,7 @@ function renderNotifications() {
 function renderAdminUtilityPanels() {
   const allOrders = orders();
   const allApplications = applications();
-  const sellerProducts = readStorage(STORAGE_KEYS.sellerProducts, []);
+  const sellerProducts = cachedProducts;
   const customers = [...new Map(allOrders.map((order) => [
     `${order.phone || ""}-${order.customer || ""}`,
     order
@@ -920,7 +1030,7 @@ function bindCategoryForm() {
   const form = document.getElementById("categoryForm");
   if (!form || form.dataset.bound === "true") return;
   form.dataset.bound = "true";
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const categoryName = String(formData.get("categoryName")).trim();
@@ -934,7 +1044,17 @@ function bindCategoryForm() {
       return;
     }
 
-    writeStorage(STORAGE_KEYS.categories, [...categories(), categoryName]);
+    const response = await fetch('./api/categories/save.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: categoryName })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      showToast(result.message || "Category save failed.", "warn");
+      return;
+    }
+    await loadData();
     event.currentTarget.reset();
     renderCategories();
     showToast("Category added.");
@@ -958,6 +1078,21 @@ function closeAdminMenu() {
   overlay?.classList.remove("is-open");
   toggle?.setAttribute("aria-expanded", "false");
   document.body.classList.remove("admin-menu-open");
+}
+
+function closeOtherMenusForAdmin() {
+  document.querySelectorAll(".seller-workspace-nav.is-open, .employee-sidebar.is-open, .seller-sidebar[data-open='true']")
+    .forEach((menu) => {
+      menu.classList.remove("is-open");
+      if (menu.dataset.open) {
+        menu.dataset.open = "false";
+      }
+    });
+  document.querySelectorAll(".seller-menu-overlay.is-open, .employee-sidebar-overlay.is-open, .seller-sidebar-overlay.is-open")
+    .forEach((overlay) => overlay.classList.remove("is-open"));
+  document.querySelectorAll("#sellerWorkspaceToggle, #employeeMenuToggle, .seller-menu-toggle")
+    .forEach((button) => button.setAttribute("aria-expanded", "false"));
+  document.body.classList.remove("seller-menu-open", "employee-menu-open", "legacy-seller-menu-open");
 }
 
 function setAdminView(view) {
@@ -993,6 +1128,7 @@ function bindAdminNavigation() {
         toggle.setAttribute("aria-expanded", String(!collapsed));
         return;
       }
+      closeOtherMenusForAdmin();
       const isOpen = sidebar.classList.toggle("is-open");
       overlay.classList.toggle("is-open", isOpen);
       toggle.setAttribute("aria-expanded", String(isOpen));
@@ -1027,20 +1163,41 @@ function bindAdminNavigation() {
   });
 }
 
+function bindAdminOrderFilters() {
+  const bindings = [
+    ["adminOrderSearch", "search"],
+    ["adminOrderStatusFilter", "status"],
+    ["adminOrderPaymentFilter", "payment"],
+    ["adminOrderDateFilter", "date"]
+  ];
+  bindings.forEach(([id, key]) => {
+    const input = document.getElementById(id);
+    if (!input || input.dataset.bound === "true") return;
+    input.dataset.bound = "true";
+    input.addEventListener("input", () => {
+      adminOrderFilters[key] = input.value;
+      renderOrderList();
+    });
+    input.addEventListener("change", () => {
+      adminOrderFilters[key] = input.value;
+      renderOrderList();
+    });
+  });
+}
+
 function bindLiveOrderUpdates() {
   if (window.__tamuAdminLiveOrdersBound) {
     return;
   }
   window.__tamuAdminLiveOrdersBound = true;
-  window.addEventListener("storage", (event) => {
-    if (event.key !== STORAGE_KEYS.adminOrders || !ensureAdminSession()) {
-      return;
-    }
+  window.setInterval(async () => {
+    if (!ensureAdminSession()) return;
+    await loadData();
     renderOverview();
     renderOrderList();
     renderNotifications();
     renderAdminUtilityPanels();
-  });
+  }, 12000);
 }
 
 async function startDashboard() {
@@ -1048,6 +1205,7 @@ async function startDashboard() {
   seedStorage();
   await loadData();
   bindAdminNavigation();
+  bindAdminOrderFilters();
   bindLiveOrderUpdates();
   bindCategoryForm();
   bindLogout();
