@@ -1,6 +1,4 @@
 const EMPLOYEE_KEYS = {
-  employeeSession: "tamu_market_employee_session",
-  employeeAccounts: "tamu_market_employee_accounts",
   adminPhone: "tamu_market_admin_phone"
 };
 
@@ -72,33 +70,41 @@ function firebaseConfig() {
   return readStorage("tamu_market_firebase_config", null);
 }
 
-async function loadFirebaseEmployees() {
+function ensureFirebaseApp() {
   const config = firebaseConfig();
-  if (!config || !window.firebase?.firestore) {
-    return [];
+  if (!config || !window.firebase?.auth || !window.firebase?.firestore) {
+    return { ok: false, message: "Firebase Auth and Firestore are not configured." };
   }
 
-  try {
-    if (!window.firebase.apps.length) {
-      window.firebase.initializeApp(config);
-    }
-    const snapshot = await window.firebase.firestore().collection("employees").get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    return [];
+  if (!window.firebase.apps.length) {
+    window.firebase.initializeApp(config);
   }
+
+  return { ok: true };
 }
 
-async function employeeAccounts() {
-  const firebaseAccounts = await loadFirebaseEmployees();
-  return [...firebaseAccounts].filter((account, index, list) =>
-    list.findIndex((item) => (item.id && item.id === account.id) || (item.email && item.email === account.email)) === index
-  );
+async function employeeRecordForFirebaseUser(user) {
+  if (!user?.uid) {
+    return null;
+  }
+
+  const db = window.firebase.firestore();
+  const directDoc = await db.collection("employees").doc(user.uid).get();
+  if (directDoc.exists) {
+    return { id: directDoc.id, ...directDoc.data(), uid: directDoc.data().uid || user.uid, email: directDoc.data().email || user.email };
+  }
+
+  const uidQuery = await db.collection("employees").where("uid", "==", user.uid).limit(1).get();
+  if (!uidQuery.empty) {
+    const doc = uidQuery.docs[0];
+    return { id: doc.id, ...doc.data(), uid: doc.data().uid || user.uid, email: doc.data().email || user.email };
+  }
+
+  return null;
 }
 
 function isEmployeeActive(account) {
-  const status = String(account?.status || "inactive").toLowerCase();
-  return status === "active" || status === "approved" || account?.approved === true;
+  return account?.approved === true;
 }
 
 async function loadEmployeeOrders() {
@@ -117,31 +123,21 @@ async function loadEmployeeOrders() {
   }
 }
 
-async function findEmployeeByEmail(email) {
-  const accounts = await employeeAccounts();
-  return accounts.find((account) => String(account.email || "").toLowerCase() === email.toLowerCase());
-}
-
 async function signInEmployee(email, password) {
-  const config = firebaseConfig();
-  if (!config || !window.firebase?.auth || !window.firebase?.firestore) {
-    return { ok: false, message: "Firebase Auth is not configured." };
-  }
-
-  if (!window.firebase.apps.length) {
-    window.firebase.initializeApp(config);
+  const firebase = ensureFirebaseApp();
+  if (!firebase.ok) {
+    return firebase;
   }
 
   try {
+    await window.firebase.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
     const credential = await window.firebase.auth().signInWithEmailAndPassword(email, password);
     const user = credential.user;
-    const doc = await window.firebase.firestore().collection("employees").doc(user.uid).get();
-    const data = doc.exists ? doc.data() : await findEmployeeByEmail(email);
-    const account = { id: user.uid, uid: user.uid, email: user.email, ...data };
+    const account = await employeeRecordForFirebaseUser(user);
 
     if (!isEmployeeActive(account)) {
       await window.firebase.auth().signOut();
-      return { ok: false, message: "Employee account is not approved." };
+      return { ok: false, message: "Employee account is not approved or is not registered in Firestore." };
     }
 
     return { ok: true, account };
@@ -632,7 +628,6 @@ function bindNavigation() {
     if (window.firebase?.auth) {
       await window.firebase.auth().signOut().catch(() => {});
     }
-    window.localStorage.removeItem(EMPLOYEE_KEYS.employeeSession);
     currentEmployee = null;
     showLogin();
   });
@@ -644,10 +639,28 @@ function bindNavigation() {
 }
 
 async function restoreSession() {
-  const session = readStorage(EMPLOYEE_KEYS.employeeSession, null);
-  if (!session?.email) return false;
-  const account = await findEmployeeByEmail(session.email) || session;
-  if (!account || !isEmployeeActive(account)) return false;
+  const firebase = ensureFirebaseApp();
+  if (!firebase.ok) {
+    return false;
+  }
+
+  const user = await new Promise((resolve) => {
+    const unsubscribe = window.firebase.auth().onAuthStateChanged((nextUser) => {
+      unsubscribe();
+      resolve(nextUser);
+    });
+  });
+
+  if (!user) {
+    return false;
+  }
+
+  const account = await employeeRecordForFirebaseUser(user);
+  if (!isEmployeeActive(account)) {
+    await window.firebase.auth().signOut().catch(() => {});
+    return false;
+  }
+
   currentEmployee = account;
   return true;
 }
@@ -669,12 +682,6 @@ function bindLogin() {
 
     const account = result.account;
     currentEmployee = account;
-    writeStorage(EMPLOYEE_KEYS.employeeSession, {
-      id: account.id,
-      email: account.email,
-      name: account.name,
-      loggedInAt: new Date().toISOString()
-    });
     status.textContent = "";
     form.reset();
     showDashboard();
