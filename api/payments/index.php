@@ -26,6 +26,7 @@ try {
     }
 
     if ($method === 'POST') {
+        require_auth_roles(['admin', 'seller', 'customer']);
         $payload = read_json_input();
         require_fields($payload, ['orderId', 'method', 'reference', 'amount']);
         $stmt = $pdo->prepare(
@@ -33,25 +34,30 @@ try {
              VALUES (?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
-            trim_string($payload['orderId']),
-            trim_string($payload['businessId'] ?? ''),
-            trim_string($payload['method']),
-            trim_string($payload['reference']),
+            safe_text($payload['orderId'], 120),
+            safe_text($payload['businessId'] ?? '', 120),
+            safe_text($payload['method'], 40),
+            safe_text($payload['reference'], 120),
             float_value($payload['amount']),
-            trim_string($payload['status'] ?? 'submitted'),
+            safe_text($payload['status'] ?? 'submitted', 40),
         ]);
         json_response(['ok' => true, 'payment' => ['id' => (int) $pdo->lastInsertId()]], 201);
     }
 
     if ($method === 'PATCH') {
+        require_auth_roles(['admin', 'seller']);
         $payload = read_json_input();
         require_fields($payload, ['id', 'status']);
+        $status = safe_text($payload['status'], 40);
+        if (!in_array($status, ['submitted', 'pending', 'paid', 'confirmed', 'failed', 'refunded'], true)) {
+            json_response(['ok' => false, 'message' => 'Invalid payment status.'], 422);
+        }
         $stmt = $pdo->prepare('UPDATE payments SET status = ? WHERE id = ?');
-        $stmt->execute([trim_string($payload['status']), int_value($payload['id'])]);
+        $stmt->execute([$status, int_value($payload['id'])]);
         json_response(['ok' => true]);
     }
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Payments request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Payments request failed.');
 }

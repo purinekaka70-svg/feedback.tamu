@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
 ensure_method('POST');
+require_auth_roles(['admin', 'seller']);
 $payload = read_json_input();
 require_fields($payload, ['id']);
 
@@ -24,10 +25,13 @@ try {
         $sets[] = 'status = ?';
         $params[] = $status;
     }
-    if ($paymentStatus !== '') {
-        $sets[] = 'payment_status = ?';
-        $params[] = $paymentStatus;
+if ($paymentStatus !== '') {
+    if (!in_array($paymentStatus, ['pending', 'paid', 'confirmed', 'failed', 'refunded'], true)) {
+        json_response(['ok' => false, 'message' => 'Invalid payment status.'], 422);
     }
+    $sets[] = 'payment_status = ?';
+    $params[] = $paymentStatus;
+}
     if ($paymentRef !== '') {
         $sets[] = 'mpesa_reference = ?';
         $params[] = $paymentRef;
@@ -55,5 +59,5 @@ try {
 
     json_response(['ok' => true]);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Failed to update order.', 'error' => $error->getMessage()], 500);
+    safe_error('Failed to update order.');
 }

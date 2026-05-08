@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
 ensure_method('POST');
+require_auth_roles(['admin', 'seller']);
 $payload = read_json_input();
 require_fields($payload, ['id']);
 
@@ -19,5 +20,5 @@ try {
 
     json_response(['ok' => true]);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Failed to delete category.', 'error' => $error->getMessage()], 500);
+    safe_error('Failed to delete category.');
 }

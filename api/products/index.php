@@ -42,6 +42,7 @@ try {
     }
 
     if ($method === 'DELETE') {
+        require_auth_roles(['admin', 'seller']);
         $payload = read_json_input();
         require_fields($payload, ['id']);
         $stmt = $pdo->prepare('DELETE FROM products WHERE id = ?');
@@ -51,5 +52,5 @@ try {
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Products request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Products request failed.');
 }

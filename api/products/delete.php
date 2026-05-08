@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
 ensure_method('POST');
+require_auth_roles(['admin', 'seller']);
 $payload = read_json_input();
 require_fields($payload, ['id']);
 
@@ -16,5 +17,5 @@ try {
     $stmt->execute([trim_string($payload['id'])]);
     json_response(['ok' => true]);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Failed to delete product.', 'error' => $error->getMessage()], 500);
+    safe_error('Failed to delete product.');
 }

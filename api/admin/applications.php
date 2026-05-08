@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
+require_auth_roles(['admin']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $status = $_GET['status'] ?? null;
+    $status = safe_text($_GET['status'] ?? '', 40);
     try {
         $pdo = tamu_pdo();
         if (!table_exists($pdo, 'businesses')) {
@@ -11,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
         $sql = 'SELECT * FROM businesses';
         $params = [];
-        if ($status) {
+        if ($status !== '') {
             $sql .= ' WHERE status = ?';
             $params[] = $status;
         }
@@ -29,18 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         json_response(['ok' => true, 'applications' => $sellers]);
     } catch (PDOException $e) {
-        json_response(['ok' => false, 'message' => $e->getMessage()], 500);
+        safe_error('Failed to load applications.');
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = read_json_input();
     require_fields($payload, ['id', 'status']);
+    $status = safe_text($payload['status'], 40);
+    if (!in_array($status, ['pending', 'approved', 'rejected', 'blocked'], true)) {
+        json_response(['ok' => false, 'message' => 'Invalid application status.'], 422);
+    }
     try {
         $pdo = tamu_pdo();
         if (!table_exists($pdo, 'businesses')) {
             json_response(['ok' => false, 'message' => 'Businesses table is not installed.'], 500);
         }
         $stmt = $pdo->prepare('UPDATE businesses SET status = ? WHERE id = ?');
-        $stmt->execute([$payload['status'], $payload['id']]);
+        $stmt->execute([$status, int_value($payload['id'])]);
         if (table_exists($pdo, 'users')) {
             $user = $pdo->prepare(
                 "UPDATE users u
@@ -48,10 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                  SET u.status = ?
                  WHERE b.id = ?"
             );
-            $user->execute([$payload['status'], $payload['id']]);
+            $user->execute([$status, int_value($payload['id'])]);
         }
         json_response(['ok' => true]);
     } catch (PDOException $e) {
-        json_response(['ok' => false, 'message' => $e->getMessage()], 500);
+        safe_error('Failed to update application.');
     }
 }

@@ -6,6 +6,8 @@ require_once __DIR__ . '/../helpers.php';
 ensure_method('POST');
 $payload = read_json_input();
 require_fields($payload, ['email', 'password']);
+$email = safe_email($payload['email']);
+require_valid_email($email);
 
 try {
     $pdo = tamu_pdo();
@@ -20,7 +22,7 @@ try {
          WHERE b.email = ?
          LIMIT 1"
     );
-    $stmt->execute([trim_string($payload['email'])]);
+    $stmt->execute([$email]);
     $seller = $stmt->fetch();
 
     $hash = (string) ($seller['password'] ?? '');
@@ -31,6 +33,20 @@ try {
     if (($seller['status'] ?? '') !== 'approved') {
         json_response(['ok' => false, 'message' => 'Seller account is waiting for admin approval.', 'status' => $seller['status']], 403);
     }
+
+    secure_session_start();
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $seller['user_id'] ?? null;
+        $_SESSION['business_id'] = $seller['id'];
+        $_SESSION['role'] = 'seller';
+        session_write_close();
+    }
+    issue_auth_cookie([
+        'userId' => isset($seller['user_id']) ? (int) $seller['user_id'] : null,
+        'businessId' => (int) $seller['id'],
+        'role' => 'seller',
+    ]);
 
     json_response([
         'ok' => true,
@@ -58,5 +74,5 @@ try {
         ],
     ]);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Seller login failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Seller login failed.');
 }

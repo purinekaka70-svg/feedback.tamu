@@ -17,6 +17,7 @@ try {
     $pdo = tamu_pdo();
 
     if ($method === 'PATCH' || $method === 'PUT') {
+        require_auth_roles(['admin', 'seller']);
         $payload = read_json_input();
         require_fields($payload, ['id']);
         $allowedStatuses = ['pending', 'pending_payment', 'paid', 'processing', 'delivered', 'cancelled'];
@@ -34,6 +35,9 @@ try {
 
         $paymentStatus = trim_string($payload['paymentStatus'] ?? '');
         if ($paymentStatus !== '') {
+            if (!in_array($paymentStatus, ['pending', 'paid', 'confirmed', 'failed', 'refunded'], true)) {
+                json_response(['ok' => false, 'message' => 'Invalid payment status.'], 422);
+            }
             $sets[] = 'payment_status = ?';
             $params[] = $paymentStatus;
         }
@@ -57,6 +61,7 @@ try {
     }
 
     if ($method === 'DELETE') {
+        require_auth_roles(['admin', 'seller']);
         $payload = read_json_input();
         require_fields($payload, ['id']);
         $id = trim_string($payload['id']);
@@ -67,5 +72,5 @@ try {
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Orders request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Orders request failed.');
 }

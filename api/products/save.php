@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
 ensure_method('POST');
+require_auth_roles(['admin', 'seller']);
 $payload = read_json_input();
 require_fields($payload, ['businessId', 'name', 'categoryId', 'price']);
 
@@ -37,12 +38,12 @@ try {
     $params = [
         'business_id' => $businessId,
         'category_id' => int_value($categoryId),
-        'name' => trim_string($payload['name']),
-        'image' => trim_string($payload['image'] ?? ''),
+        'name' => safe_text($payload['name'], 150),
+        'image' => validate_base64_image($payload['image'] ?? '', 1048576),
         'price' => float_value($payload['price']),
         'offer_flag' => !empty($payload['offerFlag']) ? 1 : 0,
         'stock' => int_value($payload['stock'] ?? 0),
-        'description' => trim_string($payload['description'] ?? ''),
+        'description' => safe_text($payload['description'] ?? '', 500),
     ];
 
     if ($productId !== '' && is_numeric($productId)) {
@@ -71,5 +72,5 @@ try {
 
     json_response(['ok' => true, 'product' => ['id' => $productId]], 201);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Failed to save product.', 'error' => $error->getMessage()], 500);
+    safe_error('Failed to save product.');
 }

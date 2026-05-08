@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
 ensure_method('POST');
+require_auth_roles(['admin', 'seller']);
 $payload = read_json_input();
 require_fields($payload, ['id']);
 
@@ -36,7 +37,7 @@ try {
         $updates[] = "{$column} = ?";
         $params[] = in_array($column, ['latitude', 'longitude'], true)
             ? float_value($payload[$payloadKey])
-            : trim_string($payload[$payloadKey]);
+            : safe_text($payload[$payloadKey], 500);
     }
 
     if (array_key_exists('paymentMethods', $payload) && column_exists($pdo, $table, 'payment_methods')) {
@@ -84,5 +85,5 @@ try {
         ],
     ]);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Failed to update seller.', 'error' => $error->getMessage()], 500);
+    safe_error('Failed to update seller.');
 }

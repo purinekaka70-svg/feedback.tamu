@@ -1,0 +1,15 @@
+Options -Indexes
+ServerSignature Off
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "same-origin"
+  Header always set Permissions-Policy "geolocation=(self), camera=(), microphone=()"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; font-src 'self' data:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+  Header always unset X-Powered-By
+</IfModule>
+
+<IfModule mod_php.c>
+  php_flag display_errors Off
+</IfModule>

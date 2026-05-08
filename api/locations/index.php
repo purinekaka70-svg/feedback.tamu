@@ -18,6 +18,7 @@ try {
     }
 
     if ($method === 'POST') {
+        require_auth_roles(['admin']);
         $payload = read_json_input();
         require_fields($payload, ['name']);
         $id = trim_string($payload['id'] ?? '');
@@ -32,9 +33,9 @@ try {
             );
             $stmt->execute([
                 (int) $id,
-                trim_string($payload['name']),
-                trim_string($payload['image'] ?? ''),
-                trim_string($payload['description'] ?? ''),
+                safe_text($payload['name'], 100),
+                validate_base64_image($payload['image'] ?? '', 1048576),
+                safe_text($payload['description'] ?? '', 500),
             ]);
         } else {
             $stmt = $pdo->prepare(
@@ -42,9 +43,9 @@ try {
                  VALUES (?, ?, ?)'
             );
             $stmt->execute([
-                trim_string($payload['name']),
-                trim_string($payload['image'] ?? ''),
-                trim_string($payload['description'] ?? ''),
+                safe_text($payload['name'], 100),
+                validate_base64_image($payload['image'] ?? '', 1048576),
+                safe_text($payload['description'] ?? '', 500),
             ]);
             $id = (string) $pdo->lastInsertId();
         }
@@ -53,5 +54,5 @@ try {
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Locations request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Locations request failed.');
 }

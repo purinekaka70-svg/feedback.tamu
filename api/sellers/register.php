@@ -5,6 +5,14 @@ ensure_method('POST');
 $payload = read_json_input();
 require_fields($payload, ['storeName', 'email', 'password', 'latitude', 'longitude']);
 
+$email = safe_email($payload['email']);
+require_valid_email($email);
+$password = (string) $payload['password'];
+if (strlen($password) < 8) {
+    json_response(['ok' => false, 'message' => 'Password must be at least 8 characters.'], 422);
+}
+$logoImage = validate_base64_image($payload['logoImage'] ?? ($payload['logo'] ?? ''), 1048576);
+
 try {
     $pdo = tamu_pdo();
     if (!table_exists($pdo, 'users') || !table_exists($pdo, 'businesses')) {
@@ -12,13 +20,12 @@ try {
     }
 
     $check = $pdo->prepare('SELECT id FROM businesses WHERE email = ?');
-    $check->execute([$payload['email']]);
+    $check->execute([$email]);
     if ($check->fetch()) {
         json_response(['ok' => false, 'message' => 'Email already registered.'], 400);
     }
 
-    $id = 'seller-' . bin2hex(random_bytes(4));
-    $passwordHash = password_hash($payload['password'], PASSWORD_DEFAULT);
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
     $paymentMethods = json_encode($payload['paymentMethods'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
     $pdo->beginTransaction();
@@ -28,9 +35,9 @@ try {
          VALUES (?, ?, ?, ?, 'seller', 'pending')"
     );
     $user->execute([
-        $payload['ownerName'] ?? $payload['storeName'],
-        $payload['phone'] ?? '',
-        $payload['email'],
+        safe_text($payload['ownerName'] ?? $payload['storeName'], 120),
+        safe_text($payload['phone'] ?? '', 40),
+        $email,
         $passwordHash,
     ]);
     $userId = (int) $pdo->lastInsertId();
@@ -43,20 +50,20 @@ try {
     );
     $stmt->execute([
         $userId,
-        $payload['storeName'],
-        $payload['ownerName'] ?? '',
-        $payload['phone'] ?? '',
-        $payload['email'],
-        $payload['businessType'] ?? 'retail',
-        $payload['location'] ?? 'Nairobi',
-        $payload['latitude'],
-        $payload['longitude'],
+        safe_text($payload['storeName'], 150),
+        safe_text($payload['ownerName'] ?? '', 120),
+        safe_text($payload['phone'] ?? '', 40),
+        $email,
+        safe_text($payload['businessType'] ?? 'retail', 50),
+        safe_text($payload['location'] ?? 'Nairobi', 120),
+        float_value($payload['latitude']),
+        float_value($payload['longitude']),
         $paymentMethods,
-        $payload['tillNumber'] ?? '',
-        $payload['pochiNumber'] ?? '',
-        $payload['bankAccount'] ?? ($payload['cardAccount'] ?? ''),
-        $payload['logoImage'] ?? ($payload['logo'] ?? ''),
-        $payload['logoImage'] ?? ($payload['logo'] ?? ''),
+        safe_text($payload['tillNumber'] ?? '', 80),
+        safe_text($payload['pochiNumber'] ?? '', 80),
+        safe_text($payload['bankAccount'] ?? ($payload['cardAccount'] ?? ''), 120),
+        $logoImage,
+        $logoImage,
         'pending'
     ]);
     $id = (string) $pdo->lastInsertId();
@@ -67,8 +74,8 @@ try {
         'ok' => true,
         'seller' => [
             'id' => $id,
-            'storeName' => $payload['storeName'],
-            'email' => $payload['email'],
+            'storeName' => safe_text($payload['storeName'], 150),
+            'email' => $email,
             'status' => 'pending'
         ]
     ]);
@@ -76,5 +83,5 @@ try {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    json_response(['ok' => false, 'message' => 'Database error.', 'error' => $e->getMessage()], 500);
+    safe_error('Database error.');
 }

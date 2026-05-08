@@ -30,8 +30,11 @@ try {
     }
 
     if ($method === 'POST') {
+        require_auth_roles(['admin']);
         $payload = read_json_input();
         require_fields($payload, ['name', 'email']);
+        $email = safe_email($payload['email']);
+        require_valid_email($email);
         $stmt = $pdo->prepare(
             'INSERT INTO businesses
              (user_id, location_id, name, owner_name, phone, email, type, location_name, latitude, longitude,
@@ -56,27 +59,27 @@ try {
                 logo_image = VALUES(logo_image),
                 status = VALUES(status)'
         );
-        $logo = trim_string($payload['logoImage'] ?? $payload['logo'] ?? $payload['image'] ?? '');
+        $logo = validate_base64_image($payload['logoImage'] ?? $payload['logo'] ?? $payload['image'] ?? '', 1048576);
         $stmt->execute([
             trim_string($payload['userId'] ?? '') !== '' ? int_value($payload['userId']) : null,
             trim_string($payload['locationId'] ?? '') !== '' ? int_value($payload['locationId']) : null,
-            trim_string($payload['name']),
-            trim_string($payload['ownerName'] ?? ''),
-            trim_string($payload['phone'] ?? ''),
-            trim_string($payload['email']),
-            trim_string($payload['type'] ?? 'retail'),
-            trim_string($payload['locationName'] ?? $payload['location'] ?? ''),
+            safe_text($payload['name'], 150),
+            safe_text($payload['ownerName'] ?? '', 120),
+            safe_text($payload['phone'] ?? '', 40),
+            $email,
+            safe_text($payload['type'] ?? 'retail', 50),
+            safe_text($payload['locationName'] ?? $payload['location'] ?? '', 120),
             float_value($payload['latitude'] ?? 0),
             float_value($payload['longitude'] ?? 0),
             json_encode(string_array($payload['paymentMethods'] ?? []), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            trim_string($payload['tillNumber'] ?? ''),
-            trim_string($payload['pochiNumber'] ?? ''),
-            trim_string($payload['bankAccount'] ?? ''),
-            trim_string($payload['deliveryAvailability'] ?? ''),
-            trim_string($payload['deliveryNotes'] ?? ''),
+            safe_text($payload['tillNumber'] ?? '', 80),
+            safe_text($payload['pochiNumber'] ?? '', 80),
+            safe_text($payload['bankAccount'] ?? '', 120),
+            safe_text($payload['deliveryAvailability'] ?? '', 80),
+            safe_text($payload['deliveryNotes'] ?? '', 500),
             $logo,
             $logo,
-            trim_string($payload['status'] ?? 'pending'),
+            safe_text($payload['status'] ?? 'pending', 40),
         ]);
         $id = trim_string($payload['id'] ?? '') ?: (string) $pdo->lastInsertId();
         json_response(['ok' => true, 'business' => ['id' => $id]], 201);
@@ -84,5 +87,5 @@ try {
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Businesses request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Businesses request failed.');
 }

@@ -25,6 +25,7 @@ try {
     }
 
     if ($method === 'POST') {
+        require_auth_roles(['admin', 'seller']);
         $payload = read_json_input();
         require_fields($payload, ['name']);
         $businessId = trim_string($payload['businessId'] ?? '') !== '' ? int_value($payload['businessId']) : null;
@@ -33,20 +34,21 @@ try {
             $stmt = $pdo->prepare(
                 'UPDATE categories SET business_id = ?, name = ?, image = ? WHERE id = ?'
             );
-            $stmt->execute([$businessId, trim_string($payload['name']), trim_string($payload['image'] ?? ''), (int) $id]);
+            $stmt->execute([$businessId, safe_text($payload['name'], 100), validate_base64_image($payload['image'] ?? '', 1048576), (int) $id]);
         } else {
             $stmt = $pdo->prepare(
                 'INSERT INTO categories (business_id, name, image)
                  VALUES (?, ?, ?)
                  ON DUPLICATE KEY UPDATE image = VALUES(image)'
             );
-            $stmt->execute([$businessId, trim_string($payload['name']), trim_string($payload['image'] ?? '')]);
+            $stmt->execute([$businessId, safe_text($payload['name'], 100), validate_base64_image($payload['image'] ?? '', 1048576)]);
             $id = (string) $pdo->lastInsertId();
         }
         json_response(['ok' => true, 'category' => ['id' => $id]], 201);
     }
 
     if ($method === 'DELETE') {
+        require_auth_roles(['admin', 'seller']);
         $payload = read_json_input();
         require_fields($payload, ['id']);
         $stmt = $pdo->prepare('DELETE FROM categories WHERE id = ?');
@@ -56,5 +58,5 @@ try {
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Categories request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Categories request failed.');
 }

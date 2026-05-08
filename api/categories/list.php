@@ -18,9 +18,5 @@ try {
         'categories' => $categories,
     ]);
 } catch (PDOException $error) {
-    json_response([
-        'ok' => false,
-        'message' => 'Failed to load categories.',
-        'error' => $error->getMessage(),
-    ], 500);
+    safe_error('Failed to load categories.');
 }

@@ -8,8 +8,9 @@ ensure_method('POST');
 $payload = read_json_input();
 require_fields($payload, ['username', 'password']);
 
-$username = trim_string($payload['username']);
+$username = safe_email($payload['username']);
 $password = trim_string($payload['password']);
+require_valid_email($username);
 
 try {
     $pdo = tamu_pdo();
@@ -32,12 +33,18 @@ try {
         ], 401);
     }
 
-    if (session_status() === PHP_SESSION_NONE) {
-        @session_start();
-    }
+    secure_session_start();
     if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
         $_SESSION['admin_id'] = $admin['id'];
+        $_SESSION['user_id'] = $admin['id'];
+        $_SESSION['role'] = 'admin';
+        session_write_close();
     }
+    issue_auth_cookie([
+        'userId' => (int) $admin['id'],
+        'role' => 'admin',
+    ]);
 
     json_response([
         'ok' => true,
@@ -49,9 +56,5 @@ try {
         ],
     ]);
 } catch (PDOException $error) {
-    json_response([
-        'ok' => false,
-        'message' => 'Database connection failed for admin login.',
-        'error' => $error->getMessage(),
-    ], 500);
+    safe_error('Database connection failed for admin login.');
 }

@@ -1067,8 +1067,8 @@ function buildSellerPayload(formData) {
     return { ok: false, message: "Email and password are required." };
   }
 
-  if (password.length < 6) {
-    return { ok: false, message: "Password must be at least 6 characters long." };
+  if (password.length < 8) {
+    return { ok: false, message: "Password must be at least 8 characters long." };
   }
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -1100,7 +1100,7 @@ function buildSellerPayload(formData) {
       ownerName: String(formData.get("ownerName")).trim(),
       phone: String(formData.get("phone")).trim(),
       email,
-      password: btoa(password),
+      password,
       latitude,
       longitude,
       paymentMethods,
@@ -1527,16 +1527,14 @@ function bindActions() {
   document.getElementById("showLogin").addEventListener("click", () => toggleForms(false));
   document.getElementById("resetProductBtn").addEventListener("click", resetProductForm);
   document.getElementById("resetOfferBtn").addEventListener("click", resetOfferForm);
-  document.getElementById("logoutBtn").addEventListener("click", () => {
+  const logoutSeller = async () => {
+    await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
     hideDashboard();
     toggleForms(true);
     showToast("Logged out successfully.", "info");
-  });
-  document.getElementById("sellerPanelLogoutBtn").addEventListener("click", () => {
-    hideDashboard();
-    toggleForms(true);
-    showToast("Logged out successfully.", "info");
-  });
+  };
+  document.getElementById("logoutBtn").addEventListener("click", logoutSeller);
+  document.getElementById("sellerPanelLogoutBtn").addEventListener("click", logoutSeller);
 
   document.getElementById("sellerWorkspaceToggle").addEventListener("click", toggleSellerMenu);
   document.getElementById("sellerMenuOverlay").addEventListener("click", closeSellerMenu);

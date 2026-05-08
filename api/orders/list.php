@@ -107,5 +107,5 @@ try {
 
     json_response(['ok' => true, 'orders' => $orders]);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Failed to load orders.', 'error' => $error->getMessage()], 500);
+    safe_error('Failed to load orders.');
 }

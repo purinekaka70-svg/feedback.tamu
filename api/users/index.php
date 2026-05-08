@@ -12,6 +12,7 @@ try {
     }
 
     if ($method === 'GET') {
+        require_auth_roles(['admin']);
         $role = trim_string($_GET['role'] ?? '');
         $sql = 'SELECT id, name, phone, email, role, status, firebase_uid, created_at FROM users';
         $params = [];
@@ -26,10 +27,21 @@ try {
     }
 
     if ($method === 'POST') {
+        require_auth_roles(['admin']);
         $payload = read_json_input();
         require_fields($payload, ['name', 'email', 'role']);
-        $hash = trim_string($payload['password'] ?? '') !== ''
-            ? password_hash(trim_string($payload['password']), PASSWORD_DEFAULT)
+        $email = safe_email($payload['email']);
+        require_valid_email($email);
+        $password = trim_string($payload['password'] ?? '');
+        if ($password !== '' && strlen($password) < 8) {
+            json_response(['ok' => false, 'message' => 'Password must be at least 8 characters.'], 422);
+        }
+        $role = safe_text($payload['role'], 40);
+        if (!in_array($role, ['admin', 'seller', 'customer', 'employee'], true)) {
+            json_response(['ok' => false, 'message' => 'Invalid user role.'], 422);
+        }
+        $hash = $password !== ''
+            ? password_hash($password, PASSWORD_DEFAULT)
             : null;
         $stmt = $pdo->prepare(
             'INSERT INTO users (name, phone, email, password, role, status, firebase_uid)
@@ -43,18 +55,18 @@ try {
                 firebase_uid = VALUES(firebase_uid)'
         );
         $stmt->execute([
-            trim_string($payload['name']),
-            trim_string($payload['phone'] ?? ''),
-            trim_string($payload['email']),
+            safe_text($payload['name'], 120),
+            safe_text($payload['phone'] ?? '', 40),
+            $email,
             $hash,
-            trim_string($payload['role']),
-            trim_string($payload['status'] ?? 'active'),
-            trim_string($payload['firebaseUid'] ?? ''),
+            $role,
+            safe_text($payload['status'] ?? 'active', 40),
+            safe_text($payload['firebaseUid'] ?? '', 160),
         ]);
         json_response(['ok' => true, 'user' => ['id' => (int) $pdo->lastInsertId()]], 201);
     }
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Users request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Users request failed.');
 }

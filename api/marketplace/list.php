@@ -206,9 +206,5 @@ try {
         'offers' => $offers,
     ]);
 } catch (PDOException $error) {
-    json_response([
-        'ok' => false,
-        'message' => 'Failed to load live marketplace data.',
-        'error' => $error->getMessage(),
-    ], 500);
+    safe_error('Failed to load live marketplace data.');
 }

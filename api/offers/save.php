@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
 ensure_method('POST');
+require_auth_roles(['admin', 'seller']);
 
 $payload = read_json_input();
 require_fields($payload, [
@@ -58,12 +59,12 @@ try {
 
     $insertOffer->execute([
         'public_id' => $publicId,
-        'seller_public_id' => trim_string($payload['storeId']),
-        'store_name' => trim_string($payload['storeName']),
-        'offer_title' => trim_string($payload['offerTitle']),
-        'offer_note' => trim_string($payload['offerNote']),
-        'offer_expiry' => trim_string($payload['offerExpiry']),
-        'offer_image' => trim_string($payload['offerImage'] ?? ''),
+        'seller_public_id' => safe_text($payload['storeId'], 120),
+        'store_name' => safe_text($payload['storeName'], 150),
+        'offer_title' => safe_text($payload['offerTitle'], 150),
+        'offer_note' => safe_text($payload['offerNote'], 500),
+        'offer_expiry' => safe_text($payload['offerExpiry'], 40),
+        'offer_image' => validate_base64_image($payload['offerImage'] ?? '', 1048576),
     ]);
 
     json_response([
@@ -75,9 +76,5 @@ try {
         ],
     ], 201);
 } catch (PDOException $error) {
-    json_response([
-        'ok' => false,
-        'message' => 'Failed to save seller offer.',
-        'error' => $error->getMessage(),
-    ], 500);
+    safe_error('Failed to save seller offer.');
 }

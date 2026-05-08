@@ -66,12 +66,23 @@ function readStorage(key, fallback) {
   }
 }
 
-function ensureAdminSession() {
-  if (window.localStorage.getItem(STORAGE_KEYS.adminSession) === "active") {
-    return true;
+async function ensureAdminSession() {
+  if (window.localStorage.getItem(STORAGE_KEYS.adminSession) !== "active") {
+    return false;
   }
 
-  return false;
+  try {
+    const response = await fetch("./api/auth/session.php", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok || !result.ok || result.session?.role !== "admin") {
+      window.localStorage.removeItem(STORAGE_KEYS.adminSession);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    window.localStorage.removeItem(STORAGE_KEYS.adminSession);
+    return false;
+  }
 }
 
 function writeStorage(key, value) {
@@ -1062,7 +1073,8 @@ function bindCategoryForm() {
 }
 
 function bindLogout() {
-  const logout = () => {
+  const logout = async () => {
+    await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
     window.localStorage.removeItem(STORAGE_KEYS.adminSession);
     window.location.href = "./index.html";
   };
@@ -1191,7 +1203,7 @@ function bindLiveOrderUpdates() {
   }
   window.__tamuAdminLiveOrdersBound = true;
   window.setInterval(async () => {
-    if (!ensureAdminSession()) return;
+    if (!(await ensureAdminSession())) return;
     await loadData();
     renderOverview();
     renderOrderList();
@@ -1223,7 +1235,7 @@ async function boot() {
   initReveal();
   bindAdminLogin();
 
-  if (!ensureAdminSession()) {
+  if (!(await ensureAdminSession())) {
     showAdminLogin();
     return;
   }

@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isEmployee(uid) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/employees/$(uid))
+        && get(/databases/$(database)/documents/employees/$(uid)).data.approved == true;
+    }
+
+    match /employees/{employeeId} {
+      allow read: if signedIn()
+        && request.auth.uid == employeeId
+        && resource.data.approved == true;
+
+      allow create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

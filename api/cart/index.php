@@ -72,5 +72,5 @@ try {
 
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
-    json_response(['ok' => false, 'message' => 'Cart request failed.', 'error' => $error->getMessage()], 500);
+    safe_error('Cart request failed.');
 }
