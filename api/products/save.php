@@ -16,6 +16,10 @@ try {
 
     $businessId = int_value($payload['businessId']);
     $categoryId = trim_string($payload['categoryId']);
+    $claims = current_auth_claims();
+    if (strtolower((string) ($claims['role'] ?? '')) === 'seller' && (int) ($claims['businessId'] ?? 0) !== $businessId) {
+        json_response(['ok' => false, 'message' => 'You can only manage products for your approved business.'], 403);
+    }
 
     if (!is_numeric($categoryId)) {
         $insertCategory = $pdo->prepare(

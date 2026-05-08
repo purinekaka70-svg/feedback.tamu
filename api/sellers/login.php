@@ -30,8 +30,18 @@ try {
         json_response(['ok' => false, 'message' => 'Invalid seller credentials.'], 401);
     }
 
-    if (($seller['status'] ?? '') !== 'approved') {
-        json_response(['ok' => false, 'message' => 'Seller account is waiting for admin approval.', 'status' => $seller['status']], 403);
+    $sellerStatus = (string) ($seller['status'] ?? 'pending');
+    if ($sellerStatus === 'pending') {
+        json_response(['ok' => false, 'message' => 'Your business account is waiting for admin approval.', 'status' => $sellerStatus], 403);
+    }
+    if ($sellerStatus === 'rejected') {
+        json_response(['ok' => false, 'message' => 'Your business account was rejected. Contact admin for help.', 'status' => $sellerStatus], 403);
+    }
+    if ($sellerStatus === 'blocked') {
+        json_response(['ok' => false, 'message' => 'Your business account is blocked. Contact admin for help.', 'status' => $sellerStatus], 403);
+    }
+    if ($sellerStatus !== 'approved') {
+        json_response(['ok' => false, 'message' => 'Your business account is not approved.', 'status' => $sellerStatus], 403);
     }
 
     secure_session_start();

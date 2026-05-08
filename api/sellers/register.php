@@ -19,8 +19,14 @@ try {
         json_response(['ok' => false, 'message' => 'Users/businesses tables are not installed.'], 500);
     }
 
-    $check = $pdo->prepare('SELECT id FROM businesses WHERE email = ?');
-    $check->execute([$email]);
+    $check = $pdo->prepare(
+        'SELECT b.id AS business_id, u.id AS user_id
+         FROM businesses b
+         LEFT JOIN users u ON u.email = b.email
+         WHERE b.email = ? OR u.email = ?
+         LIMIT 1'
+    );
+    $check->execute([$email, $email]);
     if ($check->fetch()) {
         json_response(['ok' => false, 'message' => 'Email already registered.'], 400);
     }

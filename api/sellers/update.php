@@ -7,6 +7,11 @@ ensure_method('POST');
 require_auth_roles(['admin', 'seller']);
 $payload = read_json_input();
 require_fields($payload, ['id']);
+$claims = current_auth_claims();
+if (strtolower((string) ($claims['role'] ?? '')) === 'seller'
+    && (string) ($claims['businessId'] ?? '') !== trim_string($payload['id'])) {
+    json_response(['ok' => false, 'message' => 'You can only update your own business settings.'], 403);
+}
 
 try {
     $pdo = tamu_pdo();

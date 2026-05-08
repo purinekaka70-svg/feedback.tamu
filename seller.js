@@ -125,6 +125,24 @@ async function postJson(url, payload) {
   }
 }
 
+async function verifySellerSession(seller = currentSeller()) {
+  if (!seller) {
+    return false;
+  }
+
+  try {
+    const response = await fetch("./api/auth/session.php", { cache: "no-store" });
+    const result = await response.json().catch(() => ({}));
+    const session = result.session || {};
+    return response.ok
+      && result.ok
+      && session.role === "seller"
+      && String(session.businessId || "") === String(seller.id || seller.businessId || "");
+  } catch (error) {
+    return false;
+  }
+}
+
 function currency(value) {
   return `KSh ${Number(value || 0).toLocaleString()}`;
 }
@@ -1329,7 +1347,7 @@ function bindForms() {
     event.currentTarget.reset();
     syncPaymentFields();
     toggleForms(false);
-    document.getElementById("loginStatus").textContent = "Registration sent. Please wait for admin approval before logging in.";
+    document.getElementById("loginStatus").textContent = "Registration sent. Your business account is waiting for admin approval.";
     showToast("Registration sent. Please wait for admin approval before logging in.", "success");
   });
 
@@ -1425,7 +1443,7 @@ function bindForms() {
       return;
     }
 
-    const response = await postJson('./api/categories/save.php', { name });
+    const response = await postJson('./api/categories/save.php', { name, businessId: seller.id });
     if (!response.ok || response.data?.ok === false) {
       showToast(response.data?.message || "Category save failed.", "warn");
       return;
@@ -1622,6 +1640,13 @@ async function boot() {
 
   const seller = currentSeller();
   if (seller) {
+    const hasSession = await verifySellerSession(seller);
+    if (!hasSession) {
+      setCurrentSeller(null);
+      toggleForms(false);
+      document.getElementById("loginStatus").textContent = "Please login again to continue managing your store.";
+      return;
+    }
     await loadSellerData();
     showDashboard();
   } else {

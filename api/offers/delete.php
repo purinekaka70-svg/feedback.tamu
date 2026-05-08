@@ -15,6 +15,14 @@ try {
     }
 
     $id = trim_string($payload['id']);
+    $claims = current_auth_claims();
+    if (strtolower((string) ($claims['role'] ?? '')) === 'seller') {
+        $check = $pdo->prepare('SELECT seller_public_id FROM seller_offers WHERE public_id = ? OR id = ? LIMIT 1');
+        $check->execute([$id, is_numeric($id) ? (int) $id : 0]);
+        if ((string) $check->fetchColumn() !== (string) ($claims['businessId'] ?? '')) {
+            json_response(['ok' => false, 'message' => 'You can only delete offers from your business.'], 403);
+        }
+    }
     $stmt = $pdo->prepare('DELETE FROM seller_offers WHERE public_id = ? OR id = ?');
     $stmt->execute([$id, is_numeric($id) ? (int) $id : 0]);
 

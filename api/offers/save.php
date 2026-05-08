@@ -19,6 +19,11 @@ $publicId = trim_string($payload['id'] ?? '');
 if ($publicId === '') {
     $publicId = generate_public_id('offer');
 }
+$claims = current_auth_claims();
+if (strtolower((string) ($claims['role'] ?? '')) === 'seller'
+    && (string) ($claims['businessId'] ?? '') !== trim_string($payload['storeId'])) {
+    json_response(['ok' => false, 'message' => 'You can only manage offers for your approved business.'], 403);
+}
 
 try {
     $pdo = tamu_pdo();

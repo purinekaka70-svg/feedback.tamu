@@ -517,10 +517,6 @@ async function updateApplicationStatus(applicationId, status) {
   if (status === "blocked") {
     patch.blockedAt = new Date().toISOString();
   }
-  if (status === "expired") {
-    patch.expiresAt = new Date().toISOString();
-  }
-
   try {
     const response = await fetch('./api/admin/applications.php', {
       method: 'POST',
@@ -528,10 +524,16 @@ async function updateApplicationStatus(applicationId, status) {
       body: JSON.stringify({ id: applicationId, status })
     });
     const result = await response.json();
-    if (result.ok) {
+    if (response.ok && result.ok) {
       await loadData();
+    } else {
+      showToast(result.message || `Could not update business to ${status}.`, "warn");
+      return;
     }
-  } catch (error) {}
+  } catch (error) {
+    showToast("Could not reach approval service.", "warn");
+    return;
+  }
 
   renderOverview();
   renderApprovals();
@@ -577,7 +579,6 @@ function renderApprovals() {
           <p class="tiny">Active until: ${formatDate(application.expiresAt)}</p>
           <div class="button-row">
             <button class="button button-primary button-small" data-application-action="approved" data-application-id="${application.id}" type="button">Approve / Activate</button>
-            <button class="button button-outline button-small" data-application-action="expired" data-application-id="${application.id}" type="button">Expire</button>
             <button class="button button-outline button-small" data-application-action="blocked" data-application-id="${application.id}" type="button">Block</button>
             <button class="button button-ghost button-small" data-application-action="rejected" data-application-id="${application.id}" type="button">Reject</button>
             <button class="button button-ghost button-small" data-admin-delete="business" data-admin-delete-id="${application.id}" data-admin-delete-label="business" type="button">Delete</button>

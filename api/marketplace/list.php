@@ -108,9 +108,11 @@ try {
     $categoryMap = [];
     if (table_exists($pdo, 'categories')) {
         $categoryImageColumn = column_exists($pdo, 'categories', 'image') ? ', image' : '';
-        foreach ($pdo->query("SELECT id, name{$categoryImageColumn} FROM categories ORDER BY name ASC")->fetchAll() as $row) {
-            $categoryMap[(string) $row['name']] = [
+        foreach ($pdo->query("SELECT id, business_id, name{$categoryImageColumn} FROM categories ORDER BY name ASC")->fetchAll() as $row) {
+            $key = (string) (($row['business_id'] ?? '') . '-' . $row['name']);
+            $categoryMap[$key] = [
                 'id' => (string) ($row['id'] ?? slug_id($row['name'])),
+                'businessId' => (string) ($row['business_id'] ?? ''),
                 'name' => $row['name'],
                 'image' => $row['image'] ?? '',
             ];
@@ -118,8 +120,9 @@ try {
     }
     foreach ($products as $product) {
         $name = $product['productCategory'];
-        if (!isset($categoryMap[$name])) {
-            $categoryMap[$name] = [
+        $key = (string) ($product['businessId'] . '-' . $name);
+        if (!isset($categoryMap[$key])) {
+            $categoryMap[$key] = [
                 'id' => $product['categoryId'],
                 'businessId' => $product['businessId'],
                 'name' => $name,
