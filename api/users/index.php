@@ -66,6 +66,15 @@ try {
         json_response(['ok' => true, 'user' => ['id' => (int) $pdo->lastInsertId()]], 201);
     }
 
+    if ($method === 'DELETE') {
+        require_auth_roles(['admin']);
+        $payload = read_json_input();
+        require_fields($payload, ['id']);
+        $stmt = $pdo->prepare('DELETE FROM users WHERE id = ?');
+        $stmt->execute([int_value($payload['id'])]);
+        json_response(['ok' => true]);
+    }
+
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
     safe_error('Users request failed.');

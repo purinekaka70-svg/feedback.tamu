@@ -12,6 +12,7 @@ try {
     }
 
     if ($method === 'GET') {
+        require_auth_roles(['admin', 'seller']);
         $businessId = trim_string($_GET['businessId'] ?? '');
         $sql = 'SELECT * FROM payments';
         $params = [];
@@ -54,6 +55,15 @@ try {
         }
         $stmt = $pdo->prepare('UPDATE payments SET status = ? WHERE id = ?');
         $stmt->execute([$status, int_value($payload['id'])]);
+        json_response(['ok' => true]);
+    }
+
+    if ($method === 'DELETE') {
+        require_auth_roles(['admin']);
+        $payload = read_json_input();
+        require_fields($payload, ['id']);
+        $stmt = $pdo->prepare('DELETE FROM payments WHERE id = ?');
+        $stmt->execute([int_value($payload['id'])]);
         json_response(['ok' => true]);
     }
 

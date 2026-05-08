@@ -52,6 +52,15 @@ try {
         json_response(['ok' => true, 'location' => ['id' => $id]], 201);
     }
 
+    if ($method === 'DELETE') {
+        require_auth_roles(['admin']);
+        $payload = read_json_input();
+        require_fields($payload, ['id']);
+        $stmt = $pdo->prepare('DELETE FROM locations WHERE id = ? OR name = ?');
+        $stmt->execute([int_value($payload['id']), safe_text($payload['id'], 100)]);
+        json_response(['ok' => true]);
+    }
+
     json_response(['ok' => false, 'message' => 'Method not allowed.'], 405);
 } catch (PDOException $error) {
     safe_error('Locations request failed.');

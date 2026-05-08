@@ -2,6 +2,10 @@ let cachedApplications = [];
 let cachedOrders = [];
 let cachedCategories = [];
 let cachedProducts = [];
+let cachedOffers = [];
+let cachedLocations = [];
+let cachedPayments = [];
+let cachedUsers = [];
 const STORAGE_KEYS = {
   adminSession: "tamu_market_admin_session"
 };
@@ -56,6 +60,8 @@ const adminOrderFilters = {
   payment: "all",
   date: "all"
 };
+
+const ADMIN_CONTROL_ENDPOINT = "./api/admin/control.php";
 
 function readStorage(key, fallback) {
   try {
@@ -280,23 +286,35 @@ function formatDate(value) {
 
 async function loadData() {
   try {
-    const [applicationRes, marketRes, orderRes] = await Promise.all([
+    const [applicationRes, marketRes, orderRes, paymentRes, userRes] = await Promise.all([
       fetch('./api/admin/applications.php', { cache: 'no-store' }),
       fetch('./api/marketplace/list.php', { cache: 'no-store' }),
-      fetch('./api/orders/list.php', { cache: 'no-store' })
+      fetch('./api/orders/list.php', { cache: 'no-store' }),
+      fetch('./api/payments/index.php', { cache: 'no-store' }),
+      fetch('./api/users/index.php', { cache: 'no-store' })
     ]);
     const applicationData = await applicationRes.json();
     const marketData = await marketRes.json();
     const orderData = await orderRes.json();
+    const paymentData = await paymentRes.json();
+    const userData = await userRes.json();
     cachedApplications = applicationRes.ok && applicationData.ok ? (applicationData.applications || []) : [];
     cachedCategories = marketRes.ok && marketData.ok ? (marketData.categories || []) : [];
     cachedProducts = marketRes.ok && marketData.ok ? (marketData.products || []) : [];
+    cachedOffers = marketRes.ok && marketData.ok ? (marketData.offers || []) : [];
+    cachedLocations = marketRes.ok && marketData.ok ? (marketData.locations || []) : [];
     cachedOrders = orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
+    cachedPayments = paymentRes.ok && paymentData.ok ? (paymentData.payments || []) : [];
+    cachedUsers = userRes.ok && userData.ok ? (userData.users || []) : [];
   } catch (error) {
     cachedApplications = [];
     cachedCategories = [];
     cachedProducts = [];
+    cachedOffers = [];
+    cachedLocations = [];
     cachedOrders = [];
+    cachedPayments = [];
+    cachedUsers = [];
   }
 }
 
@@ -409,14 +427,44 @@ async function updateOrderBackend(orderId, patch) {
 }
 
 async function deleteOrderBackend(orderId) {
+  return adminDeleteRecord("order", orderId, "order", { silent: true });
+}
+
+async function adminDeleteRecord(entity, id, label = "record", options = {}) {
+  if (!id) {
+    showToast(`Missing ${label} id.`, "warn");
+    return false;
+  }
+  if (!options.skipConfirm && !window.confirm(`Delete this ${label}? This cannot be undone.`)) {
+    return false;
+  }
+
   try {
-    await fetch('./api/orders/delete.php', {
+    const response = await fetch(ADMIN_CONTROL_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: orderId })
+      body: JSON.stringify({ entity, id })
     });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      showToast(result.message || `Could not delete ${label}.`, "warn");
+      return false;
+    }
+    if (!options.silent) {
+      showToast(`${capitalize(label)} deleted.`, "warn");
+    }
+    await loadData();
+    renderOverview();
+    renderApprovals();
+    renderCategories();
+    renderOrderList();
+    renderOrders();
+    renderNotifications();
+    renderAdminUtilityPanels();
+    return true;
   } catch (error) {
-    return;
+    showToast(`Could not delete ${label}.`, "warn");
+    return false;
   }
 }
 
@@ -532,6 +580,8 @@ function renderApprovals() {
             <button class="button button-outline button-small" data-application-action="expired" data-application-id="${application.id}" type="button">Expire</button>
             <button class="button button-outline button-small" data-application-action="blocked" data-application-id="${application.id}" type="button">Block</button>
             <button class="button button-ghost button-small" data-application-action="rejected" data-application-id="${application.id}" type="button">Reject</button>
+            <button class="button button-ghost button-small" data-admin-delete="business" data-admin-delete-id="${application.id}" data-admin-delete-label="business" type="button">Delete</button>
+            <button class="button button-ghost button-small" data-admin-delete="seller" data-admin-delete-id="${application.id}" data-admin-delete-label="seller account" type="button">Delete seller account</button>
           </div>
         </article>
       `;
@@ -543,6 +593,23 @@ function renderApprovals() {
       updateApplicationStatus(button.dataset.applicationId, button.dataset.applicationAction);
     });
   });
+  bindAdminDeleteButtons(container);
+
+  const locationContainer = document.getElementById("adminLocationList");
+  if (locationContainer) {
+    locationContainer.innerHTML = cachedLocations.length
+      ? `<h3 class="section-title">Locations</h3>` + cachedLocations.map((location) => `
+          <article class="mini-list-card">
+            <div>
+              <strong>${location.name || "Location"}</strong>
+              <p class="tiny">${location.businessCount || 0} businesses</p>
+            </div>
+            <button class="button button-ghost button-small" data-admin-delete="location" data-admin-delete-id="${location.id || location.name}" data-admin-delete-label="location" type="button">Delete</button>
+          </article>
+        `).join("")
+      : '<div class="list-card">Locations appear when approved businesses are listed.</div>';
+    bindAdminDeleteButtons(locationContainer);
+  }
 }
 
 function renderRecentBusinesses() {
@@ -588,9 +655,17 @@ function renderRecentOrders() {
 }
 
 function renderCategories() {
-  document.getElementById("categoryList").innerHTML = categories()
-    .map((category) => `<span class="category-chip">${category}</span>`)
+  const categoryList = document.getElementById("categoryList");
+  if (!categoryList) return;
+  categoryList.innerHTML = cachedCategories
+    .map((category) => `
+      <span class="category-chip">
+        ${category.name || category}
+        <button class="button button-ghost button-small" data-admin-delete="category" data-admin-delete-id="${category.id || category.name || category}" data-admin-delete-label="category" type="button">Delete</button>
+      </span>
+    `)
     .join("");
+  bindAdminDeleteButtons(categoryList);
 }
 
 function moveOrder(orderId) {
@@ -716,7 +791,14 @@ function cancelOrder(orderId) {
   updateOrderBackend(orderId, { status: "cancelled" });
 }
 
-function deleteOrder(orderId) {
+async function deleteOrder(orderId) {
+  if (!window.confirm("Delete this order completely? Payments and delivery records for it will also be removed.")) {
+    return;
+  }
+  const deleted = await deleteOrderBackend(orderId);
+  if (!deleted) {
+    return;
+  }
   saveOrders(orders().filter((order) => order.id !== orderId));
   renderOverview();
   renderOrderList();
@@ -724,7 +806,6 @@ function deleteOrder(orderId) {
   renderNotifications();
   renderAdminUtilityPanels();
   showToast("Order deleted.", "warn");
-  deleteOrderBackend(orderId);
 }
 
 function bindOrderActionButtons(container) {
@@ -767,6 +848,20 @@ function bindOrderActionButtons(container) {
   container.querySelectorAll("[data-cancel-order]").forEach((button) => {
     button.addEventListener("click", () => {
       cancelOrder(button.dataset.cancelOrder);
+    });
+  });
+}
+
+function bindAdminDeleteButtons(scope = document) {
+  scope.querySelectorAll("[data-admin-delete]").forEach((button) => {
+    if (button.dataset.deleteBound === "true") return;
+    button.dataset.deleteBound = "true";
+    button.addEventListener("click", () => {
+      adminDeleteRecord(
+        button.dataset.adminDelete,
+        button.dataset.adminDeleteId,
+        button.dataset.adminDeleteLabel || button.dataset.adminDelete
+      );
     });
   });
 }
@@ -949,13 +1044,16 @@ function renderAdminUtilityPanels() {
 
   const usersContainer = document.getElementById("adminUserList");
   if (usersContainer) {
-    const sellerRows = allApplications.slice().reverse().slice(0, 12).map((seller) => `
+    const userRows = cachedUsers.slice().reverse().map((user) => `
       <article class="mini-list-card">
         <div>
-          <strong>${seller.storeName || seller.name || "Business"}</strong>
-          <p class="tiny">${seller.email || "Email pending"} | ${seller.phone || "Phone pending"}</p>
+          <strong>${user.name || user.email || "User"}</strong>
+          <p class="tiny">${user.email || "Email pending"} | ${user.phone || "Phone pending"} | ${capitalize(user.role || "customer")}</p>
         </div>
-        <span class="status-pill status-pill--${businessStatus(seller)}">${capitalize(businessStatus(seller))}</span>
+        <div class="button-row">
+          <span class="status-pill status-pill--${user.status || "active"}">${capitalize(user.status || "active")}</span>
+          <button class="button button-ghost button-small" data-admin-delete="${user.role === "employee" ? "employee" : "user"}" data-admin-delete-id="${user.id}" data-admin-delete-label="${user.role || "user"}" type="button">Delete</button>
+        </div>
       </article>
     `);
     const customerRows = customers.slice().reverse().slice(0, 8).map((customer) => `
@@ -967,7 +1065,8 @@ function renderAdminUtilityPanels() {
         <span class="summary-chip">${currency(customer.total || 0)}</span>
       </article>
     `);
-    usersContainer.innerHTML = sellerRows.concat(customerRows).join("") || '<div class="list-card">Users will appear after seller registration or checkout.</div>';
+    usersContainer.innerHTML = userRows.concat(customerRows).join("") || '<div class="list-card">Users will appear after seller registration or checkout.</div>';
+    bindAdminDeleteButtons(usersContainer);
   }
 
   const deliveryContainer = document.getElementById("adminDeliveryList");
@@ -989,8 +1088,16 @@ function renderAdminUtilityPanels() {
 
   const paymentContainer = document.getElementById("adminPaymentList");
   if (paymentContainer) {
-    const paymentRows = allOrders.flatMap((order) => [
+    const paymentRows = cachedPayments.length
+      ? cachedPayments.map((payment) => ({
+          id: payment.id,
+          title: payment.method || "Payment",
+          detail: `${payment.order_public_id || "Order pending"} | Ref ${payment.reference || "pending"} | ${capitalize(payment.status || "pending")}`,
+          amount: payment.amount || 0
+        }))
+      : allOrders.flatMap((order) => [
       ...asArray(order.businessPayments).map((payment) => ({
+        id: payment.id || payment.reference || order.id,
         order,
         title: payment.storeName || "Business payment",
         detail: `${payment.method || "Method pending"} | Ref ${payment.reference || "pending"} | ${capitalize(payment.status || "pending")}`,
@@ -1008,12 +1115,48 @@ function renderAdminUtilityPanels() {
           <article class="mini-list-card">
             <div>
               <strong>${payment.title}</strong>
-              <p class="tiny">${payment.order.id} | ${payment.detail}</p>
+              <p class="tiny">${payment.order?.id || ""} ${payment.detail}</p>
             </div>
-            <span class="summary-chip">${currency(payment.amount)}</span>
+            <div class="button-row">
+              <span class="summary-chip">${currency(payment.amount)}</span>
+              <button class="button button-ghost button-small" data-admin-delete="payment" data-admin-delete-id="${payment.id}" data-admin-delete-label="payment" type="button">Delete</button>
+            </div>
           </article>
         `).join("")
       : '<div class="list-card">Payment references submitted by customers will appear here.</div>';
+    bindAdminDeleteButtons(paymentContainer);
+  }
+
+  const productContainer = document.getElementById("adminProductList");
+  if (productContainer) {
+    productContainer.innerHTML = cachedProducts.length
+      ? `<h3 class="section-title">Products</h3>` + cachedProducts.slice().reverse().map((product) => `
+          <article class="mini-list-card">
+            <div>
+              <strong>${product.productName || product.name || "Product"}</strong>
+              <p class="tiny">${product.storeName || product.businessName || "Business"} | ${currency(product.price || product.productPrice || 0)}</p>
+            </div>
+            <button class="button button-ghost button-small" data-admin-delete="product" data-admin-delete-id="${product.id}" data-admin-delete-label="product" type="button">Delete</button>
+          </article>
+        `).join("")
+      : '<div class="list-card">Products added by sellers will appear here.</div>';
+    bindAdminDeleteButtons(productContainer);
+  }
+
+  const offerContainer = document.getElementById("adminOfferList");
+  if (offerContainer) {
+    offerContainer.innerHTML = cachedOffers.length
+      ? `<h3 class="section-title">Offers</h3>` + cachedOffers.slice().reverse().map((offer) => `
+          <article class="mini-list-card">
+            <div>
+              <strong>${offer.offerTitle || offer.title || "Offer"}</strong>
+              <p class="tiny">${offer.storeName || "Business"} | ${offer.offerExpiry || offer.expires || "No expiry"}</p>
+            </div>
+            <button class="button button-ghost button-small" data-admin-delete="offer" data-admin-delete-id="${offer.id}" data-admin-delete-label="offer" type="button">Delete</button>
+          </article>
+        `).join("")
+      : '<div class="list-card">Seller offer banners will appear here.</div>';
+    bindAdminDeleteButtons(offerContainer);
   }
 
   const analyticsContainer = document.getElementById("adminAnalyticsStats");
