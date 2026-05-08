@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>Tamu Express Market | Marketplace Home</title>
+  <meta
+    name="description"
+    content="Tamu Express Market connects buyers with approved supermarkets, retailers, and wholesalers while coordinating delivery as the intermediary."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./index.css">
+  <link rel="stylesheet" href="./responsive.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel">
+      <div class="brand-block">
+        <img class="brand-logo" src="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png" alt="Tamu Express logo">
+        <a href="./index.html" class="brand">Tamu Express Market</a>
+        <p class="brand-tagline">Approved sellers for buyers. Delivery coordination handled by Tamu Express.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./categories.html">Categories</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-ghost button-small" href="./cart.html">Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html">Seller Portal</a>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="hero hero-simple">
+        <article class="hero-copy panel">
+          <p class="eyebrow">Marketplace Home</p>
+          <h1>Buy from approved sellers through Tamu Express.</h1>
+          <p class="hero-text">Browse sellers, compare products, and let Tamu Express coordinate the delivery process.</p>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="./categories.html">Browse categories</a>
+            <a class="button button-outline" href="./seller.html">Seller portal</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid reveal reveal-delay-1">
+        <article class="card action-card">
+          <p class="eyebrow">Buyer Dashboard</p>
+          <h3>Find approved stores</h3>
+          <p>Search registered sellers, view products, and build a cart from the marketplace board.</p>
+          <a class="button button-primary button-small" href="./categories.html">Open marketplace</a>
+        </article>
+
+        <article class="card action-card">
+          <p class="eyebrow">Seller Dashboard</p>
+          <h3>Manage your store</h3>
+          <p>Register your business, add products, create offers, and track customer orders.</p>
+          <a class="button button-outline button-small" href="./seller.html">Open seller portal</a>
+        </article>
+      </section>
+
+      <section class="dashboard-grid reveal reveal-delay-2">
+        <article class="card feature-card">
+          <p class="feature-eyebrow">Coordination</p>
+          <h2>Orders move through Tamu Express.</h2>
+          <p>Buyer location, seller pickup points, payments, and delivery status stay organized in one workflow.</p>
+        </article>
+
+        <article class="card feature-card">
+          <p class="feature-eyebrow">Operations</p>
+          <h2>Admin handles approvals and movement.</h2>
+          <p>Seller approvals, category setup, and order stages are managed from the admin dashboard.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="footer-link-word" href="./about.html" data-footer-link>About Us</a>
+        <a class="footer-link-word" href="./contact.html" data-footer-link>Contact Us</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="./index.js"></script>
+  <script src="./pwa.js"></script>
+<script src="seller-portal.js"></script>
+</body>
+</html>

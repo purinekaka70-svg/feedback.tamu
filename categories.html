@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>Categories | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./categories.css">
+  <link rel="stylesheet" href="./responsive.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <img class="brand-logo" src="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png" alt="Tamu Express logo">
+        <a href="./categories.html" class="brand">Tamu Express Categories</a>
+        <p class="brand-tagline">Browse approved stores, compare products, and build a cart faster.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-primary button-small" href="./cart.html">Cart</a>
+        <a class="button button-ghost button-small" href="./seller.html">Seller Portal</a>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="section-stack reveal reveal-delay-1">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Browse Marketplace</p>
+            <h2 class="section-title">Find the right seller and products quickly.</h2>
+          </div>
+          <div id="browseSummary" class="summary-chip">Loading market...</div>
+        </div>
+
+        <article class="card browse-card">
+          <label class="field">
+            <span class="field-label">Search products or stores</span>
+            <input id="searchInput" class="input" type="search" placeholder="Search milk, drinks, clothes, wholesale, supermarket..." />
+          </label>
+
+          <div class="filter-stack">
+            <div>
+              <p class="filter-label">Store type</p>
+              <div class="chip-scroller">
+                <button
+                  class="chip-scroll-button"
+                  type="button"
+                  aria-label="Scroll store types left"
+                  data-scroll-target="storeTypeFilters"
+                  data-scroll-dir="left"
+                >
+                  &lt;
+                </button>
+                <div id="storeTypeFilters" class="chip-row chip-row-scroll" tabindex="0"></div>
+                <button
+                  class="chip-scroll-button"
+                  type="button"
+                  aria-label="Scroll store types right"
+                  data-scroll-target="storeTypeFilters"
+                  data-scroll-dir="right"
+                >
+                  &gt;
+                </button>
+              </div>
+            </div>
+            <div>
+              <p class="filter-label">Category</p>
+              <div class="chip-scroller">
+                <button
+                  class="chip-scroll-button"
+                  type="button"
+                  aria-label="Scroll categories left"
+                  data-scroll-target="categoryFilters"
+                  data-scroll-dir="left"
+                >
+                  &lt;
+                </button>
+                <div id="categoryFilters" class="chip-row chip-row-scroll" tabindex="0"></div>
+                <button
+                  class="chip-scroll-button"
+                  type="button"
+                  aria-label="Scroll categories right"
+                  data-scroll-target="categoryFilters"
+                  data-scroll-dir="right"
+                >
+                  &gt;
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="resetFiltersButton" class="button button-outline button-small" type="button">Reset filters</button>
+            <a class="button button-primary button-small" href="./cart.html">Go to cart</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="section-stack reveal reveal-delay-3">
+        <article class="card">
+          <div class="section-head">
+            <h3>Seller offers</h3>
+            <span class="tiny">Offers appear when sellers create them.</span>
+          </div>
+          <div id="dealGrid" class="deal-grid"></div>
+        </article>
+      </section>
+
+      <section class="section-stack reveal">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Approved Sellers</p>
+            <h2 class="section-title">Registered businesses visible to buyers.</h2>
+          </div>
+        </div>
+
+        <div id="storeGrid" class="store-grid"></div>
+      </section>
+
+      <section class="section-stack reveal reveal-delay-1">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Product Board</p>
+            <h2 class="section-title">Products added by sellers.</h2>
+          </div>
+          <div id="productCountSummary" class="summary-chip">0 products</div>
+        </div>
+
+        <div id="productGrid" class="product-grid"></div>
+      </section>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="footer-link-word" href="./about.html" data-footer-link>About Us</a>
+        <a class="footer-link-word" href="./contact.html" data-footer-link>Contact Us</a>
+      </div>
+    </footer>
+  </div>
+
+  <a class="floating-cart-link" href="./cart.html" aria-label="Open cart">
+    <span class="floating-cart-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+        <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.4a2 2 0 0 0 2-1.5L22 7H7.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+        <circle cx="10" cy="20" r="1.7"></circle>
+        <circle cx="18" cy="20" r="1.7"></circle>
+      </svg>
+    </span>
+    <span class="floating-cart-text">Cart</span>
+    <span id="floatingCartCount" class="floating-cart-count">0</span>
+  </a>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="./categories.js"></script>
+  <script src="./pwa.js"></script>
+<script src="seller-portal.js"></script>
+</body>
+</html>

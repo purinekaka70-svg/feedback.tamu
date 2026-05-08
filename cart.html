@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>Cart | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="./cart.css">
+  <link rel="stylesheet" href="./responsive.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <img class="brand-logo" src="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png" alt="Tamu Express logo">
+        <a href="./cart.html" class="brand">Tamu Express Cart</a>
+        <p class="brand-tagline">Review items, calculate delivery, and submit the order.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./categories.html">Categories</a>
+        <a class="button button-ghost button-small" href="./about.html">About Us</a>
+        <a class="button button-ghost button-small" href="./contact.html">Contact Us</a>
+        <a class="button button-primary button-small" href="./seller.html">Seller Portal</a>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section class="cart-layout reveal reveal-delay-1">
+        <section class="card cart-combined-card">
+          <div class="cart-combined-grid">
+            <div class="cart-items-pane">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Cart Items</p>
+                  <h2 class="section-title">Your order items.</h2>
+                </div>
+                <button id="clearCartButton" class="button button-outline button-small" type="button">Clear cart</button>
+              </div>
+
+              <div id="cartItems" class="cart-list"></div>
+            </div>
+
+            <aside class="summary-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Order Summary</p>
+                  <h2 class="section-title">Total.</h2>
+                </div>
+              </div>
+
+              <div class="summary-list">
+                <div class="summary-row">
+                  <span>Items</span>
+                  <strong id="cartCountBadge">0</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Products total</span>
+                  <strong id="cartSubtotalValue">KSh 0</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Estimated delivery</span>
+                  <strong id="deliveryFeeValue">KSh 0</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Total estimate</span>
+                  <strong id="grandTotalValue">KSh 0</strong>
+                </div>
+              </div>
+
+              <div id="deliverySummaryInfo" class="info-box">
+                Add items, checkout, then seller confirms payment.
+              </div>
+
+              <div class="button-grid">
+                <a id="addOrdersButton" class="button button-ghost" href="./categories.html">Add Orders</a>
+                <button id="checkoutButton" class="button button-primary" type="button">Proceed to Checkout</button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="placedOrdersSection" class="card is-hidden">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Orders Placed</p>
+              <h2 class="section-title">Submitted orders.</h2>
+            </div>
+          </div>
+
+          <div id="placedOrderList" class="cart-list"></div>
+        </section>
+
+        <section id="checkoutSection" class="card checkout-card is-hidden">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Checkout Details</p>
+                <h2 class="section-title">Checkout.</h2>
+              </div>
+            </div>
+
+            <form id="checkoutForm" class="stack">
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Full Name</span>
+                  <input id="buyerNameInput" class="input" name="fullName" placeholder="Full name" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">M-Pesa Name</span>
+                  <input id="mpesaNameInput" class="input" name="mpesaName" placeholder="Name used on M-Pesa" required />
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">M-Pesa Number</span>
+                  <input id="buyerPhoneInput" class="input" name="phone" placeholder="07XXXXXXXX" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Delivery Location</span>
+                  <input id="buyerLocationInput" class="input" name="location" placeholder="Estate, stage, landmark..." required />
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">M-Pesa Reference Code</span>
+                  <input id="mpesaReferenceInput" class="input" name="mpesaReference" placeholder="e.g. QAB12XYZ34" required />
+                </label>
+
+                <div class="field">
+                  <span class="field-label">Customer Location</span>
+                  <button id="useMyLocationButton" class="button button-outline" type="button">Use My Location</button>
+                  <p id="buyerMapSearchStatus" class="tiny">Location is needed for delivery fee.</p>
+                </div>
+                <input id="buyerLatitudeInput" name="latitude" type="hidden" />
+                <input id="buyerLongitudeInput" name="longitude" type="hidden" />
+              </div>
+
+              <div>
+                <p class="field-label">Pay Business Directly</p>
+                <div id="sellerPaymentMethods" class="breakdown-list"></div>
+              </div>
+
+              <div id="deliveryPaymentInstruction" class="info-box">Delivery fee is paid separately to till 7312380.</div>
+
+              <div>
+                <p class="field-label">Delivery fee breakdown</p>
+                <div id="deliveryBreakdown" class="breakdown-list"></div>
+              </div>
+
+              <p id="checkoutStatus" class="tiny"></p>
+              <button id="submitOrderButton" class="button button-primary" type="button">Submit order</button>
+            </form>
+        </section>
+      </section>
+    </main>
+
+    <footer id="footerTrigger" class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="footer-link-word" href="./about.html" data-footer-link>About Us</a>
+        <a class="footer-link-word" href="./contact.html" data-footer-link>Contact Us</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="adminLoginModal" class="modal-backdrop is-hidden" aria-hidden="true">
+    <div class="modal-overlay" data-close-admin-modal></div>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Hidden Admin Access</p>
+          <h2 id="adminLoginTitle" class="section-title">Admin Sign In</h2>
+        </div>
+        <button class="button button-ghost button-small" data-close-admin-modal type="button">Close</button>
+      </div>
+
+      <form id="adminLoginForm" class="stack">
+        <label class="field">
+          <span class="field-label">Username</span>
+          <input id="adminUsernameInput" class="input" type="text" autocomplete="username" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="adminPasswordInput" class="input" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button button-primary" type="submit">Login</button>
+        <p id="adminLoginStatus" class="tiny"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./cart.js"></script>
+  <script src="./pwa.js"></script>
+</body>
+</html>

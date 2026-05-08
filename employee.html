@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>Employee Portal | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./employee.css">
+  <link rel="stylesheet" href="./responsive.css">
+</head>
+<body>
+  <div class="employee-shell">
+    <section id="employeeLoginView" class="employee-login">
+      <article class="login-card panel">
+        <div class="login-brand">
+          <img src="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png" alt="Tamu Express logo">
+          <div>
+            <p class="eyebrow">Employee Portal</p>
+            <h1>Delivery workspace.</h1>
+          </div>
+        </div>
+
+        <form id="employeeLoginForm" class="stack">
+          <label class="field">
+            <span class="field-label">Employee email</span>
+            <input id="employeeEmail" class="input" name="email" type="email" placeholder="employee@tamu.local" autocomplete="username" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Password</span>
+            <input id="employeePassword" class="input" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+          </label>
+          <button class="button button-primary" type="submit">Login</button>
+          <p id="employeeLoginStatus" class="tiny login-status"></p>
+        </form>
+      </article>
+    </section>
+
+    <main id="employeeDashboardView" class="employee-app is-hidden">
+      <button id="employeeMenuToggle" class="employee-menu-toggle" type="button" aria-label="Open employee menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <aside id="employeeSidebar" class="employee-sidebar panel" aria-label="Employee menu">
+        <div class="sidebar-head">
+          <img src="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png" alt="Tamu Express">
+          <div>
+            <p class="eyebrow">Employee</p>
+            <h2 id="employeeNameLabel">Tamu Express</h2>
+          </div>
+        </div>
+
+        <nav class="side-nav">
+          <button class="side-nav-button is-active" type="button" data-employee-view="dashboard">Dashboard</button>
+          <button class="side-nav-button" type="button" data-employee-view="orders">Orders</button>
+          <button class="side-nav-button" type="button" data-employee-view="deliveries">Deliveries</button>
+          <button class="side-nav-button" type="button" data-employee-view="notifications">Notifications</button>
+          <button class="side-nav-button" type="button" data-employee-view="maps">Maps/Tracking</button>
+          <button class="side-nav-button" type="button" data-employee-view="customerChats">Customer Chats</button>
+          <button class="side-nav-button" type="button" data-employee-view="adminChats">Admin Chats</button>
+          <button class="side-nav-button" type="button" data-employee-view="settings">Settings</button>
+          <button id="employeeLogoutButton" class="side-nav-button side-nav-danger" type="button">Logout</button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <a class="button button-ghost button-small" href="./admin.html">Admin</a>
+          <a class="button button-outline button-small" href="./index.html">Open site</a>
+        </div>
+      </aside>
+
+      <div id="employeeSidebarOverlay" class="employee-sidebar-overlay" aria-hidden="true"></div>
+
+      <section class="employee-workspace">
+        <header class="employee-topbar panel">
+          <div>
+            <p class="eyebrow">Delivery Operations</p>
+            <h1 id="employeeViewTitle">Dashboard</h1>
+          </div>
+          <div class="topbar-actions">
+            <span id="employeeActiveBadge" class="summary-chip">0 active</span>
+            <button id="employeeRefreshButton" class="button button-outline button-small" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <section class="employee-panel" data-employee-panel="dashboard">
+          <div id="employeeStats" class="stats-grid"></div>
+          <section class="dashboard-grid">
+            <article class="card">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Assigned Orders</p>
+                  <h2 class="section-title">Ready for delivery</h2>
+                </div>
+              </div>
+              <div id="employeeAssignedPreview" class="item-list"></div>
+            </article>
+
+            <article class="card">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Notifications</p>
+                  <h2 class="section-title">Latest updates</h2>
+                </div>
+              </div>
+              <div id="employeeNotificationPreview" class="item-list"></div>
+            </article>
+          </section>
+        </section>
+
+        <section class="employee-panel is-hidden" data-employee-panel="orders">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Orders</p>
+                <h2 class="section-title">Assigned and available delivery orders.</h2>
+              </div>
+            </div>
+            <div id="employeeOrderList" class="item-list"></div>
+          </article>
+        </section>
+
+        <section class="employee-panel is-hidden" data-employee-panel="deliveries">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Deliveries</p>
+                <h2 class="section-title">Update delivery progress.</h2>
+              </div>
+            </div>
+            <div id="employeeDeliveryList" class="item-list"></div>
+          </article>
+        </section>
+
+        <section class="employee-panel is-hidden" data-employee-panel="notifications">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Notifications</p>
+                <h2 class="section-title">Order and route alerts.</h2>
+              </div>
+            </div>
+            <div id="employeeNotificationList" class="item-list"></div>
+          </article>
+        </section>
+
+        <section class="employee-panel is-hidden" data-employee-panel="maps">
+          <article class="card map-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Maps/Tracking</p>
+                <h2 class="section-title">Customer location and route.</h2>
+              </div>
+              <a id="openMapsLink" class="button button-outline button-small" href="#" target="_blank" rel="noopener">Open in Maps</a>
+            </div>
+            <div id="employeeMap" class="employee-map" role="img" aria-label="Delivery map"></div>
+            <div id="mapOrderDetails" class="map-details"></div>
+          </article>
+        </section>
+
+        <section class="employee-panel is-hidden" data-employee-panel="customerChats">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Customer Chats</p>
+                <h2 class="section-title">Quick WhatsApp contact.</h2>
+              </div>
+            </div>
+            <div id="employeeCustomerChats" class="item-list"></div>
+          </article>
+        </section>
+
+        <section class="employee-panel is-hidden" data-employee-panel="adminChats">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Admin Chats</p>
+                <h2 class="section-title">Contact dispatch/admin.</h2>
+              </div>
+            </div>
+            <div id="employeeAdminChats" class="item-list"></div>
+          </article>
+        </section>
+
+        <section class="employee-panel is-hidden" data-employee-panel="settings">
+          <article class="card settings-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Settings</p>
+                <h2 class="section-title">Employee and contact settings.</h2>
+              </div>
+            </div>
+            <form id="employeeSettingsForm" class="settings-form">
+              <label class="field">
+                <span class="field-label">Admin WhatsApp number</span>
+                <input class="input" name="adminPhone" placeholder="254700000000">
+              </label>
+              <button class="button button-primary" type="submit">Save settings</button>
+            </form>
+            <div id="employeeProfileDetails" class="profile-details"></div>
+          </article>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./employee.js"></script>
+  <script src="./pwa.js"></script>
+</body>
+</html>

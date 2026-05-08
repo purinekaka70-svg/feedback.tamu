@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15803d">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>Admin Portal | Tamu Express Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./admin.css">
+  <link rel="stylesheet" href="./responsive.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar panel reveal">
+      <div class="brand-block">
+        <img class="brand-logo" src="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png" alt="Tamu Express logo">
+        <a href="./admin.html" class="brand">Tamu Express Admin</a>
+        <p class="brand-tagline">Manage sellers, categories, orders, and marketplace operations.</p>
+      </div>
+
+      <nav class="topbar-actions" aria-label="Primary">
+        <a class="button button-ghost button-small" href="./index.html">Home</a>
+        <a class="button button-ghost button-small" href="./categories.html">Categories</a>
+        <a class="button button-ghost button-small" href="./seller.html">Seller Portal</a>
+        <button id="adminLogoutButton" class="button button-outline button-small" type="button">Logout</button>
+      </nav>
+    </header>
+
+    <main class="content-shell">
+      <section id="adminLoginView" class="admin-login-view reveal reveal-delay-1">
+        <article class="card admin-login-card">
+          <form id="adminAccessForm" class="stack">
+            <label class="field">
+              <span class="field-label">Admin email</span>
+              <input id="adminAccessUsername" class="input" name="username" type="text" placeholder="TamuAdmin@2025" autocomplete="username" required />
+            </label>
+
+            <label class="field">
+              <span class="field-label">Password</span>
+              <input id="adminAccessPassword" class="input" name="password" type="password" placeholder="Password" autocomplete="current-password" required />
+            </label>
+
+            <p class="tiny">Use the local admin account. Database data loads only when the backend is available.</p>
+            <button class="button button-primary" type="submit">Login</button>
+            <p id="adminAccessStatus" class="tiny login-status"></p>
+          </form>
+        </article>
+      </section>
+
+      <div id="adminDashboardView" class="is-hidden">
+        <section class="admin-app-shell reveal reveal-delay-1">
+          <button id="adminMenuToggle" class="admin-menu-toggle" type="button" aria-label="Open admin menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+
+          <aside id="adminSidebar" class="admin-sidebar panel" aria-label="Admin menu">
+            <div class="admin-sidebar-head">
+              <p class="eyebrow">Admin Workspace</p>
+              <h2>Tamu Express</h2>
+            </div>
+
+            <nav class="admin-side-nav">
+              <button class="admin-nav-button is-active" type="button" data-admin-view="overview">Dashboard</button>
+              <button class="admin-nav-button" type="button" data-admin-view="businesses">Businesses</button>
+              <button class="admin-nav-button" type="button" data-admin-view="orders">Orders</button>
+              <button class="admin-nav-button" type="button" data-admin-view="notifications">Notifications</button>
+              <button class="admin-nav-button" type="button" data-admin-view="categories">Categories</button>
+              <button class="admin-nav-button" type="button" data-admin-view="users">Users</button>
+              <button class="admin-nav-button" type="button" data-admin-view="delivery">Delivery Fees</button>
+              <button class="admin-nav-button" type="button" data-admin-view="payments">Payments</button>
+              <button class="admin-nav-button" type="button" data-admin-view="analytics">Analytics</button>
+              <button class="admin-nav-button" type="button" data-admin-view="reports">Reports</button>
+            </nav>
+
+            <div class="admin-sidebar-foot">
+              <a class="button button-ghost button-small" href="./employee.html">Employee portal</a>
+              <a class="button button-ghost button-small" href="./index.html">Open site</a>
+              <button id="adminSidebarLogoutButton" class="button button-outline button-small" type="button">Logout</button>
+            </div>
+          </aside>
+
+          <div id="adminSidebarOverlay" class="admin-sidebar-overlay" aria-hidden="true"></div>
+
+          <section class="admin-workspace">
+            <article class="hero panel admin-dashboard-hero">
+              <p class="eyebrow">Control Center</p>
+              <h1 id="adminViewTitle">Dashboard overview.</h1>
+              <p id="adminViewSubtitle" class="hero-text">Track businesses, orders, and notifications from one admin workspace.</p>
+            </article>
+
+            <section class="admin-panel" data-admin-panel="overview">
+              <div id="adminOverviewStats" class="stats-grid"></div>
+
+              <section class="dashboard-grid">
+                <article class="card">
+                  <div class="section-head">
+                    <div>
+                      <p class="eyebrow">Recent Businesses</p>
+                      <h2 class="section-title">Approval queue</h2>
+                    </div>
+                    <button class="button button-outline button-small" type="button" data-admin-jump="businesses">View all</button>
+                  </div>
+                  <div id="recentBusinessList" class="item-list"></div>
+                </article>
+
+                <article class="card">
+                  <div class="section-head">
+                    <div>
+                      <p class="eyebrow">Latest Orders</p>
+                      <h2 class="section-title">New activity</h2>
+                    </div>
+                    <button class="button button-outline button-small" type="button" data-admin-jump="orders">View orders</button>
+                  </div>
+                  <div id="recentOrderList" class="item-list"></div>
+                </article>
+              </section>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="businesses">
+              <article class="card admin-main-card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Registered Businesses</p>
+                    <h2 class="section-title">Approve, block, activate, or expire sellers.</h2>
+                  </div>
+                </div>
+
+                <div id="approvalList" class="item-list business-list"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="orders">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Order Management</p>
+                    <h2 class="section-title">Orders placed by users.</h2>
+                  </div>
+                  <span id="orderCountSummary" class="summary-chip">0 orders</span>
+                </div>
+
+                <div id="orderList" class="item-list order-list"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="notifications">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Notifications</p>
+                    <h2 class="section-title">Orders and business actions.</h2>
+                  </div>
+                </div>
+
+                <div id="notificationList" class="item-list notification-list"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="categories">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Category Management</p>
+                    <h2 class="section-title">Keep buyer browsing organized.</h2>
+                  </div>
+                </div>
+
+                <form id="categoryForm" class="stack">
+                  <label class="field">
+                    <span class="field-label">New category</span>
+                    <input class="input" name="categoryName" placeholder="Household essentials" required />
+                  </label>
+
+                  <button class="button button-primary" type="submit">Add category</button>
+                </form>
+
+                <div id="categoryList" class="chip-list"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="users">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">User Management</p>
+                    <h2 class="section-title">Customers and seller accounts.</h2>
+                  </div>
+                </div>
+                <div id="adminUserList" class="item-list"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="delivery">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Delivery Fees</p>
+                    <h2 class="section-title">Delivery till and collected fees.</h2>
+                  </div>
+                </div>
+                <div id="adminDeliveryList" class="item-list"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="payments">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Payments</p>
+                    <h2 class="section-title">Business and delivery payment references.</h2>
+                  </div>
+                </div>
+                <div id="adminPaymentList" class="item-list"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="analytics">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Analytics</p>
+                    <h2 class="section-title">Marketplace performance.</h2>
+                  </div>
+                </div>
+                <div id="adminAnalyticsStats" class="stats-grid"></div>
+              </article>
+            </section>
+
+            <section class="admin-panel is-hidden" data-admin-panel="reports">
+              <article class="card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">Reports</p>
+                    <h2 class="section-title">Operational summary.</h2>
+                  </div>
+                </div>
+                <div id="adminReportList" class="item-list"></div>
+              </article>
+            </section>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer panel">
+      <p class="footer-title">Tamu Express | Umma-Kenya</p>
+      <p class="footer-title footer-brandline">
+        <span class="footer-mark">C</span>
+        <span>Teams Technologies</span>
+      </p>
+      <p class="footer-text">Powered by Teams Technologies, Kajiado, Kenya.</p>
+      <div class="footer-links">
+        <a class="footer-link-word" href="./about.html">About Us</a>
+        <a class="footer-link-word" href="./contact.html">Contact Us</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="./admin.js"></script>
+  <script src="./pwa.js"></script>
+</body>
+</html>
