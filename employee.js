@@ -70,10 +70,33 @@ function firebaseConfig() {
   return readStorage("tamu_market_firebase_config", null);
 }
 
-function ensureFirebaseApp() {
-  const config = firebaseConfig();
+async function loadFirebaseConfig() {
+  const existing = firebaseConfig();
+  if (existing?.apiKey && existing?.projectId) {
+    return existing;
+  }
+
+  try {
+    const response = await fetch("./api/firebase/config.php", { cache: "no-store" });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok && result.ok && result.config?.apiKey && result.config?.projectId) {
+      window.tamuFirebaseConfig = result.config;
+      return result.config;
+    }
+  } catch (error) {
+    return null;
+  }
+
+  return null;
+}
+
+async function ensureFirebaseApp() {
+  const config = await loadFirebaseConfig();
   if (!config || !window.firebase?.auth || !window.firebase?.firestore) {
-    return { ok: false, message: "Firebase Auth and Firestore are not configured." };
+    return {
+      ok: false,
+      message: "Firebase Auth is not configured. Add firebase-config.js or set TAMU_FIREBASE_* server variables."
+    };
   }
 
   if (!window.firebase.apps.length) {
@@ -124,7 +147,7 @@ async function loadEmployeeOrders() {
 }
 
 async function signInEmployee(email, password) {
-  const firebase = ensureFirebaseApp();
+  const firebase = await ensureFirebaseApp();
   if (!firebase.ok) {
     return firebase;
   }
@@ -639,7 +662,7 @@ function bindNavigation() {
 }
 
 async function restoreSession() {
-  const firebase = ensureFirebaseApp();
+  const firebase = await ensureFirebaseApp();
   if (!firebase.ok) {
     return false;
   }
