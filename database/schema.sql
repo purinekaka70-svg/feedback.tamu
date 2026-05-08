@@ -154,10 +154,22 @@ CREATE TABLE payments (
     method VARCHAR(80),
     reference VARCHAR(120),
     amount DECIMAL(10,2) DEFAULT 0.00,
-    status ENUM('pending','submitted','paid','failed') DEFAULT 'submitted',
+    status ENUM('pending','pending_payment','submitted','paid','failed') DEFAULT 'submitted',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL
+);
+
+CREATE TABLE seller_offers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    public_id VARCHAR(64) UNIQUE,
+    seller_public_id VARCHAR(64),
+    store_name VARCHAR(160),
+    offer_title VARCHAR(180),
+    offer_note TEXT,
+    offer_expiry VARCHAR(120),
+    offer_image LONGTEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE deliveries (

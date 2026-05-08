@@ -12,28 +12,42 @@ try {
     }
 
     if ($method === 'GET') {
-        $rows = $pdo->query('SELECT id, name, image, description, created_at FROM locations ORDER BY name ASC')->fetchAll();
+        $createdAtColumn = column_exists($pdo, 'locations', 'created_at') ? ', created_at' : '';
+        $rows = $pdo->query("SELECT id, name, image, description{$createdAtColumn} FROM locations ORDER BY name ASC")->fetchAll();
         json_response(['ok' => true, 'locations' => $rows]);
     }
 
     if ($method === 'POST') {
         $payload = read_json_input();
         require_fields($payload, ['name']);
-        $id = trim_string($payload['id'] ?? '') ?: strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', trim_string($payload['name'])), '-'));
-        $stmt = $pdo->prepare(
-            'INSERT INTO locations (id, name, image, description)
-             VALUES (?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE
-                name = VALUES(name),
-                image = VALUES(image),
-                description = VALUES(description)'
-        );
-        $stmt->execute([
-            $id,
-            trim_string($payload['name']),
-            trim_string($payload['image'] ?? ''),
-            trim_string($payload['description'] ?? ''),
-        ]);
+        $id = trim_string($payload['id'] ?? '');
+        if ($id !== '' && is_numeric($id)) {
+            $stmt = $pdo->prepare(
+                'INSERT INTO locations (id, name, image, description)
+                 VALUES (?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    name = VALUES(name),
+                    image = VALUES(image),
+                    description = VALUES(description)'
+            );
+            $stmt->execute([
+                (int) $id,
+                trim_string($payload['name']),
+                trim_string($payload['image'] ?? ''),
+                trim_string($payload['description'] ?? ''),
+            ]);
+        } else {
+            $stmt = $pdo->prepare(
+                'INSERT INTO locations (name, image, description)
+                 VALUES (?, ?, ?)'
+            );
+            $stmt->execute([
+                trim_string($payload['name']),
+                trim_string($payload['image'] ?? ''),
+                trim_string($payload['description'] ?? ''),
+            ]);
+            $id = (string) $pdo->lastInsertId();
+        }
         json_response(['ok' => true, 'location' => ['id' => $id]], 201);
     }
 

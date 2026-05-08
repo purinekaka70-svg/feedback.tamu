@@ -32,8 +32,12 @@ try {
         ], 401);
     }
 
-    session_start();
-    $_SESSION['admin_id'] = $admin['id'];
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        $_SESSION['admin_id'] = $admin['id'];
+    }
 
     json_response([
         'ok' => true,

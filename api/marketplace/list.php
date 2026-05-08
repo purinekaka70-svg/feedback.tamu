@@ -143,22 +143,28 @@ try {
         $locations[$id]['businessCount']++;
     }
 
-    $offers = array_map(static fn(array $product): array => [
-        'id' => 'product-offer-' . $product['id'],
-        'storeId' => $product['storeId'],
-        'sellerId' => $product['storeId'],
-        'businessId' => $product['storeId'],
-        'storeName' => $product['storeName'],
-        'title' => $product['productName'],
-        'offerTitle' => $product['productName'],
-        'note' => $product['productOffer'],
-        'offerNote' => $product['productOffer'],
-        'expires' => 'Store offer',
-        'offerExpiry' => 'Store offer',
-        'image' => $product['productImage'],
-        'offerImage' => $product['productImage'],
-        'productId' => $product['id'],
-    ], array_values(array_filter($products, static fn(array $product): bool => (bool) $product['offerFlag'])));
+    $offers = [];
+    foreach ($products as $product) {
+        if (!(bool) $product['offerFlag']) {
+            continue;
+        }
+        $offers[] = [
+            'id' => 'product-offer-' . $product['id'],
+            'storeId' => $product['storeId'],
+            'sellerId' => $product['storeId'],
+            'businessId' => $product['storeId'],
+            'storeName' => $product['storeName'],
+            'title' => $product['productName'],
+            'offerTitle' => $product['productName'],
+            'note' => $product['productOffer'],
+            'offerNote' => $product['productOffer'],
+            'expires' => 'Store offer',
+            'offerExpiry' => 'Store offer',
+            'image' => $product['productImage'],
+            'offerImage' => $product['productImage'],
+            'productId' => $product['id'],
+        ];
+    }
 
     if (table_exists($pdo, 'seller_offers')) {
         $offerRows = $pdo->query(

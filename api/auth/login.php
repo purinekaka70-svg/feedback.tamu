@@ -25,9 +25,13 @@ try {
         json_response(['ok' => false, 'message' => 'Account is not approved.', 'status' => $user['status']], 403);
     }
 
-    session_start();
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['role'] = $user['role'];
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['role'] = $user['role'];
+    }
 
     json_response([
         'ok' => true,

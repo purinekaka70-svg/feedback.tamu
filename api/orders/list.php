@@ -24,7 +24,9 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
-    $orderIds = array_map(static fn(array $row): int => (int) $row['id'], $rows);
+    $orderIds = array_map(static function (array $row): int {
+        return (int) $row['id'];
+    }, $rows);
     $itemsByOrder = [];
     $routesByOrder = [];
 
@@ -83,7 +85,9 @@ try {
             'mpesaReference' => $row['mpesa_reference'] ?? '',
             'note' => $row['notes'] ?? '',
             'storeName' => $row['store_summary'],
-            'stores' => array_values(array_unique(array_map(static fn(array $item): string => $item['storeName'], $itemsByOrder[$id] ?? []))),
+            'stores' => array_values(array_unique(array_map(static function (array $item): string {
+                return $item['storeName'];
+            }, $itemsByOrder[$id] ?? []))),
             'subtotal' => (float) $row['subtotal'],
             'deliveryFee' => (float) $row['delivery_fee'],
             'total' => (float) $row['total'],

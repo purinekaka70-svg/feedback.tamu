@@ -187,13 +187,17 @@ try {
             if ($reference === '') {
                 continue;
             }
+            $paymentStatus = trim_string($payment['status'] ?? 'submitted');
+            if ($paymentStatus === 'pending_payment') {
+                $paymentStatus = 'pending';
+            }
             $insertPayment->execute([
                 $publicId,
                 trim_string($payment['storeId'] ?? $payment['businessId'] ?? ''),
                 trim_string($payment['method'] ?? $payload['paymentMethod']),
                 $reference,
                 float_value($payment['amount'] ?? 0),
-                trim_string($payment['status'] ?? 'submitted'),
+                $paymentStatus,
             ]);
         }
     }
