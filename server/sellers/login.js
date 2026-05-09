@@ -34,10 +34,10 @@ module.exports = async function handler(req, res) {
     const userStatus = String(row.user_status || "approved").toLowerCase();
     if (sellerStatus !== "approved" || userStatus !== "approved") {
       const message = sellerStatus === "rejected"
-        ? "Your business account was rejected. Contact admin for help."
+          ? "Your business account was rejected. Contact admin for help."
         : sellerStatus === "blocked"
           ? "Your business account is blocked. Contact admin for help."
-          : "Your business account is waiting for admin approval.";
+          : "Your account is not approved by admin yet.";
       send(res, 403, { ok: false, message, status: sellerStatus });
       return;
     }

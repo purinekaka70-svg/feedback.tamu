@@ -1589,8 +1589,9 @@ function bindForms() {
     event.currentTarget.reset();
     syncPaymentFields();
     toggleForms(false);
-    document.getElementById("loginStatus").textContent = "Your account has been submitted successfully. Please wait for admin approval.";
-    showToast("Your account has been submitted successfully. Please wait for admin approval.", "success");
+    const successMessage = response.data?.message || "Successfully registered. Please wait for admin approval.";
+    document.getElementById("loginStatus").textContent = successMessage;
+    showToast(successMessage, "success");
   });
 
   document.getElementById("sellerLoginForm").addEventListener("submit", async (event) => {
@@ -1600,7 +1601,11 @@ function bindForms() {
     const password = String(formData.get("password"));
     const response = await postJson('./api/sellers/login.php', { email, password });
     if (!response.ok || response.data?.ok === false) {
-      document.getElementById("loginStatus").textContent = response.data?.message || "Invalid seller credentials.";
+      const message = response.status === 403
+        ? (response.data?.message || "Your account is not approved by admin yet.")
+        : (response.data?.message || "Invalid seller credentials.");
+      document.getElementById("loginStatus").textContent = message;
+      showToast(message, response.status === 403 ? "warn" : "error");
       return;
     }
 

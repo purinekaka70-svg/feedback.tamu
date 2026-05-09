@@ -117,7 +117,7 @@ module.exports = async function handler(req, res) {
     await client.query("commit");
     send(res, 201, {
       ok: true,
-      message: "Your account has been submitted successfully. Please wait for admin approval.",
+      message: "Successfully registered. Please wait for admin approval.",
       seller: { id: businessResult.rows[0].id, status: "pending" }
     });
   } catch (error) {
