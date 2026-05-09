@@ -15,8 +15,9 @@ async function columns(client, table) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "GET")) return;
-  const client = await getPool().connect();
+  let client;
   try {
+    client = await getPool().connect();
     const userColumns = await columns(client, "users");
     const businessColumns = await columns(client, "businesses");
     const businessCount = await client.query("select count(*)::int as count from businesses");
@@ -50,6 +51,8 @@ module.exports = async function handler(req, res) {
       error: String(error?.message || error).slice(0, 240)
     });
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 };

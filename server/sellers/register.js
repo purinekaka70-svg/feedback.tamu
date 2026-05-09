@@ -24,8 +24,9 @@ function addColumn(columns, names, field, value, cast = "") {
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   const pool = getPool();
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const payload = await body(req);
     const email = text(payload.email, 180).toLowerCase();
     const password = String(payload.password || "");
@@ -91,13 +92,17 @@ module.exports = async function handler(req, res) {
       seller: { id: businessResult.rows[0].id, status: "pending" }
     });
   } catch (error) {
-    await client.query("rollback").catch(() => {});
+    if (client) {
+      await client.query("rollback").catch(() => {});
+    }
     send(res, 500, {
       ok: false,
       message: "Seller registration failed.",
       error: String(error?.message || error).slice(0, 220)
     });
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 };
