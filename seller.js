@@ -1532,6 +1532,19 @@ function closeSellerMenu() {
   document.body.classList.remove("seller-menu-open");
 }
 
+function openSellerMenu() {
+  const nav = document.getElementById("sellerWorkspaceNav");
+  const overlay = document.getElementById("sellerMenuOverlay");
+  const toggle = document.getElementById("sellerWorkspaceToggle");
+  if (!nav || !overlay || !toggle) return;
+
+  closeOtherMenusForSeller();
+  nav.classList.add("is-open");
+  overlay.classList.add("is-open");
+  toggle.setAttribute("aria-expanded", "true");
+  document.body.classList.add("seller-menu-open");
+}
+
 function closeOtherMenusForSeller() {
   document.querySelectorAll(".admin-sidebar.is-open, .employee-sidebar.is-open, .seller-sidebar[data-open='true']")
     .forEach((menu) => {
@@ -1551,7 +1564,9 @@ function closeOtherMenusForSeller() {
   document.body.classList.remove("admin-menu-open", "employee-menu-open", "legacy-seller-menu-open");
 }
 
-function toggleSellerMenu() {
+function toggleSellerMenu(event) {
+  event?.preventDefault();
+  event?.stopPropagation();
   const nav = document.getElementById("sellerWorkspaceNav");
   const overlay = document.getElementById("sellerMenuOverlay");
   const toggle = document.getElementById("sellerWorkspaceToggle");
@@ -1564,11 +1579,11 @@ function toggleSellerMenu() {
     return;
   }
 
-  closeOtherMenusForSeller();
-  const isOpen = nav.classList.toggle("is-open");
-  overlay.classList.toggle("is-open", isOpen);
-  toggle.setAttribute("aria-expanded", String(isOpen));
-  document.body.classList.toggle("seller-menu-open", isOpen);
+  if (nav.classList.contains("is-open")) {
+    closeSellerMenu();
+  } else {
+    openSellerMenu();
+  }
 }
 
 function bindForms() {
@@ -1827,6 +1842,7 @@ function bindActions() {
   document.getElementById("sellerPanelLogoutBtn").addEventListener("click", logoutSeller);
 
   document.getElementById("sellerWorkspaceToggle").addEventListener("click", toggleSellerMenu);
+  document.getElementById("sellerWorkspaceToggle").addEventListener("touchend", toggleSellerMenu, { passive: false });
   document.getElementById("sellerMenuOverlay").addEventListener("click", closeSellerMenu);
 
   document.querySelectorAll("[data-seller-view]").forEach((button) => {

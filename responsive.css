@@ -988,3 +988,50 @@ body.admin-auth-only #adminLoginView {
     height: 220px !important;
   }
 }
+
+/* Seller drawer must stay tappable above every phone layout layer. */
+@media (max-width: 900px) {
+  body.seller-dashboard-active .seller-workspace-bar {
+    position: sticky !important;
+    top: 6px !important;
+    z-index: 1200 !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-toggle {
+    position: fixed !important;
+    top: 10px !important;
+    left: 10px !important;
+    z-index: 1400 !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav {
+    z-index: 1300 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: translate3d(-110%, 0, 0) !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav.is-open {
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: translate3d(0, 0, 0) !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay {
+    z-index: 1250 !important;
+    display: block !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay.is-open {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
