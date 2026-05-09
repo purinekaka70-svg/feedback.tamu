@@ -41,6 +41,8 @@ module.exports = async function handler(req, res) {
       send(res, 422, { ok: false, message: "Business, product name and category are required." });
       return;
     }
+    const offerText = text(payload.productOffer || payload.offerText || payload.offer, 500);
+    const descriptionText = text(payload.description || payload.productDescription, 500);
     const params = [
       businessId,
       categoryId,
@@ -48,9 +50,9 @@ module.exports = async function handler(req, res) {
       text(payload.image, 230400),
       number(payload.price),
       Boolean(payload.offerFlag),
-      text(payload.productOffer || payload.offerText || payload.offer, 500),
+      offerText,
       Math.max(0, Math.trunc(number(payload.stock))),
-      text(payload.description, 500)
+      descriptionText || offerText
     ];
     await ensureOfferTextColumn().catch(() => {});
     const hasOfferText = await columnExists("products", "offer_text");

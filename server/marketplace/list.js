@@ -2,6 +2,12 @@ const { query } = require("../_lib/db");
 const { method, send } = require("../_lib/http");
 const { DEFAULT_CATEGORIES, key, sellerFromBusiness, slug } = require("../_lib/market");
 
+function actualOfferText(...values) {
+  return values
+    .map((value) => String(value || "").trim())
+    .find((value) => value && !/^(offer|store offer|special offer)$/i.test(value)) || "";
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "GET")) return;
   try {
@@ -28,7 +34,7 @@ module.exports = async function handler(req, res) {
       const categoryName = row.category_name || row.category_id || "Other";
       const stockCount = Number(row.stock || 0);
       const stock = stockCount <= 0 ? "Out of stock" : stockCount <= 5 ? "Limited stock" : "In stock";
-      const offerText = row.offer_text || row.offer_note || row.offer || "";
+      const offerText = actualOfferText(row.offer_text, row.offer_note, row.offer, row.description);
       return [{
         id: String(row.id),
         businessId: String(row.business_id),
@@ -50,8 +56,8 @@ module.exports = async function handler(req, res) {
         stockCount,
         productStock: stock,
         offerFlag: Boolean(row.offer_flag || offerText),
-        productOffer: offerText || (row.offer_flag ? "Offer" : ""),
-        offerText: offerText || (row.offer_flag ? "Offer" : ""),
+        productOffer: offerText,
+        offerText,
         description: row.description || "",
         createdAt: row.created_at || ""
       }];

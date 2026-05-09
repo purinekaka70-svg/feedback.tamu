@@ -249,8 +249,9 @@ function normalizeProductRecord(product = {}) {
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
-  const offerFlag = Boolean(product.offerFlag || product.isOffer || product.productOffer);
-  const productOffer = product.productOffer || product.offerText || product.offer || (offerFlag ? "Offer" : "");
+  const rawOffer = product.offerText || product.productOffer || product.offer || product.description || "";
+  const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
+  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer);
 
   return {
     ...product,
