@@ -27,7 +27,11 @@ module.exports = async function handler(req, res) {
       await query("update users set status = $2 where id = $1", [rows[0].user_id, status === "approved" ? "approved" : status]);
     }
     send(res, 200, { ok: true, seller: { id, status } });
-  } catch {
-    send(res, 500, { ok: false, message: "Failed to update seller application." });
+  } catch (error) {
+    send(res, 500, {
+      ok: false,
+      message: req.method === "GET" ? "Failed to load seller applications." : "Failed to update seller application.",
+      error: String(error?.message || error).slice(0, 220)
+    });
   }
 };

@@ -309,36 +309,46 @@ function formatDate(value) {
 }
 
 async function loadData() {
-  try {
-    const [applicationRes, marketRes, orderRes, paymentRes, userRes] = await Promise.all([
-      fetch('./api/admin/applications.php', { cache: 'no-store' }),
-      fetch('./api/marketplace/list.php', { cache: 'no-store' }),
-      fetch('./api/orders/list.php', { cache: 'no-store' }),
-      fetch('./api/payments/index.php', { cache: 'no-store' }),
-      fetch('./api/users/index.php', { cache: 'no-store' })
-    ]);
-    const applicationData = await applicationRes.json();
-    const marketData = await marketRes.json();
-    const orderData = await orderRes.json();
-    const paymentData = await paymentRes.json();
-    const userData = await userRes.json();
-    cachedApplications = applicationRes.ok && applicationData.ok ? (applicationData.applications || []) : [];
-    cachedCategories = marketRes.ok && marketData.ok ? (marketData.categories || []) : [];
-    cachedProducts = marketRes.ok && marketData.ok ? (marketData.products || []) : [];
-    cachedOffers = marketRes.ok && marketData.ok ? (marketData.offers || []) : [];
-    cachedLocations = marketRes.ok && marketData.ok ? (marketData.locations || []) : [];
-    cachedOrders = orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
-    cachedPayments = paymentRes.ok && paymentData.ok ? (paymentData.payments || []) : [];
-    cachedUsers = userRes.ok && userData.ok ? (userData.users || []) : [];
-  } catch (error) {
-    cachedApplications = [];
-    cachedCategories = [];
-    cachedProducts = [];
-    cachedOffers = [];
-    cachedLocations = [];
-    cachedOrders = [];
-    cachedPayments = [];
-    cachedUsers = [];
+  const readEndpoint = async (url) => {
+    const response = await fetch(url, { cache: 'no-store' });
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { ok: false, message: raw.replace(/\s+/g, " ").slice(0, 160) };
+    }
+    return { response, data };
+  };
+
+  const results = await Promise.allSettled([
+    readEndpoint('./api/admin/applications.php'),
+    readEndpoint('./api/marketplace/list.php'),
+    readEndpoint('./api/orders/list.php'),
+    readEndpoint('./api/payments/index.php'),
+    readEndpoint('./api/users/index.php')
+  ]);
+  const values = results.map((result) => result.status === "fulfilled" ? result.value : null);
+  const [applicationsResult, marketResult, ordersResult, paymentsResult, usersResult] = values;
+
+  cachedApplications = applicationsResult?.response.ok && applicationsResult.data.ok ? (applicationsResult.data.applications || []) : [];
+  cachedCategories = marketResult?.response.ok && marketResult.data.ok ? (marketResult.data.categories || []) : [];
+  cachedProducts = marketResult?.response.ok && marketResult.data.ok ? (marketResult.data.products || []) : [];
+  cachedOffers = marketResult?.response.ok && marketResult.data.ok ? (marketResult.data.offers || []) : [];
+  cachedLocations = marketResult?.response.ok && marketResult.data.ok ? (marketResult.data.locations || []) : [];
+  cachedOrders = ordersResult?.response.ok && ordersResult.data.ok ? (ordersResult.data.orders || []) : [];
+  cachedPayments = paymentsResult?.response.ok && paymentsResult.data.ok ? (paymentsResult.data.payments || []) : [];
+  cachedUsers = usersResult?.response.ok && usersResult.data.ok ? (usersResult.data.users || []) : [];
+
+  const failed = [
+    ["businesses", applicationsResult],
+    ["marketplace", marketResult],
+    ["orders", ordersResult],
+    ["payments", paymentsResult],
+    ["users", usersResult]
+  ].filter(([, result]) => !result?.response.ok || result?.data?.ok === false);
+  if (failed.length) {
+    console.warn("Admin data load warnings", failed.map(([name, result]) => ({ name, status: result?.response.status, message: result?.data?.message })));
   }
 }
 
