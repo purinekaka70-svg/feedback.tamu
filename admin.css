@@ -20,6 +20,78 @@
   --max-width: 1120px;
 }
 
+/* Compact portal spacing */
+.site-shell {
+  padding: 12px 0 22px;
+}
+
+.topbar {
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.content-shell {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-shell,
+.admin-app-shell,
+.admin-panel,
+.dashboard-grid,
+.admin-side-stack,
+.field-grid,
+.button-row,
+.chip-list,
+.stack {
+  gap: 10px;
+}
+
+.card,
+.admin-login-card,
+.admin-main-card,
+.admin-side-stack > .card,
+.admin-dashboard-hero,
+.admin-overview-card {
+  padding: 14px;
+}
+
+.admin-sidebar {
+  padding: 50px 8px 8px;
+}
+
+.list-card,
+.order-card,
+.mini-list-card,
+.notification-card {
+  padding: 10px;
+  gap: 8px;
+}
+
+.section-head {
+  gap: 10px;
+}
+
+.button,
+.status-pill,
+.category-chip {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+@media (max-width: 620px) {
+  .site-shell {
+    width: min(calc(100% - 16px), var(--max-width));
+    padding: 8px 0 16px;
+  }
+
+  .topbar,
+  .card,
+  .admin-login-card {
+    padding: 12px;
+  }
+}
+
 *,
 *::before,
 *::after {
@@ -869,5 +941,77 @@ button {
     right: 12px;
     left: 12px;
     width: auto;
+  }
+}
+
+/* Compact portal spacing overrides */
+.site-shell {
+  padding: 12px 0 22px;
+}
+
+.topbar {
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.content-shell {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-shell,
+.admin-app-shell,
+.admin-panel,
+.dashboard-grid,
+.admin-side-stack,
+.field-grid,
+.button-row,
+.chip-list,
+.stack {
+  gap: 10px;
+}
+
+.card,
+.admin-login-card,
+.admin-main-card,
+.admin-side-stack > .card,
+.admin-dashboard-hero,
+.admin-overview-card {
+  padding: 14px;
+}
+
+.admin-sidebar {
+  padding: 50px 8px 8px;
+}
+
+.list-card,
+.order-card,
+.mini-list-card,
+.notification-card {
+  padding: 10px;
+  gap: 8px;
+}
+
+.section-head {
+  gap: 10px;
+}
+
+.button,
+.status-pill,
+.category-chip {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+@media (max-width: 620px) {
+  .site-shell {
+    width: min(calc(100% - 16px), var(--max-width));
+    padding: 8px 0 16px;
+  }
+
+  .topbar,
+  .card,
+  .admin-login-card {
+    padding: 12px;
   }
 }
