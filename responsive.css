@@ -1014,7 +1014,7 @@ body.admin-auth-only #adminLoginView {
   }
 
   body.seller-dashboard-active .seller-workspace-nav {
-    z-index: 1300 !important;
+    z-index: 1500 !important;
     visibility: hidden !important;
     pointer-events: none !important;
     transform: translate3d(-110%, 0, 0) !important;
@@ -1029,6 +1029,8 @@ body.admin-auth-only #adminLoginView {
   body.seller-dashboard-active .seller-menu-overlay {
     z-index: 1250 !important;
     display: block !important;
+    left: min(86vw, 300px) !important;
+    width: auto !important;
   }
 
   body.seller-dashboard-active .seller-menu-overlay.is-open {

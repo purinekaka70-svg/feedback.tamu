@@ -1841,6 +1841,9 @@ function bindActions() {
 
   document.getElementById("sellerWorkspaceToggle").addEventListener("click", toggleSellerMenu);
   document.getElementById("sellerMenuOverlay").addEventListener("click", closeSellerMenu);
+  document.getElementById("sellerWorkspaceNav")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
 
   document.querySelectorAll("[data-seller-view]").forEach((button) => {
     button.addEventListener("click", () => setSellerView(button.dataset.sellerView));
