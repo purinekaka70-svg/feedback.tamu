@@ -4,8 +4,9 @@ const { method, send, text } = require("../_lib/http");
 
 function publicOrder(row, items = [], routes = []) {
   const businessPayments = row.business_payments || [];
-  const rawStatus = row.status || "pending_payment";
-  const displayStatus = row.payment_status === "paid" && ["pending", "pending_payment", "paid"].includes(String(rawStatus))
+  const rawStatus = String(row.status || "pending_payment").toLowerCase();
+  const rawPaymentStatus = String(row.payment_status || "").toLowerCase();
+  const displayStatus = ["paid", "confirmed"].includes(rawPaymentStatus) && ["pending", "pending_payment", "paid"].includes(rawStatus)
     ? "paid"
     : rawStatus;
   const paymentStoreIds = new Set(businessPayments.map((payment) => String(payment.storeId || payment.businessId || "")));
@@ -21,7 +22,7 @@ function publicOrder(row, items = [], routes = []) {
       amount: items
         .filter((entry) => String(entry.storeId || entry.businessId || "") === storeId)
         .reduce((sum, entry) => sum + Number(entry.lineTotal || 0), 0),
-      status: row.payment_status === "paid" ? "paid" : "pending_payment"
+      status: ["paid", "confirmed"].includes(rawPaymentStatus) ? "paid" : "pending_payment"
     });
     paymentStoreIds.add(storeId);
   });
@@ -62,7 +63,7 @@ function publicOrder(row, items = [], routes = []) {
       tillNumber: "7312380",
       amount: Number(row.delivery_fee || 0),
       reference: row.mpesa_reference || "",
-      status: row.mpesa_reference ? (row.payment_status === "paid" ? "paid" : "submitted") : "pending_payment"
+      status: row.mpesa_reference ? (["paid", "confirmed"].includes(rawPaymentStatus) ? "paid" : "submitted") : "pending_payment"
     }
   };
 }

@@ -1230,14 +1230,24 @@ function renderPlacedOrders() {
     return;
   }
 
-  container.innerHTML = list.map((order) => `
+  container.innerHTML = list.map((order) => {
+    const paidSignals = [
+      order.status,
+      order.paymentStatus,
+      order.deliveryPayment?.status,
+      ...(Array.isArray(order.businessPayments) ? order.businessPayments.map((payment) => payment.status) : [])
+    ].map((value) => String(value || "").toLowerCase());
+    const orderStatus = paidSignals.some((status) => status === "paid" || status === "confirmed")
+      ? "paid"
+      : String(order.status || "pending_payment");
+    return `
     <article class="cart-item">
       <div class="section-head">
         <div>
           <strong>${order.id}</strong>
           <p class="tiny">${order.customer || "Customer"} | ${order.phone || "Phone pending"}</p>
         </div>
-        <span class="summary-chip">${String(order.status || "pending_payment").replace("_", " ")}</span>
+        <span class="summary-chip">${orderStatus.replace("_", " ")}</span>
       </div>
       <p class="tiny">Items: ${Array.isArray(order.items) ? order.items.map((item) => `${item.productName} x${item.quantity}`).join(", ") : "Items pending"}</p>
       <p class="tiny">Products ${currency(order.subtotal || 0)} | Delivery ${currency(order.deliveryFee || 0)} | Total ${currency(order.total || 0)}</p>
@@ -1250,7 +1260,8 @@ function renderPlacedOrders() {
         <button class="button button-ghost button-small" type="button" data-delete-order="${escapeAttr(order.id)}">Delete order</button>
       </div>
     </article>
-  `).join("");
+  `;
+  }).join("");
 }
 
 async function changePlacedOrder(orderId) {
