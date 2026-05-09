@@ -1317,7 +1317,10 @@ async function deletePlacedOrder(orderId) {
   });
 
   if (!response.ok || response.data?.ok === false) {
-    showToast(response.data?.message || "Failed to delete order.", "warn");
+    const message = response.data?.detail
+      ? `${response.data?.message || "Failed to delete order."} ${response.data.detail}`
+      : response.data?.message || "Failed to delete order.";
+    showToast(message, "warn");
     return;
   }
 
