@@ -21,6 +21,33 @@ async function existingBusinessId(client, value) {
   return result.rows.length ? id : null;
 }
 
+async function tableExists(client, table) {
+  const result = await client.query(
+    "select 1 from information_schema.tables where table_schema = 'public' and table_name = $1 limit 1",
+    [table]
+  );
+  return result.rows.length > 0;
+}
+
+async function columnExists(client, table, column) {
+  const result = await client.query(
+    "select 1 from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = $2 limit 1",
+    [table, column]
+  );
+  return result.rows.length > 0;
+}
+
+async function orderSchema(client) {
+  return {
+    orderItemsBusinessId: await columnExists(client, "order_items", "business_id"),
+    payments: await tableExists(client, "payments"),
+    paymentsBusinessId: await columnExists(client, "payments", "business_id"),
+    routeBreakdown: await tableExists(client, "order_route_breakdown"),
+    deliveries: await tableExists(client, "deliveries"),
+    cart: await tableExists(client, "cart")
+  };
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   const client = await getPool().connect();
@@ -32,6 +59,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     const id = publicId(payload.id);
+    const schema = await orderSchema(client);
     await client.query("begin");
     const businessIdCache = new Map();
     const businessIdFor = async (value) => {
@@ -70,66 +98,69 @@ module.exports = async function handler(req, res) {
     );
     const orderId = orderResult.rows[0].id;
     for (const item of items) {
-      const businessId = await businessIdFor(item.businessId || item.storeId);
-      const itemValues = [
+      const baseItemValues = [
         orderId,
         text(item.productId, 120),
         text(item.productName, 150),
         text(item.storeId, 120),
-        businessId,
         text(item.storeName, 150),
         Math.max(1, Math.trunc(number(item.quantity))),
         number(item.unitPrice),
         number(item.lineTotal)
       ];
-      try {
+      if (schema.orderItemsBusinessId) {
+        const businessId = await businessIdFor(item.businessId || item.storeId);
         await client.query(
           `insert into order_items
            (order_id, product_public_id, product_name, store_public_id, business_id, store_name, quantity, unit_price, line_total)
            values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-          itemValues
+          [baseItemValues[0], baseItemValues[1], baseItemValues[2], baseItemValues[3], businessId, baseItemValues[4], baseItemValues[5], baseItemValues[6], baseItemValues[7]]
         );
-      } catch (error) {
-        if (error?.code !== "42703") throw error;
+      } else {
         await client.query(
           `insert into order_items
            (order_id, product_public_id, product_name, store_public_id, store_name, quantity, unit_price, line_total)
            values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [itemValues[0], itemValues[1], itemValues[2], itemValues[3], itemValues[5], itemValues[6], itemValues[7], itemValues[8]]
+          baseItemValues
         );
       }
     }
-    for (const route of Array.isArray(payload.routeBreakdown) ? payload.routeBreakdown : []) {
+    if (schema.routeBreakdown) {
+      for (const route of Array.isArray(payload.routeBreakdown) ? payload.routeBreakdown : []) {
+        await client.query(
+          `insert into order_route_breakdown (order_id, store_public_id, store_name, distance_km, route_fee, quantity, subtotal)
+           values ($1,$2,$3,$4,$5,$6,$7)`,
+          [orderId, text(route.storeId, 120), text(route.storeName, 150), number(route.distanceKm), number(route.fee), Math.trunc(number(route.quantity)), number(route.subtotal)]
+        );
+      }
+    }
+    if (schema.payments) {
+      for (const payment of Array.isArray(payload.businessPayments) ? payload.businessPayments : []) {
+        const reference = text(payment.reference || payload.mpesaReference, 120);
+        if (!reference) continue;
+        const paymentValues = [id, text(payment.method || payload.paymentMethod, 40), reference, number(payment.amount), paymentStatus(payment.status)];
+        if (schema.paymentsBusinessId) {
+          const businessId = await businessIdFor(payment.storeId || payment.businessId);
+          await client.query(
+            "insert into payments (order_public_id, business_id, method, reference, amount, status) values ($1,$2,$3,$4,$5,$6)",
+            [paymentValues[0], businessId, paymentValues[1], paymentValues[2], paymentValues[3], paymentValues[4]]
+          );
+        } else {
+          await client.query(
+            "insert into payments (order_public_id, method, reference, amount, status) values ($1,$2,$3,$4,$5)",
+            paymentValues
+          );
+        }
+      }
+    }
+    if (schema.deliveries) {
       await client.query(
-        `insert into order_route_breakdown (order_id, store_public_id, store_name, distance_km, route_fee, quantity, subtotal)
-         values ($1,$2,$3,$4,$5,$6,$7)`,
-        [orderId, text(route.storeId, 120), text(route.storeName, 150), number(route.distanceKm), number(route.fee), Math.trunc(number(route.quantity)), number(route.subtotal)]
-      ).catch(() => {});
+        "insert into deliveries (order_public_id, status, distance_km, delivery_fee) values ($1,$2,$3,$4)",
+        [id, normalizeStatus(payload.deliveryStatus || "pending", ["pending", "assigned", "picked_up", "delivered", "cancelled"], "pending"), 0, number(payload.deliveryFee)]
+      );
     }
-    for (const payment of Array.isArray(payload.businessPayments) ? payload.businessPayments : []) {
-      const reference = text(payment.reference || payload.mpesaReference, 120);
-      if (!reference) continue;
-      const businessId = await businessIdFor(payment.storeId || payment.businessId);
-      const paymentValues = [id, businessId, text(payment.method || payload.paymentMethod, 40), reference, number(payment.amount), paymentStatus(payment.status)];
-      try {
-        await client.query(
-          "insert into payments (order_public_id, business_id, method, reference, amount, status) values ($1,$2,$3,$4,$5,$6)",
-          paymentValues
-        );
-      } catch (error) {
-        if (error?.code !== "42703") throw error;
-        await client.query(
-          "insert into payments (order_public_id, method, reference, amount, status) values ($1,$2,$3,$4,$5)",
-          [paymentValues[0], paymentValues[2], paymentValues[3], paymentValues[4], paymentValues[5]]
-        );
-      }
-    }
-    await client.query(
-      "insert into deliveries (order_public_id, status, distance_km, delivery_fee) values ($1,$2,$3,$4)",
-      [id, normalizeStatus(payload.deliveryStatus || "pending", ["pending", "assigned", "picked_up", "delivered", "cancelled"], "pending"), 0, number(payload.deliveryFee)]
-    ).catch(() => {});
-    if (payload.sessionId) {
-      await client.query("delete from cart where session_id = $1", [text(payload.sessionId, 120)]).catch(() => {});
+    if (payload.sessionId && schema.cart) {
+      await client.query("delete from cart where session_id = $1", [text(payload.sessionId, 120)]);
     }
     await client.query("commit");
     send(res, 201, { ok: true, message: "Order saved.", order: { id: orderId, publicId: id } });
