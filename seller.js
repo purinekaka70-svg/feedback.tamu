@@ -191,7 +191,12 @@ function normalizeOrderStatus(status) {
   if (value === "completed") return "delivered";
   if (value === "dispatch" || value === "sourcing") return "processing";
   if (value === "pending") return "pending_payment";
+  if (value === "confirmed") return "paid";
   return ["pending_payment", "paid", "processing", "delivered", "cancelled"].includes(value) ? value : "pending_payment";
+}
+
+function sameId(left, right) {
+  return String(left || "") === String(right || "");
 }
 
 function showToast(message, variant = "info") {
@@ -689,12 +694,12 @@ function orders() {
 
 function sellerOrders(seller) {
   return orders().filter((order) => {
-    if (order.sellerId === seller.id || order.businessId === seller.id) {
+    if (sameId(order.sellerId, seller.id) || sameId(order.businessId, seller.id)) {
       return true;
     }
 
     if (Array.isArray(order.items)) {
-      return order.items.some((item) => item.sellerId === seller.id || item.storeId === seller.id || item.businessId === seller.id);
+      return order.items.some((item) => sameId(item.sellerId, seller.id) || sameId(item.storeId, seller.id) || sameId(item.businessId, seller.id));
     }
 
     return false;
@@ -703,7 +708,7 @@ function sellerOrders(seller) {
 
 function sellerPaymentForOrder(order, sellerId) {
   const businessPayment = Array.isArray(order.businessPayments)
-    ? order.businessPayments.find((payment) => payment.storeId === sellerId || payment.businessId === sellerId)
+    ? order.businessPayments.find((payment) => sameId(payment.storeId, sellerId) || sameId(payment.businessId, sellerId))
     : null;
   const status = order.sellerPaymentStatus?.[sellerId]
     || businessPayment?.status
@@ -921,7 +926,7 @@ function renderOrders() {
       const paymentStatus = sellerStatus === "paid" ? "paid" : sellerStatus;
       const orderStatus = normalizeOrderStatus(order.status);
       const sellerItems = Array.isArray(order.items)
-        ? order.items.filter((item) => item.storeId === seller.id || item.sellerId === seller.id)
+        ? order.items.filter((item) => sameId(item.storeId, seller.id) || sameId(item.sellerId, seller.id) || sameId(item.businessId, seller.id))
         : [];
       const sellerTotal = businessPayment?.amount || sellerItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
       const paymentRef = order.mpesaReference || businessPayment?.reference || "No reference submitted";
@@ -979,7 +984,7 @@ function renderOrders() {
           [seller.id]: "paid"
         };
         const businessPayments = Array.isArray(order.businessPayments)
-          ? order.businessPayments.map((payment) => payment.storeId === seller.id ? { ...payment, status: "paid", confirmedAt: new Date().toISOString() } : payment)
+          ? order.businessPayments.map((payment) => sameId(payment.storeId, seller.id) || sameId(payment.businessId, seller.id) ? { ...payment, status: "paid", confirmedAt: new Date().toISOString() } : payment)
           : order.businessPayments;
         const allBusinessPaid = Array.isArray(businessPayments)
           ? businessPayments.every((payment) => payment.status === "paid")
@@ -1048,7 +1053,7 @@ function renderOrders() {
 
 function sellerOrderDistance(order, sellerId) {
   const route = Array.isArray(order.routeBreakdown)
-    ? order.routeBreakdown.find((entry) => entry.storeId === sellerId) || order.routeBreakdown[0]
+    ? order.routeBreakdown.find((entry) => sameId(entry.storeId, sellerId) || sameId(entry.businessId, sellerId)) || order.routeBreakdown[0]
     : null;
   return route ? `${Number(route.distanceKm || 0).toFixed(1)} km` : "Distance pending";
 }
@@ -1062,7 +1067,7 @@ function sellerOrderSearchText(order, seller) {
     order.mpesaReference,
     order.deliveryPayment?.reference,
     order.paymentMethod,
-    Array.isArray(order.items) ? order.items.filter((item) => item.storeId === seller.id || item.sellerId === seller.id).map((item) => item.productName).join(" ") : "",
+    Array.isArray(order.items) ? order.items.filter((item) => sameId(item.storeId, seller.id) || sameId(item.sellerId, seller.id) || sameId(item.businessId, seller.id)).map((item) => item.productName).join(" ") : "",
     Array.isArray(order.businessPayments) ? order.businessPayments.map((payment) => `${payment.storeName} ${payment.reference}`).join(" ") : ""
   ].join(" ").toLowerCase();
 }
@@ -1152,7 +1157,7 @@ function renderSellerPaymentOrders() {
           <strong>${order.customer || "Customer"}</strong>
           <p class="tiny">Order ${order.id} | ${order.phone || "Phone pending"}</p>
           <p class="tiny">Paid ${currency(payment?.amount || order.subtotal || 0)} | Ref ${payment?.reference || order.mpesaReference || "No reference submitted"}</p>
-          <p class="tiny">${Array.isArray(order.items) ? order.items.filter((item) => item.storeId === seller.id || item.businessId === seller.id).map((item) => `${item.productName} x${item.quantity}`).join(", ") : "Items pending"}</p>
+          <p class="tiny">${Array.isArray(order.items) ? order.items.filter((item) => sameId(item.storeId, seller.id) || sameId(item.businessId, seller.id) || sameId(item.sellerId, seller.id)).map((item) => `${item.productName} x${item.quantity}`).join(", ") : "Items pending"}</p>
         </article>`;
       }).join("")
     : '<div class="list-card">Confirmed paid orders will appear here.</div>';
@@ -1192,7 +1197,7 @@ function renderSellerAnalytics() {
   const paidOrders = sellerOrderList.filter((order) => sellerPaymentForOrder(order, seller.id).status === "paid");
   const revenue = sellerOrderList.reduce((sum, order) => {
     const businessPayment = Array.isArray(order.businessPayments)
-      ? order.businessPayments.find((payment) => payment.storeId === seller.id)
+      ? order.businessPayments.find((payment) => sameId(payment.storeId, seller.id) || sameId(payment.businessId, seller.id))
       : null;
     return sum + Number(businessPayment?.amount || 0);
   }, 0);
