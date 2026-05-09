@@ -314,6 +314,36 @@ function offerMessage(product) {
     : product?.productOffer || "";
 }
 
+function offerCardMessage(offer) {
+  return [offer?.title, offer?.note]
+    .filter(Boolean)
+    .join(": ");
+}
+
+function bindHoldToast(element, messageFactory) {
+  if (!element) return;
+  let holdTimer = null;
+  const clearHold = () => {
+    if (holdTimer) {
+      window.clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  };
+  element.addEventListener("pointerdown", () => {
+    clearHold();
+    holdTimer = window.setTimeout(() => {
+      const message = messageFactory();
+      if (message) {
+        showToast(message, "info", 5200);
+      }
+    }, 650);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
+    element.addEventListener(eventName, clearHold);
+  });
+  element.addEventListener("click", clearHold);
+}
+
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
@@ -1304,7 +1334,7 @@ function renderDeals() {
         : `<button class="button button-outline button-small" data-offer-store="${offer.storeId}" type="button">Open store</button>`;
 
       return `
-        <article class="deal-card">
+        <article class="deal-card" data-offer-card="${offer.id}">
           <div class="deal-visual">
             ${cardImageHtml(offer.image, offer.title, offer.title)}
           </div>
@@ -1324,34 +1354,21 @@ function renderDeals() {
     })
     .join("");
 
+  container.querySelectorAll("[data-offer-card]").forEach((card) => {
+    const offer = list.find((item) => String(item.id) === String(card.dataset.offerCard));
+    bindHoldToast(card, () => offerCardMessage(offer));
+  });
+
   container.querySelectorAll("[data-offer-product]").forEach((button) => {
-    let offerHoldTimer = null;
-    const clearOfferHold = () => {
-      if (offerHoldTimer) {
-        window.clearTimeout(offerHoldTimer);
-        offerHoldTimer = null;
-      }
-    };
-    button.addEventListener("pointerdown", () => {
-      clearOfferHold();
-      offerHoldTimer = window.setTimeout(() => {
-        const product = getProduct(button.dataset.offerProduct);
-        const message = offerMessage(product);
-        if (message) {
-          showToast(message, "info", 5200);
-        }
-      }, 650);
-    });
-    ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
-      button.addEventListener(eventName, clearOfferHold);
-    });
+    bindHoldToast(button, () => offerMessage(getProduct(button.dataset.offerProduct)));
     button.addEventListener("click", async () => {
-      clearOfferHold();
       await addToCart(button.dataset.offerProduct);
     });
   });
 
   container.querySelectorAll("[data-offer-store]").forEach((button) => {
+    const offer = list.find((item) => String(item.storeId) === String(button.dataset.offerStore) && !item.productId);
+    bindHoldToast(button, () => offerCardMessage(offer));
     button.addEventListener("click", () => {
       const store = getStore(button.dataset.offerStore);
       state.focusedLocation = store ? String(store.location || store.county || state.focusedLocation) : state.focusedLocation;
@@ -1790,29 +1807,9 @@ function bindCategoryCardActions(container) {
 
 function bindProductCardActions(container) {
   container.querySelectorAll("[data-add-product], [data-shop-add-product]").forEach((button) => {
-    let offerHoldTimer = null;
     const productId = button.dataset.addProduct || button.dataset.shopAddProduct;
-    const clearOfferHold = () => {
-      if (offerHoldTimer) {
-        window.clearTimeout(offerHoldTimer);
-        offerHoldTimer = null;
-      }
-    };
-    button.addEventListener("pointerdown", () => {
-      clearOfferHold();
-      offerHoldTimer = window.setTimeout(() => {
-        const product = getProduct(productId);
-        const message = offerMessage(product);
-        if (message) {
-          showToast(message, "info", 5200);
-        }
-      }, 650);
-    });
-    ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
-      button.addEventListener(eventName, clearOfferHold);
-    });
+    bindHoldToast(button, () => offerMessage(getProduct(productId)));
     button.addEventListener("click", async () => {
-      clearOfferHold();
       await addToCart(productId);
     });
   });
