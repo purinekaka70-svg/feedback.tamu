@@ -63,6 +63,13 @@ async function repairConfiguredAdmin(email, password) {
   return rows[0] || null;
 }
 
+function matchedConfiguredAdmin(email, password) {
+  return adminCredentialPairs().find((pair) =>
+    email.toLowerCase() === pair.email.toLowerCase() &&
+    password === pair.password
+  ) || null;
+}
+
 async function adminDiagnostic(email, password, existingAdmin, active, valid) {
   const adminAnyRole = await findUserByEmail(email);
   const bootstrapAllowed = adminCredentialPairs().some((pair) =>
@@ -94,6 +101,19 @@ module.exports = async function handler(req, res) {
     const payload = await body(req);
     const email = text(payload.email || payload.username, 180).trim().toLowerCase();
     const password = String(payload.password || "").trim();
+    const configuredAdmin = matchedConfiguredAdmin(email, password);
+    if (configuredAdmin) {
+      const admin = await repairConfiguredAdmin(email, password).catch(() => ({
+        id: 0,
+        name: "Admin",
+        email: configuredAdmin.email,
+        role: "admin",
+        status: "approved"
+      }));
+      issueAuth(res, { userId: admin.id || 0, role: "admin", email: configuredAdmin.email });
+      send(res, 200, { ok: true, user: { id: admin.id || 0, name: admin.name || "Admin", email: configuredAdmin.email, role: "admin" } });
+      return;
+    }
     let admin = await findUserByEmail(email, "admin");
     const active = ["approved", "active"].includes(String(admin?.status || "").toLowerCase());
     const valid = admin && active && await verifySupabasePassword(password, admin.password);
