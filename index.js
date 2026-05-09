@@ -4,6 +4,33 @@ const STORAGE_KEYS = {
 
 const ADMIN_LOGIN_ENDPOINT = "./api/admin/login.php";
 
+function initReveal() {
+  const items = document.querySelectorAll(".reveal");
+  if (!items.length) {
+    return;
+  }
+
+  if (!("IntersectionObserver" in window)) {
+    items.forEach((item) => item.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.1 }
+  );
+
+  items.forEach((item) => observer.observe(item));
+}
+
 function openAdminDashboard(status) {
   window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");
   status.textContent = "Login successful. Redirecting...";
@@ -85,4 +112,5 @@ function initAdminTrigger() {
   });
 }
 
+initReveal();
 initAdminTrigger();
