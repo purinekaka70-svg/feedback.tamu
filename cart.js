@@ -294,6 +294,20 @@ function currency(value) {
   return `KSh ${Number(value).toLocaleString()}`;
 }
 
+function formatOrderTime(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) {
+    return "Time pending";
+  }
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 function formatDistance(distanceKm) {
   const distance = Number(distanceKm);
   if (!Number.isFinite(distance)) {
@@ -1246,6 +1260,7 @@ function renderPlacedOrders() {
         <div>
           <strong>${order.id}</strong>
           <p class="tiny">${order.customer || "Customer"} | ${order.phone || "Phone pending"}</p>
+          <p class="tiny">Placed: ${formatOrderTime(order.createdAt || order.created_at)}</p>
         </div>
         <span class="summary-chip">${orderStatus.replace("_", " ")}</span>
       </div>
