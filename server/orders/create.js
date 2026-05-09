@@ -87,6 +87,7 @@ module.exports = async function handler(req, res) {
     };
     const orderFields = [
       ["public_id", id],
+      ["marketplace_id", text(payload.marketplaceId || payload.marketplace_id || "tamu-express", 120)],
       ["customer_name", text(payload.customer, 120)],
       ["customer_phone", text(payload.phone, 40)],
       ["buyer_location", text(payload.buyerLocation, 220)],

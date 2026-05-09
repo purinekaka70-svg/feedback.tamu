@@ -122,6 +122,7 @@ create index if not exists cart_session_idx on cart (session_id);
 create table if not exists orders (
   id bigserial primary key,
   public_id text not null unique,
+  marketplace_id text not null default 'tamu-express',
   customer_name text not null default '',
   customer_phone text not null default '',
   buyer_location text not null default '',
