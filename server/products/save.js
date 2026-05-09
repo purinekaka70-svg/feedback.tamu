@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
       businessId,
       categoryId,
       text(payload.name, 150),
-      text(payload.image, 153600),
+      text(payload.image, 230400),
       number(payload.price),
       Boolean(payload.offerFlag),
       Math.max(0, Math.trunc(number(payload.stock))),

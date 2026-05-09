@@ -1320,7 +1320,11 @@ function dataUrlBytes(dataUrl) {
 }
 
 function canvasToDataUrl(canvas, quality) {
-  return canvas.toDataURL("image/webp", quality);
+  const webp = canvas.toDataURL("image/webp", quality);
+  if (webp.startsWith("data:image/webp;base64,")) {
+    return webp;
+  }
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 function loadImageElement(file) {
@@ -1375,8 +1379,8 @@ async function optimizeImageFile(file, presetName = "product") {
     dataUrl = canvasToDataUrl(canvas, quality);
   }
 
-  if (!dataUrl.startsWith("data:image/webp;base64,")) {
-    throw new Error("Image could not be converted to WebP.");
+  if (!dataUrl.startsWith("data:image/webp;base64,") && !dataUrl.startsWith("data:image/jpeg;base64,")) {
+    throw new Error("Image could not be converted to an optimized format.");
   }
   if (dataUrlBytes(dataUrl) > preset.maxBytes * 1.25) {
     throw new Error("Image is still too large after compression. Try a simpler image.");

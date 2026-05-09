@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
         text(payload.storeName, 150),
         Math.max(1, Math.trunc(number(payload.quantity || 1))),
         number(payload.unitPrice || payload.price),
-        text(payload.image || payload.productImage, 153600)
+        text(payload.image || payload.productImage, 230400)
       ]
     );
     send(res, 200, { ok: true });
