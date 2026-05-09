@@ -17,7 +17,11 @@ module.exports = async function handler(req, res) {
     const email = text(payload.email, 180).toLowerCase();
     const password = String(payload.password || "");
     const sellerRows = await query(
-      `select b.*, u.password, u.status as user_status, u.id as account_user_id
+      `select b.id, b.user_id, b.name, b.owner_name, b.phone, b.email, b.type, b.location_name,
+              b.latitude, b.longitude, b.payment_methods, b.till_number, b.pochi_number,
+              b.bank_account, b.delivery_availability, b.delivery_notes, b.logo, b.logo_image,
+              b.rating, b.status as business_status, b.created_at,
+              u.password as account_password, u.status as user_status, u.id as account_user_id
          from businesses b
          left join users u on u.id = b.user_id or lower(u.email) = lower(b.email)
         where lower(b.email) = lower($1)
@@ -25,13 +29,14 @@ module.exports = async function handler(req, res) {
       [email]
     );
     const row = sellerRows[0];
-    const account = row?.password ? row : await findUserByEmail(email, "seller");
-    if (!row || !account?.password || !(await verifySupabasePassword(password, account.password))) {
+    const fallbackAccount = row?.account_password ? null : await findUserByEmail(email, "seller");
+    const accountPassword = row?.account_password || fallbackAccount?.password || "";
+    if (!row || !accountPassword || !(await verifySupabasePassword(password, accountPassword))) {
       send(res, 401, { ok: false, message: "Invalid seller credentials." });
       return;
     }
-    const sellerStatus = String(row.status || "pending").toLowerCase();
-    const userStatus = String(row.user_status || "approved").toLowerCase();
+    const sellerStatus = String(row.business_status || "pending").toLowerCase();
+    const userStatus = String(row.user_status || fallbackAccount?.status || "approved").toLowerCase();
     if (sellerStatus !== "approved" || userStatus !== "approved") {
       const message = sellerStatus === "rejected"
           ? "Your business account was rejected. Contact admin for help."
@@ -41,6 +46,7 @@ module.exports = async function handler(req, res) {
       send(res, 403, { ok: false, message, status: sellerStatus });
       return;
     }
+    row.status = sellerStatus;
     issueAuth(res, { userId: row.account_user_id || row.user_id, businessId: row.id, role: "seller", email: row.email });
     send(res, 200, { ok: true, seller: sellerFromBusiness(row) });
   } catch {
