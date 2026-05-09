@@ -1597,6 +1597,13 @@ button {
   font-weight: 800;
 }
 
+.category-open-button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
 .supermarket-shelf {
   background: transparent;
 }

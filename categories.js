@@ -1732,10 +1732,10 @@ function renderProducts() {
   const regularProducts = list.filter((product) => !product.productOffer);
   summary.textContent =
     state.focusedStoreId === "all"
-      ? `${regularProducts.length} products`
+      ? `${list.length} products`
       : state.focusedBusinessCategory === "all"
-        ? `${new Set(regularProducts.map((product) => product.productCategory || "Other")).size} categories from selected seller`
-        : `${regularProducts.length} products in ${state.focusedBusinessCategory}`;
+        ? `${new Set(list.map((product) => product.productCategory || "Other")).size} categories from selected seller`
+        : `${list.length} products in ${state.focusedBusinessCategory}`;
 
   if (!list.length) {
     container.innerHTML = '<div class="card">No products match the current filters yet.</div>';
@@ -1743,7 +1743,7 @@ function renderProducts() {
   }
 
   if (state.focusedStoreId !== "all") {
-    const grouped = regularProducts.reduce((map, product) => {
+    const grouped = list.reduce((map, product) => {
       const key = product.productCategory || "Other";
       const current = map.get(key) || [];
       current.push(product);
@@ -1779,6 +1779,7 @@ function renderProducts() {
                 <div class="category-card-copy">
                   <strong>${category}</strong>
                   <span>${products.length} item${products.length === 1 ? "" : "s"}</span>
+                  <button class="button button-primary button-small category-open-button" type="button">Open Category</button>
                 </div>
               </article>
             `;
@@ -1793,7 +1794,7 @@ function renderProducts() {
 
     const shelfEntries = state.focusedBusinessCategory === "all"
       ? [...grouped.entries()]
-      : [[state.focusedBusinessCategory, regularProducts]];
+      : [[state.focusedBusinessCategory, list]];
 
     container.innerHTML = shelfEntries.map(([category, products]) => `
       <section class="category-shelf supermarket-shelf">
