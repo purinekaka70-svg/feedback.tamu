@@ -1012,9 +1012,8 @@ function readCheckoutForm() {
   const deliveryPaymentRef = document.getElementById("deliveryReferenceInput")?.value.trim() || "";
   const businessPayments = [...document.querySelectorAll("[data-business-payment-store]")]
     .map((entry) => {
-      const ref = entry.querySelector("[data-business-payment-ref]")?.value.trim() || "";
       const method = entry.querySelector("[data-business-payment-method]")?.value || "M-Pesa";
-      return { storeId: entry.dataset.businessPaymentStore, method, ref };
+      return { storeId: entry.dataset.businessPaymentStore, method, ref: "" };
     });
 
   return {
@@ -1040,7 +1039,6 @@ function saveBuyerProfileFromForm() {
 function renderPaymentOptions(items) {
   const container = document.getElementById("sellerPaymentMethods");
   const selectedStores = selectedStoreSummaries(items);
-  const profile = buyerProfile();
 
   if (!selectedStores.length) {
     container.innerHTML = '<div class="breakdown-card"><p>No business payment needed until products are in cart.</p></div>';
@@ -1050,7 +1048,6 @@ function renderPaymentOptions(items) {
   container.innerHTML = selectedStores
     .map(
       ({ store, subtotal }) => {
-        const existingRef = (profile.businessPayments || []).find((payment) => payment.storeId === store.id)?.ref || "";
         return `
           <article class="breakdown-card" data-business-payment-store="${store.id}">
             <strong>${store.storeName}</strong>
@@ -1061,8 +1058,7 @@ function renderPaymentOptions(items) {
               ${storeCardAccount(store) ? `Bank account: ${storeCardAccount(store)}` : ""}
               ${!storeTillNumber(store) && !storePochiNumber(store) && !storeCardAccount(store) ? "Payment details pending from seller." : ""}
             </p>
-            <p class="tiny">Enter the payment reference if already paid. Orders can still be submitted while payment is pending.</p>
-            <input class="input" data-business-payment-ref name="businessPaymentRef_${escapeAttr(store.id)}" value="${escapeAttr(existingRef)}" placeholder="M-Pesa reference paid to ${escapeAttr(store.storeName)}, if available" />
+            <p class="tiny">Order can be submitted now. Seller payment reference is confirmed later by the business or admin.</p>
             <input type="hidden" data-business-payment-method value="${storeTillNumber(store) ? "M-Pesa Till" : storePochiNumber(store) ? "M-Pesa Pochi" : storeCardAccount(store) ? "Bank Account" : "Direct payment"}" />
           </article>
         `;
@@ -1368,7 +1364,9 @@ async function handleCheckout() {
   }
   document.getElementById("checkoutStatus").textContent = "Submitting order...";
   const response = await postJson(API_ENDPOINTS.createOrder, order);
-  const failureMessage = response.data?.message || (response.status ? `Order submission failed. Status ${response.status}.` : "Order submission failed. Check your connection.");
+  const failureMessage = response.data?.detail
+    ? `${response.data?.message || "Order submission failed."} ${response.data.detail}`
+    : response.data?.message || (response.status ? `Order submission failed. Status ${response.status}.` : "Order submission failed. Check your connection.");
   document.getElementById("checkoutStatus").textContent = response.ok
     ? "Order submitted."
     : failureMessage;
