@@ -37,8 +37,17 @@ async function columnExists(client, table, column) {
   return result.rows.length > 0;
 }
 
+async function tableColumns(client, table) {
+  const result = await client.query(
+    "select column_name from information_schema.columns where table_schema = 'public' and table_name = $1",
+    [table]
+  );
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
 async function orderSchema(client) {
   return {
+    orders: await tableColumns(client, "orders"),
     orderItemsBusinessId: await columnExists(client, "order_items", "business_id"),
     payments: await tableExists(client, "payments"),
     paymentsBusinessId: await columnExists(client, "payments", "business_id"),
@@ -46,6 +55,13 @@ async function orderSchema(client) {
     deliveries: await tableExists(client, "deliveries"),
     cart: await tableExists(client, "cart")
   };
+}
+
+function compactError(error) {
+  return [error?.code, error?.constraint, error?.column, error?.table, error?.message]
+    .filter(Boolean)
+    .join(" | ")
+    .slice(0, 260);
 }
 
 module.exports = async function handler(req, res) {
@@ -69,32 +85,37 @@ module.exports = async function handler(req, res) {
       }
       return businessIdCache.get(key);
     };
+    const orderFields = [
+      ["public_id", id],
+      ["customer_name", text(payload.customer, 120)],
+      ["customer_phone", text(payload.phone, 40)],
+      ["buyer_location", text(payload.buyerLocation, 220)],
+      ["buyer_latitude", number(payload.buyerLatitude)],
+      ["buyer_longitude", number(payload.buyerLongitude)],
+      ["payment_method", text(payload.paymentMethod, 40)],
+      ["payment_status", text(payload.paymentStatus || "pending_payment", 40)],
+      ["mpesa_name", text(payload.mpesaName, 120)],
+      ["mpesa_number", text(payload.mpesaNumber || payload.phone, 40)],
+      ["mpesa_reference", text(payload.mpesaReference, 120)],
+      ["notes", text(payload.note, 500)],
+      ["store_summary", text(payload.storeName, 220)],
+      ["subtotal", number(payload.subtotal)],
+      ["delivery_fee", number(payload.deliveryFee)],
+      ["total", number(payload.total)]
+    ].filter(([column]) => schema.orders.has(column));
+    if (schema.orders.has("status")) {
+      orderFields.push(["status", normalizeStatus(payload.status || "pending_payment", ["pending_payment", "paid", "confirmed", "processing", "delivering", "delivered", "cancelled"], "pending_payment")]);
+    }
+    if (!orderFields.some(([column]) => column === "public_id")) {
+      send(res, 500, { ok: false, message: "Orders table is missing public_id column." });
+      return;
+    }
+    const orderColumns = orderFields.map(([column]) => column);
+    const orderValues = orderFields.map(([, value]) => value);
+    const orderPlaceholders = orderValues.map((_, index) => `$${index + 1}`);
     const orderResult = await client.query(
-      `insert into orders
-       (public_id, customer_name, customer_phone, buyer_location, buyer_latitude, buyer_longitude,
-        payment_method, payment_status, mpesa_name, mpesa_number, mpesa_reference, notes, store_summary,
-        subtotal, delivery_fee, total, status)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-       returning id`,
-      [
-        id,
-        text(payload.customer, 120),
-        text(payload.phone, 40),
-        text(payload.buyerLocation, 220),
-        number(payload.buyerLatitude),
-        number(payload.buyerLongitude),
-        text(payload.paymentMethod, 40),
-        text(payload.paymentStatus || "pending_payment", 40),
-        text(payload.mpesaName, 120),
-        text(payload.mpesaNumber || payload.phone, 40),
-        text(payload.mpesaReference, 120),
-        text(payload.note, 500),
-        text(payload.storeName, 220),
-        number(payload.subtotal),
-        number(payload.deliveryFee),
-        number(payload.total),
-        normalizeStatus(payload.status || "pending_payment", ["pending_payment", "paid", "confirmed", "processing", "delivering", "delivered", "cancelled"], "pending_payment")
-      ]
+      `insert into orders (${orderColumns.join(", ")}) values (${orderPlaceholders.join(", ")}) returning id`,
+      orderValues
     );
     const orderId = orderResult.rows[0].id;
     for (const item of items) {
@@ -167,7 +188,7 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     await client.query("rollback").catch(() => {});
     console.error("Order create failed:", error);
-    send(res, 500, { ok: false, message: "Failed to save order." });
+    send(res, 500, { ok: false, message: "Failed to save order.", detail: compactError(error) });
   } finally {
     client.release();
   }
