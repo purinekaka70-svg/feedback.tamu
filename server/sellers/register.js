@@ -5,12 +5,13 @@ const { body, method, send, text } = require("../_lib/http");
 async function tableColumns(client, table) {
   const result = await client.query(
     `select column_name, data_type
+            , is_nullable, column_default
        from information_schema.columns
       where table_schema = 'public'
         and table_name = $1`,
     [table]
   );
-  return new Map(result.rows.map((row) => [row.column_name, row.data_type]));
+  return new Map(result.rows.map((row) => [row.column_name, row]));
 }
 
 function addColumn(columns, names, field, value, cast = "") {
@@ -19,6 +20,16 @@ function addColumn(columns, names, field, value, cast = "") {
   field.names.push(name);
   field.values.push(value);
   field.casts.push(cast);
+}
+
+function needsManualId(columns) {
+  const id = columns.get("id");
+  return id && id.is_nullable === "NO" && !id.column_default;
+}
+
+async function nextId(client, table) {
+  const result = await client.query(`select coalesce(max(id), 0) + 1 as id from ${table}`);
+  return Number(result.rows[0]?.id || 1);
 }
 
 module.exports = async function handler(req, res) {
@@ -45,13 +56,30 @@ module.exports = async function handler(req, res) {
       return;
     }
     await client.query("begin");
+    const userColumns = await tableColumns(client, "users");
+    const businessColumns = await tableColumns(client, "businesses");
     const hash = await bcrypt.hash(password, 10);
+    const userFields = { names: [], values: [], casts: [] };
+    if (needsManualId(userColumns)) {
+      addColumn(userColumns, ["id"], userFields, await nextId(client, "users"));
+    }
+    addColumn(userColumns, ["name"], userFields, ownerName);
+    addColumn(userColumns, ["email"], userFields, email);
+    addColumn(userColumns, ["password"], userFields, hash);
+    addColumn(userColumns, ["role"], userFields, "seller");
+    addColumn(userColumns, ["status"], userFields, "pending");
+    const userPlaceholders = userFields.values.map((_, index) => `$${index + 1}${userFields.casts[index] || ""}`);
     const userResult = await client.query(
-      "insert into users (name, email, password, role, status) values ($1, $2, $3, 'seller', 'pending') returning id",
-      [ownerName, email, hash]
+      `insert into users (${userFields.names.map((name) => `"${name}"`).join(", ")})
+       values (${userPlaceholders.join(", ")})
+       returning id`,
+      userFields.values
     );
-    const columns = await tableColumns(client, "businesses");
+    const columns = businessColumns;
     const fields = { names: [], values: [], casts: [] };
+    if (needsManualId(columns)) {
+      addColumn(columns, ["id"], fields, await nextId(client, "businesses"));
+    }
     addColumn(columns, ["user_id"], fields, userResult.rows[0].id);
     addColumn(columns, ["name", "store_name", "business_name"], fields, businessName);
     addColumn(columns, ["owner_name", "seller_name"], fields, ownerName);
@@ -63,8 +91,9 @@ module.exports = async function handler(req, res) {
     addColumn(columns, ["longitude", "lng"], fields, Number(payload.longitude || 0));
     const paymentColumn = ["payment_methods", "payment_options"].find((candidate) => columns.has(candidate));
     if (paymentColumn) {
-      const dataType = columns.get(paymentColumn);
-      addColumn(columns, [paymentColumn], fields, JSON.stringify(payload.paymentOptions || []), dataType === "json" ? "::json" : "::jsonb");
+      const dataType = columns.get(paymentColumn)?.data_type;
+      const cast = dataType === "json" ? "::json" : dataType === "jsonb" ? "::jsonb" : "";
+      addColumn(columns, [paymentColumn], fields, JSON.stringify(payload.paymentOptions || []), cast);
     }
     addColumn(columns, ["till_number"], fields, text(payload.tillNumber, 80));
     addColumn(columns, ["pochi_number"], fields, text(payload.pochiNumber, 80));
