@@ -34,7 +34,7 @@ module.exports = async function handler(req, res) {
       `insert into businesses
        (user_id, name, owner_name, phone, email, type, location_name, latitude, longitude, payment_methods,
         till_number, pochi_number, bank_account, delivery_availability, delivery_notes, logo, logo_image, status)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'pending')
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14,$15,$16,$17,'pending')
        returning id`,
       [
         userResult.rows[0].id,
@@ -62,9 +62,13 @@ module.exports = async function handler(req, res) {
       message: "Your account has been submitted successfully. Please wait for admin approval.",
       seller: { id: businessResult.rows[0].id, status: "pending" }
     });
-  } catch {
+  } catch (error) {
     await client.query("rollback").catch(() => {});
-    send(res, 500, { ok: false, message: "Seller registration failed." });
+    send(res, 500, {
+      ok: false,
+      message: "Seller registration failed.",
+      error: String(error?.message || error).slice(0, 220)
+    });
   } finally {
     client.release();
   }
