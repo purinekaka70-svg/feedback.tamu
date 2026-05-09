@@ -1546,9 +1546,7 @@ function renderStores() {
             <span class="market-type-badge">${store.businessType || "Retail"}</span>
             <div class="compact-card-footer">
               <a class="business-cart-button" href="./cart.html" aria-label="Open cart for ${store.storeName}">Cart</a>
-              <button class="button button-primary business-menu-button" data-focus-store="${store.id}" type="button">
-                Open
-              </button>
+              <button class="button button-primary business-open-button" data-open-business="${escapeAttribute(store.id)}" type="button">Open Business</button>
             </div>
             <button class="button button-outline button-small shop-here-button" data-shop-store="${store.id}" type="button">Shop Here</button>
           </div>
@@ -1591,9 +1589,10 @@ function renderStores() {
     });
   });
 
-  container.querySelectorAll("[data-focus-store]").forEach((button) => {
+  container.querySelectorAll("[data-open-business], [data-focus-store]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.focusedStoreId = state.focusedStoreId === button.dataset.focusStore ? "all" : button.dataset.focusStore;
+      const storeId = button.dataset.openBusiness || button.dataset.focusStore;
+      state.focusedStoreId = storeId;
       state.focusedBusinessCategory = "all";
       state.activeShopStoreId = "";
       state.shopQuery = "";

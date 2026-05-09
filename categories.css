@@ -620,7 +620,8 @@ button {
 }
 
 .business-cart-button,
-.business-menu-button {
+.business-menu-button,
+.business-open-button {
   min-height: 44px;
   border-radius: 999px;
   font-size: 0.9rem;
@@ -679,6 +680,12 @@ button {
 .business-menu-button {
   padding-inline: 18px;
   white-space: normal;
+}
+
+.business-open-button {
+  flex: 1 1 auto;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .business-card-help {
@@ -1152,6 +1159,7 @@ button {
 .business-card-actions .button,
 .business-cart-button,
 .business-menu-button,
+.business-open-button,
 .supermarket-product-card .button,
 .deal-card .button {
   min-height: 27px;
