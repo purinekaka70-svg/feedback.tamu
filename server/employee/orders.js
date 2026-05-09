@@ -44,8 +44,15 @@ module.exports = async function handler(req, res) {
     const payload = await body(req);
     const id = text(payload.id || payload.publicId, 120);
     const status = text(payload.status || payload.deliveryStatus, 40);
-    await query("update orders set status = $2 where (public_id = $1 or id::text = $1) and buyer_location ilike $3", [id, status, `%${allowedCounty}%`]);
-    await query("update deliveries set status = $2 where order_public_id = $1", [id, status]).catch(() => {});
+    const updated = await query(
+      "update orders set status = $2 where (public_id = $1 or id::text = $1) and buyer_location ilike $3 returning public_id",
+      [id, status, `%${allowedCounty}%`]
+    );
+    if (!updated.length) {
+      send(res, 403, { ok: false, message: "Order is outside your assigned county." });
+      return;
+    }
+    await query("update deliveries set status = $2 where order_public_id = $1", [updated[0].public_id || id, status]).catch(() => {});
     send(res, 200, { ok: true });
   } catch {
     send(res, 500, { ok: false, message: "Failed to load employee orders." });

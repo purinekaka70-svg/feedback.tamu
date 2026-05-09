@@ -146,7 +146,12 @@ async function loadMarketData() {
 
 async function loadOrders() {
   try {
-    const res = await fetch('./api/orders/list.php', { cache: 'no-store' });
+    const phone = String(buyerProfile().phone || "").trim();
+    if (!phone) {
+      cachedOrders = [];
+      return;
+    }
+    const res = await fetch(`./api/orders/list.php?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' });
     const data = await res.json();
     cachedOrders = res.ok && data.ok ? (data.orders || []) : [];
   } catch (error) {

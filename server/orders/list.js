@@ -1,6 +1,6 @@
 const { claims } = require("../_lib/auth");
 const { query } = require("../_lib/db");
-const { method, send } = require("../_lib/http");
+const { method, send, text } = require("../_lib/http");
 
 function publicOrder(row, items = [], routes = []) {
   const businessPayments = row.business_payments || [];
@@ -51,11 +51,27 @@ module.exports = async function handler(req, res) {
     const url = new URL(req.url, "http://local");
     const session = claims(req);
     const businessId = Number(url.searchParams.get("businessId") || (session?.role === "seller" ? session.businessId : 0) || 0);
+    const phone = text(url.searchParams.get("phone"), 40);
     const params = [];
     let sql = "select distinct o.* from orders o";
     if (businessId) {
-      sql += " join order_items oi on oi.order_id = o.id where oi.business_id = $1 or oi.store_public_id = $2";
+      if (!["admin", "seller"].includes(String(session?.role || ""))) {
+        send(res, 403, { ok: false, message: "Authenticated seller or admin access is required." });
+        return;
+      }
+      if (session.role === "seller" && Number(session.businessId || 0) !== businessId) {
+        send(res, 403, { ok: false, message: "Unauthorized seller order access." });
+        return;
+      }
+      sql += " join order_items oi on oi.order_id = o.id where (oi.business_id = $1 or oi.store_public_id = $2)";
       params.push(businessId, String(businessId));
+    } else if (session?.role !== "admin") {
+      if (!phone) {
+        send(res, 200, { ok: true, orders: [] });
+        return;
+      }
+      sql += " where o.customer_phone = $1";
+      params.push(phone);
     }
     sql += " order by o.created_at desc";
     const orders = await query(sql, params);

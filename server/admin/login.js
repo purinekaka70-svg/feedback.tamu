@@ -3,25 +3,17 @@ const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 
 const DEFAULT_ADMIN_EMAIL = "AdminTamuEpress@gmail.com";
-const DEFAULT_ADMIN_PASSWORD = "Admin@Tamu@2025";
 
 function configuredAdminEmail() {
   return process.env.TAMU_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
 }
 
-function configuredAdminPassword() {
-  return process.env.TAMU_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
-}
-
 function adminCredentialPairs() {
+  const password = process.env.TAMU_ADMIN_PASSWORD || "";
   const pairs = [
     {
-      email: DEFAULT_ADMIN_EMAIL,
-      password: DEFAULT_ADMIN_PASSWORD
-    },
-    {
       email: configuredAdminEmail(),
-      password: configuredAdminPassword()
+      password
     }
   ];
   return pairs.filter((pair, index) =>
