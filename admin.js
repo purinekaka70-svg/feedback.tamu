@@ -195,7 +195,16 @@ function bindAdminLogin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
-      const result = await response.json();
+      const raw = await response.text();
+      let result = {};
+      try {
+        result = raw ? JSON.parse(raw) : {};
+      } catch (parseError) {
+        status.textContent = response.status === 404
+          ? "Admin backend endpoint was not found. PHP/API routing is not running."
+          : "Admin backend returned an invalid response. Check PHP/MySQL server logs.";
+        return;
+      }
       if (!response.ok || !result.ok) {
         status.textContent = result.message || "Invalid admin credentials.";
         return;
@@ -205,7 +214,9 @@ function bindAdminLogin() {
       form.reset();
       startDashboard();
     } catch (error) {
-      status.textContent = "Admin login service is unavailable.";
+      status.textContent = window.location.protocol === "file:"
+        ? "Admin login needs a PHP server. Open the site through localhost/hosting, not as a file."
+        : "Admin login service is unavailable. Check that PHP and MySQL are running.";
     }
   });
 }

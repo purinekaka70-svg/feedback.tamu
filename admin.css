@@ -180,9 +180,11 @@ button {
 
 .admin-login-view {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.55fr);
+  grid-template-columns: minmax(0, 420px);
   gap: 16px;
-  align-items: start;
+  align-items: center;
+  justify-content: center;
+  min-height: min(620px, calc(100vh - 190px));
 }
 
 .admin-login-hero,
@@ -197,6 +199,7 @@ button {
 
 .admin-login-card {
   padding: 22px;
+  width: 100%;
 }
 
 .admin-login-card .button {
