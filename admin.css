@@ -387,7 +387,7 @@ button {
   top: 12px;
   left: 12px;
   z-index: 150;
-  display: block;
+  display: none;
   width: 40px;
   height: 40px;
   padding: 8px;
@@ -395,6 +395,49 @@ button {
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
+}
+
+body.admin-auth-only {
+  overflow-x: hidden;
+}
+
+body.admin-auth-only #adminDashboardView,
+body.admin-auth-only .admin-menu-toggle,
+body.admin-auth-only .admin-sidebar,
+body.admin-auth-only .admin-sidebar-overlay,
+body.admin-auth-only .topbar-actions,
+body.admin-auth-only .footer {
+  display: none !important;
+}
+
+body.admin-auth-only #adminLoginView {
+  display: grid !important;
+}
+
+body.admin-auth-only .site-shell {
+  width: min(calc(100% - 16px), 680px);
+  min-height: 100vh;
+  padding: 10px 0;
+}
+
+body.admin-auth-only .topbar {
+  justify-content: center;
+  text-align: center;
+}
+
+body.admin-auth-only .brand-block {
+  align-items: center;
+}
+
+body.admin-auth-only .content-shell {
+  min-height: calc(100vh - 132px);
+  align-items: start;
+  justify-items: center;
+  margin-top: 8px;
+}
+
+body.admin-dashboard-active #adminLoginView {
+  display: none !important;
 }
 
 .admin-menu-toggle span {

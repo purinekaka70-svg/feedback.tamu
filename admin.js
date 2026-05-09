@@ -167,11 +167,16 @@ function showToast(message, tone = "success") {
 }
 
 function showAdminLogin() {
+  document.body.classList.add("admin-auth-only");
+  document.body.classList.remove("admin-dashboard-active", "admin-menu-open");
+  closeAdminMenu();
   document.getElementById("adminLoginView")?.classList.remove("is-hidden");
   document.getElementById("adminDashboardView")?.classList.add("is-hidden");
 }
 
 function showAdminDashboard() {
+  document.body.classList.add("admin-dashboard-active");
+  document.body.classList.remove("admin-auth-only");
   document.getElementById("adminLoginView")?.classList.add("is-hidden");
   document.getElementById("adminDashboardView")?.classList.remove("is-hidden");
 }
@@ -1422,6 +1427,9 @@ async function startDashboard() {
 }
 
 async function boot() {
+  document.body.classList.add("admin-auth-only");
+  document.body.classList.remove("admin-dashboard-active", "admin-menu-open");
+  document.getElementById("adminDashboardView")?.classList.add("is-hidden");
   initReveal();
   bindAdminLogin();
 
