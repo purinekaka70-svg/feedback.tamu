@@ -654,14 +654,12 @@ function renderSmartCategorySelect(selectId, searchId, selectedValue = "") {
 }
 
 function renderAllCategorySelects() {
-  renderSmartCategorySelect("businessTypeSelect", "businessTypeSearch");
   renderSmartCategorySelect("sellerCategorySelect", "sellerCategorySearch");
   renderSmartCategorySelect("productCategorySelect", "productCategorySearch");
 }
 
 function bindSmartCategorySearches() {
   [
-    ["businessTypeSearch", "businessTypeSelect"],
     ["sellerCategorySearch", "sellerCategorySelect"],
     ["productCategorySearch", "productCategorySelect"]
   ].forEach(([searchId, selectId]) => {
@@ -1796,8 +1794,6 @@ function clearSellerRegistrationForm(form) {
     const input = document.getElementById(id);
     if (input) input.value = "";
   });
-  const businessTypeSelect = document.getElementById("businessTypeSelect");
-  if (businessTypeSelect) businessTypeSelect.value = "";
   document.querySelectorAll('[name="paymentMethods"]').forEach((input) => {
     input.checked = false;
   });

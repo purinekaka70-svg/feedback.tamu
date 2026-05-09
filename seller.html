@@ -75,10 +75,18 @@
 
                 <label class="field">
                   <span class="field-label">Business Type</span>
-                  <input id="businessTypeSearch" class="input smart-select-search" type="search" placeholder="Search business category..." autocomplete="off" />
-                  <select id="businessTypeSelect" class="input smart-select" name="businessType" required>
-                    <option value="">Loading categories...</option>
-                  </select>
+                  <input id="businessTypeSearch" class="input" name="businessType" list="businessTypeSuggestions" placeholder="e.g. Clothes, supermarket, hotel, electronics..." autocomplete="off" required />
+                  <datalist id="businessTypeSuggestions">
+                    <option value="Clothes and fashion"></option>
+                    <option value="Supermarket"></option>
+                    <option value="Hotel and restaurant"></option>
+                    <option value="Electronics"></option>
+                    <option value="Hardware"></option>
+                    <option value="Cosmetics"></option>
+                    <option value="Pharmacy"></option>
+                    <option value="Retail shop"></option>
+                    <option value="Wholesale"></option>
+                  </datalist>
                 </label>
               </div>
 

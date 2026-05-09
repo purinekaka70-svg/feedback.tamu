@@ -16,6 +16,42 @@ const fallbackLocationImages = [
   "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=900&q=70"
 ];
 const businessTypeImagePools = {
+  clothes: [
+    "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=900&q=72"
+  ],
+  hotel: [
+    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=900&q=72"
+  ],
+  electronics: [
+    "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=900&q=72"
+  ],
+  hardware: [
+    "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1562259929-b4e1fd3aef09?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1581783898377-1c85bf937427?auto=format&fit=crop&w=900&q=72"
+  ],
+  cosmetics: [
+    "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?auto=format&fit=crop&w=900&q=72"
+  ],
+  pharmacy: [
+    "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=900&q=72"
+  ],
   supermarket: [
     "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=72",
     "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=900&q=72",
@@ -362,6 +398,24 @@ function fallbackImageFor(value, pool = fallbackLocationImages) {
   return pool[index];
 }
 
+function businessImageGroup(value) {
+  const type = String(value || "").toLowerCase();
+  if (type.includes("cloth") || type.includes("fashion") || type.includes("boutique") || type.includes("wear") || type.includes("shoe")) return "clothes";
+  if (type.includes("hotel") || type.includes("restaurant") || type.includes("food") || type.includes("cafe") || type.includes("eatery")) return "hotel";
+  if (type.includes("elect") || type.includes("phone") || type.includes("computer") || type.includes("gadget")) return "electronics";
+  if (type.includes("hard") || type.includes("tool") || type.includes("build") || type.includes("paint") || type.includes("plumb")) return "hardware";
+  if (type.includes("cosmetic") || type.includes("beauty") || type.includes("salon") || type.includes("makeup")) return "cosmetics";
+  if (type.includes("pharma") || type.includes("chemist") || type.includes("drug") || type.includes("medicine")) return "pharmacy";
+  if (type.includes("super") || type.includes("grocery") || type.includes("mini market")) return "supermarket";
+  if (type.includes("whole") || type.includes("bulk")) return "wholesale";
+  return "retail";
+}
+
+function fallbackBusinessImageFor(store) {
+  const group = businessImageGroup(`${store.businessType || ""} ${store.storeName || ""}`);
+  return fallbackImageFor(`${store.id || store.storeName || ""}-${group}`, businessTypeImagePools[group] || businessTypeImagePools.retail);
+}
+
 function escapeAttribute(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -383,6 +437,7 @@ function cardImageHtml(src, alt, fallbackSeed = "market image") {
 
 function normalizeBusinessType(value) {
   const type = String(value || "").toLowerCase();
+  if (businessTypeImagePools[businessImageGroup(type)]) return businessImageGroup(type);
   if (type.includes("super")) return "supermarket";
   if (type.includes("whole")) return "wholesale";
   if (type.includes("retail") || type.includes("shop") || type.includes("mini")) return "retail";
@@ -1179,7 +1234,7 @@ function renderStores() {
             ? `Bank ${storeCardAccount(store)}`
             : "Payment details pending";
       const phoneLabel = store.phone || store.mpesaNumber || store.pochiNumber || "Phone pending";
-      const image = store.logoImage || store.businessImage || store.image || storePrimaryImage(store.id) || fallbackImageFor(store.storeName);
+      const image = store.logoImage || store.businessImage || store.image || storePrimaryImage(store.id) || fallbackBusinessImageFor(store);
       const storeProducts = sellerProducts().filter((product) => product.storeId === store.id);
       const productCount = storeProducts.length;
       const deliveryLabel = store.deliveryAvailability || store.deliveryStatus || "Delivery available";
