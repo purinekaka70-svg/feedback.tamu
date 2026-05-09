@@ -13,6 +13,27 @@ function configuredAdminPassword() {
   return process.env.TAMU_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
 }
 
+function adminCredentialPairs() {
+  const pairs = [
+    {
+      email: DEFAULT_ADMIN_EMAIL,
+      password: DEFAULT_ADMIN_PASSWORD
+    },
+    {
+      email: configuredAdminEmail(),
+      password: configuredAdminPassword()
+    }
+  ];
+  return pairs.filter((pair, index) =>
+    pair.email &&
+    pair.password &&
+    pairs.findIndex((candidate) =>
+      candidate.email.toLowerCase() === pair.email.toLowerCase() &&
+      candidate.password === pair.password
+    ) === index
+  );
+}
+
 async function verifySupabasePassword(password, hash) {
   if (!hash) return false;
   if (await verifyPassword(password, hash)) return true;
@@ -21,9 +42,11 @@ async function verifySupabasePassword(password, hash) {
 }
 
 async function repairConfiguredAdmin(email, password) {
-  const adminEmail = configuredAdminEmail();
-  const adminPassword = configuredAdminPassword();
-  if (email.toLowerCase() !== adminEmail.toLowerCase() || password !== adminPassword) {
+  const matched = adminCredentialPairs().find((pair) =>
+    email.toLowerCase() === pair.email.toLowerCase() &&
+    password === pair.password
+  );
+  if (!matched) {
     return null;
   }
   const rows = await query(
@@ -35,7 +58,7 @@ async function repairConfiguredAdmin(email, password) {
        role = excluded.role,
        status = excluded.status
      returning id, name, email, role, status`,
-    [adminEmail, adminPassword]
+    [matched.email, matched.password]
   );
   return rows[0] || null;
 }
@@ -44,7 +67,7 @@ module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   try {
     const payload = await body(req);
-    const email = text(payload.email || payload.username, 180).toLowerCase();
+    const email = text(payload.email || payload.username, 180).trim().toLowerCase();
     const password = String(payload.password || "").trim();
     let admin = await findUserByEmail(email, "admin");
     const active = ["approved", "active"].includes(String(admin?.status || "").toLowerCase());
