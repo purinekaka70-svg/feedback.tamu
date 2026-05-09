@@ -1,4 +1,4 @@
-const CACHE_NAME = "tamu-express-v77";
+const CACHE_NAME = "tamu-express-v78";
 const APP_SHELL = [
   "./",
   "./index.html",

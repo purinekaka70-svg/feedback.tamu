@@ -991,6 +991,9 @@ function renderOrderList() {
   container.innerHTML = list.map((order) => {
     const orderStatus = normalizeOrderStatus(order.status);
     const paymentReference = order.mpesaReference || order.businessPayments?.[0]?.reference || "pending";
+    const businessPaymentLines = asArray(order.businessPayments).map((payment) =>
+      `${payment.storeName || "Business"}: ${payment.method || "Direct payment"} Ref ${payment.reference || "pending"} (${capitalize(payment.status || "pending")})`
+    );
     return `
     <article class="list-card order-menu-card">
       <div class="section-head">
@@ -1005,8 +1008,8 @@ function renderOrderList() {
       ${asArray(order.items).length
         ? `<p class="tiny">Items: ${order.items.map((item) => `${item.productName || "Product"} x${item.quantity || 1}`).join(", ")}</p>`
         : ""}
-      ${asArray(order.businessPayments).length
-        ? `<p class="tiny">Business refs: ${order.businessPayments.map((payment) => `${payment.storeName || "Business"} ${payment.reference || "pending"} (${capitalize(payment.status || "pending")})`).join(" | ")}</p>`
+      ${businessPaymentLines.length
+        ? `<p class="tiny">Business payments: ${businessPaymentLines.join(" | ")}</p>`
         : ""}
       <p class="tiny">${order.buyerLocation || "Buyer location pending"} | ${order.paymentMethod || "Payment pending"}</p>
       <p class="tiny">Distance: ${orderDistanceText(order)}</p>
@@ -1019,6 +1022,8 @@ function renderOrderList() {
         <p class="tiny">Customer location: ${order.buyerLocation || "Location pending"}</p>
         <p class="tiny">Route: ${orderDistanceText(order)}</p>
         <p class="tiny">Order total: Products ${currency(order.subtotal || 0)} + Delivery ${currency(order.deliveryFee || 0)} = ${currency(order.total || 0)}</p>
+        ${businessPaymentLines.length ? `<p class="tiny">Business payment details: ${businessPaymentLines.join(" | ")}</p>` : ""}
+        <p class="tiny">Delivery payment: Till ${order.deliveryPayment?.tillNumber || "7312380"} | Ref ${order.deliveryPayment?.reference || "pending"} | ${capitalize(order.deliveryPayment?.status || "pending")}</p>
       </div>
       <div class="button-row">
         <button class="button button-outline button-small" data-view-order="${order.id}" type="button">View details</button>
@@ -1133,35 +1138,39 @@ function renderAdminUtilityPanels() {
             <p class="tiny">Till 7312380 | Ref ${order.deliveryPayment?.reference || "pending"} | ${capitalize(order.deliveryPayment?.status || "pending")}</p>
             <p class="tiny">Delivery status: ${capitalize(order.deliveryStatus || order.status || "pending")} | Employee: ${order.assignedEmployeeName || order.assignedEmployeeEmail || "Not assigned"}</p>
             <p class="tiny">${order.customer || "Customer"} | ${order.buyerLocation || "Buyer location pending"}</p>
+            ${order.paymentStatus !== "paid" ? `<button class="button button-primary button-small" data-paid-order="${order.id}" type="button">Confirm all payments</button>` : ""}
           </article>
         `).join("")
       : '<div class="list-card">Delivery fee records will appear after checkout.</div>';
+    bindOrderActionButtons(deliveryContainer);
   }
 
   const paymentContainer = document.getElementById("adminPaymentList");
   if (paymentContainer) {
-    const paymentRows = cachedPayments.length
-      ? cachedPayments.map((payment) => ({
-          id: payment.id,
-          title: payment.method || "Payment",
-          detail: `${payment.order_public_id || "Order pending"} | Ref ${payment.reference || "pending"} | ${capitalize(payment.status || "pending")}`,
-          amount: payment.amount || 0
-        }))
-      : allOrders.flatMap((order) => [
+    const paymentRows = allOrders.flatMap((order) => [
       ...asArray(order.businessPayments).map((payment) => ({
         id: payment.id || payment.reference || order.id,
         order,
         title: payment.storeName || "Business payment",
-        detail: `${payment.method || "Method pending"} | Ref ${payment.reference || "pending"} | ${capitalize(payment.status || "pending")}`,
+        detail: `${order.id} | ${payment.method || "Method pending"} | Ref ${payment.reference || "pending"} | ${capitalize(payment.status || "pending")}`,
         amount: payment.amount || 0
       })),
       {
+        id: `delivery-${order.id}`,
         order,
         title: "Delivery fee",
-        detail: `Till ${order.deliveryPayment?.tillNumber || "7312380"} | Ref ${order.deliveryPayment?.reference || "pending"} | ${capitalize(order.deliveryPayment?.status || "pending")}`,
+        detail: `${order.id} | Till ${order.deliveryPayment?.tillNumber || "7312380"} | Ref ${order.deliveryPayment?.reference || "pending"} | ${capitalize(order.deliveryPayment?.status || "pending")}`,
         amount: order.deliveryFee || 0
       }
     ]);
+    if (!paymentRows.length && cachedPayments.length) {
+      paymentRows.push(...cachedPayments.map((payment) => ({
+        id: payment.id,
+        title: payment.method || "Payment",
+        detail: `${payment.order_public_id || "Order pending"} | Ref ${payment.reference || "pending"} | ${capitalize(payment.status || "pending")}`,
+        amount: payment.amount || 0
+      })));
+    }
     paymentContainer.innerHTML = paymentRows.length
       ? paymentRows.slice().reverse().map((payment) => `
           <article class="mini-list-card">
@@ -1171,11 +1180,13 @@ function renderAdminUtilityPanels() {
             </div>
             <div class="button-row">
               <span class="summary-chip">${currency(payment.amount)}</span>
-              <button class="button button-ghost button-small" data-admin-delete="payment" data-admin-delete-id="${payment.id}" data-admin-delete-label="payment" type="button">Delete</button>
+              ${payment.order && payment.order.paymentStatus !== "paid" ? `<button class="button button-primary button-small" data-paid-order="${payment.order.id}" type="button">Confirm</button>` : ""}
+              ${String(payment.id || "").startsWith("delivery-") ? "" : `<button class="button button-ghost button-small" data-admin-delete="payment" data-admin-delete-id="${payment.id}" data-admin-delete-label="payment" type="button">Delete</button>`}
             </div>
           </article>
         `).join("")
       : '<div class="list-card">Payment references submitted by customers will appear here.</div>';
+    bindOrderActionButtons(paymentContainer);
     bindAdminDeleteButtons(paymentContainer);
   }
 
