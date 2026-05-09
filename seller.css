@@ -342,6 +342,9 @@ body.seller-auth-only .site-shell {
   width: min(calc(100% - 16px), 760px);
   min-height: 100vh;
   padding: 10px 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: start;
 }
 
 body.seller-auth-only .topbar {
@@ -355,7 +358,7 @@ body.seller-auth-only .brand-block {
 
 body.seller-auth-only .content-shell {
   min-height: calc(100vh - 132px);
-  align-items: start;
+  align-items: center;
   justify-items: center;
   margin-top: 8px;
 }
@@ -364,6 +367,10 @@ body.seller-auth-only .seller-auth-shell,
 body.seller-auth-only .seller-auth-card {
   width: 100%;
   max-width: 560px;
+}
+
+body.seller-auth-only .seller-auth-shell {
+  align-self: center;
 }
 
 body.seller-dashboard-active #sellerAuthSection {
@@ -397,7 +404,8 @@ body.seller-dashboard-active .topbar-menu-overlay {
   }
 
   body.seller-auth-only .content-shell {
-    min-height: auto;
+    min-height: calc(100vh - 112px);
+    align-items: center;
     gap: 8px;
     margin-top: 8px;
   }
