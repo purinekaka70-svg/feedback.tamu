@@ -323,24 +323,45 @@ function offerCardMessage(offer) {
 function bindHoldToast(element, messageFactory) {
   if (!element) return;
   let holdTimer = null;
+  let hoverTimer = null;
   const clearHold = () => {
     if (holdTimer) {
       window.clearTimeout(holdTimer);
       holdTimer = null;
     }
   };
-  element.addEventListener("pointerdown", () => {
+  const clearHover = () => {
+    if (hoverTimer) {
+      window.clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+  };
+  const showOfferToast = () => {
+    const message = messageFactory();
+    if (message) {
+      showToast(message, "info", 5200);
+    }
+  };
+  element.addEventListener("pointerdown", (event) => {
+    if (event.currentTarget !== event.target && event.target.closest("button, a, input, select, textarea")) {
+      return;
+    }
     clearHold();
-    holdTimer = window.setTimeout(() => {
-      const message = messageFactory();
-      if (message) {
-        showToast(message, "info", 5200);
-      }
-    }, 650);
+    holdTimer = window.setTimeout(showOfferToast, 520);
   });
   ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
     element.addEventListener(eventName, clearHold);
   });
+  element.addEventListener("mouseenter", () => {
+    clearHover();
+    hoverTimer = window.setTimeout(showOfferToast, 280);
+  });
+  element.addEventListener("mouseleave", clearHover);
+  element.addEventListener("focus", () => {
+    clearHover();
+    hoverTimer = window.setTimeout(showOfferToast, 280);
+  });
+  element.addEventListener("blur", clearHover);
   element.addEventListener("click", clearHold);
 }
 
