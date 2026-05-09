@@ -142,17 +142,23 @@ body.seller-dashboard-active .button-row .button {
     position: sticky !important;
     top: 6px !important;
     z-index: 120 !important;
-    grid-template-columns: 42px minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
     padding: 8px !important;
     border-radius: 12px !important;
   }
 
   body.seller-dashboard-active .seller-menu-toggle {
     display: inline-grid !important;
+    position: fixed !important;
+    top: 10px !important;
+    right: 10px !important;
+    left: auto !important;
+    z-index: 1400 !important;
     width: 40px !important;
     height: 40px !important;
     min-width: 40px !important;
     min-height: 40px !important;
+    pointer-events: auto !important;
   }
 
   body.seller-dashboard-active .seller-workspace-bar .section-title {
@@ -161,6 +167,7 @@ body.seller-dashboard-active .button-row .button {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 1.05rem !important;
+    padding-right: 50px;
   }
 
   body.seller-dashboard-active .seller-workspace-nav {

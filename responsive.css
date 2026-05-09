@@ -1000,7 +1000,8 @@ body.admin-auth-only #adminLoginView {
   body.seller-dashboard-active .seller-menu-toggle {
     position: fixed !important;
     top: 10px !important;
-    left: 10px !important;
+    right: 10px !important;
+    left: auto !important;
     z-index: 1400 !important;
     display: inline-grid !important;
     place-items: center !important;
