@@ -891,12 +891,21 @@ body.seller-auth-only #sellerDashboard,
 body.seller-auth-only .seller-menu-toggle,
 body.seller-auth-only .seller-workspace-nav,
 body.seller-auth-only .seller-menu-overlay,
+body.seller-auth-only .topbar-menu-toggle,
+body.seller-auth-only .topbar-menu-overlay,
 body.admin-auth-only #adminDashboardView,
 body.admin-auth-only .admin-menu-toggle,
 body.admin-auth-only .admin-sidebar,
-body.admin-auth-only .admin-sidebar-overlay {
+body.admin-auth-only .admin-sidebar-overlay,
+body.admin-auth-only .topbar-menu-toggle,
+body.admin-auth-only .topbar-menu-overlay,
+body.seller-dashboard-active .topbar-menu-toggle,
+body.seller-dashboard-active .topbar-menu-overlay,
+body.admin-dashboard-active .topbar-menu-toggle,
+body.admin-dashboard-active .topbar-menu-overlay {
   display: none !important;
   visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 body.seller-auth-only #sellerAuthSection,

@@ -325,6 +325,8 @@ body.seller-auth-only #sellerAuthSection {
 }
 
 body.seller-auth-only .topbar-actions,
+body.seller-auth-only .topbar-menu-toggle,
+body.seller-auth-only .topbar-menu-overlay,
 body.seller-auth-only .footer {
   display: none !important;
 }
@@ -359,6 +361,12 @@ body.seller-auth-only .seller-auth-card {
 
 body.seller-dashboard-active #sellerAuthSection {
   display: none !important;
+}
+
+body.seller-dashboard-active .topbar-menu-toggle,
+body.seller-dashboard-active .topbar-menu-overlay {
+  display: none !important;
+  pointer-events: none !important;
 }
 
 @media (max-width: 760px) {

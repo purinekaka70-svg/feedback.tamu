@@ -118,6 +118,8 @@ async function postJson(url, payload) {
   try {
     const response = await window.fetch(url, {
       method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json"
       },
@@ -160,7 +162,7 @@ async function verifySellerSession(seller = currentSeller()) {
   }
 
   try {
-    const response = await fetch("./api/auth/session.php", { cache: "no-store" });
+    const response = await fetch("./api/auth/session.php", { cache: "no-store", credentials: "same-origin" });
     const result = await response.json().catch(() => ({}));
     const session = result.session || {};
     return response.ok
@@ -1816,7 +1818,7 @@ function bindActions() {
   document.getElementById("resetProductBtn").addEventListener("click", resetProductForm);
   document.getElementById("resetOfferBtn").addEventListener("click", resetOfferForm);
   const logoutSeller = async () => {
-    await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
+    await fetch("./api/auth/logout.php", { method: "POST", cache: "no-store", credentials: "same-origin" }).catch(() => {});
     hideDashboard();
     toggleForms(false);
     showToast("Logged out successfully.", "info");

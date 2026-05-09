@@ -2,6 +2,17 @@
   "use strict";
 
   function initMobileTopbarMenu() {
+    if (
+      document.body.classList.contains("seller-auth-only")
+      || document.body.classList.contains("seller-dashboard-active")
+      || document.body.classList.contains("admin-auth-only")
+      || document.body.classList.contains("admin-dashboard-active")
+      || document.getElementById("sellerDashboard")
+      || document.getElementById("adminDashboardView")
+    ) {
+      return;
+    }
+
     const topbar = document.querySelector(".topbar");
     const nav = topbar?.querySelector(".topbar-actions");
     if (!topbar || !nav || nav.dataset.mobileMenuReady === "true") {

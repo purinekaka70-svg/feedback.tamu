@@ -406,6 +406,8 @@ body.admin-auth-only .admin-menu-toggle,
 body.admin-auth-only .admin-sidebar,
 body.admin-auth-only .admin-sidebar-overlay,
 body.admin-auth-only .topbar-actions,
+body.admin-auth-only .topbar-menu-toggle,
+body.admin-auth-only .topbar-menu-overlay,
 body.admin-auth-only .footer {
   display: none !important;
 }
@@ -438,6 +440,12 @@ body.admin-auth-only .content-shell {
 
 body.admin-dashboard-active #adminLoginView {
   display: none !important;
+}
+
+body.admin-dashboard-active .topbar-menu-toggle,
+body.admin-dashboard-active .topbar-menu-overlay {
+  display: none !important;
+  pointer-events: none !important;
 }
 
 .admin-menu-toggle span {
