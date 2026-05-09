@@ -291,7 +291,19 @@ button { cursor: pointer; }
   color: #fff;
   box-shadow: var(--shadow);
   animation: toast-in 180ms ease;
-  background: #1f5ea6;
+  background: var(--success);
+}
+
+.toast--success,
+.toast--info,
+.toast--warn,
+.toast--error,
+.toast-success,
+.toast-info,
+.toast-warn,
+.toast-error {
+  background: var(--success);
+  color: #fff;
 }
 
 .reveal {

@@ -531,20 +531,21 @@ textarea {
   padding: 14px 16px;
   border-radius: 16px;
   color: #fff;
+  background: var(--success);
   box-shadow: var(--shadow);
   animation: toast-in 180ms ease;
 }
 
-.toast--success {
+.toast--success,
+.toast--info,
+.toast--warn,
+.toast--error,
+.toast-success,
+.toast-info,
+.toast-warn,
+.toast-error {
   background: var(--success);
-}
-
-.toast--info {
-  background: #1f5ea6;
-}
-
-.toast--warn {
-  background: #a06b12;
+  color: #fff;
 }
 
 .reveal {

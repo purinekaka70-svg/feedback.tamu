@@ -419,17 +419,21 @@ h2 {
 .toast {
   border-radius: 14px;
   padding: 12px 14px;
-  background: #111827;
+  background: var(--success);
   color: #fff;
   box-shadow: 0 16px 40px rgba(17, 24, 39, 0.22);
 }
 
-.toast--warn {
-  background: #9a3412;
-}
-
-.toast--error {
-  background: #b42318;
+.toast--success,
+.toast--info,
+.toast--warn,
+.toast--error,
+.toast-success,
+.toast-info,
+.toast-warn,
+.toast-error {
+  background: var(--success);
+  color: #fff;
 }
 
 body.employee-menu-open {
