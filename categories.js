@@ -120,6 +120,7 @@ const state = {
   search: "",
   cart: []
 };
+let shopSearchRenderTimer = null;
 
 function cartSessionId() {
   let id = window.localStorage.getItem(STORAGE_KEYS.cartSession);
@@ -433,6 +434,54 @@ function escapeAttribute(value) {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function escapeHtml(value) {
+  return escapeAttribute(value).replace(/'/g, "&#39;");
+}
+
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function searchTerms(value) {
+  return normalizeSearchValue(value)
+    .split(" ")
+    .filter(Boolean);
+}
+
+function productSearchText(product, store) {
+  return normalizeSearchValue([
+    product.productName,
+    product.name,
+    product.productCategory,
+    product.categoryName,
+    product.description,
+    product.productDescription,
+    product.productOffer,
+    product.offerTitle,
+    product.sku,
+    product.brand,
+    product.productPrice,
+    product.price,
+    store?.storeName,
+    store?.businessType,
+    store?.location,
+    store?.county
+  ].filter((value) => value !== undefined && value !== null).join(" "));
+}
+
+function productMatchesSearch(product, store, query) {
+  const terms = searchTerms(query);
+  if (!terms.length) {
+    return true;
+  }
+
+  const text = productSearchText(product, store);
+  return terms.every((term) => text.includes(term));
 }
 
 function cardImageHtml(src, alt, fallbackSeed = "market image") {
@@ -1333,7 +1382,7 @@ function renderStores() {
         storeProducts.map((product) => product.productCategory)
       )];
       return `
-        <article class="store-card location-card">
+        <article class="store-card location-card" data-focus-location="${escapeAttribute(location)}" role="button" tabindex="0" aria-label="Open businesses in ${escapeAttribute(location)}">
           <div class="location-card-media">
             ${cardImageHtml(image, `${location} businesses`, location)}
           </div>
@@ -1343,16 +1392,20 @@ function renderStores() {
             </div>
             <div class="compact-card-footer">
               <span class="summary-chip">${stores.length} businesses</span>
-              <button class="button button-primary button-small" data-focus-location="${location}" type="button">Open</button>
+              <button class="button button-primary button-small" type="button">Open</button>
             </div>
           </div>
         </article>
       `;
     }).join("");
 
-    container.querySelectorAll("[data-focus-location]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.focusedLocation = button.dataset.focusLocation;
+    container.querySelectorAll("[data-focus-location]").forEach((card) => {
+      const openLocation = (event) => {
+        if (event.target.closest("[data-view-image]")) {
+          return;
+        }
+
+        state.focusedLocation = card.dataset.focusLocation;
         state.locationSearch = "";
         state.businessSearch = "";
         state.focusedStoreId = "all";
@@ -1361,6 +1414,17 @@ function renderStores() {
         state.shopQuery = "";
         savePreviewState();
         renderMarket();
+        document.getElementById("marketBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+
+      card.addEventListener("click", openLocation);
+      card.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") {
+          return;
+        }
+
+        event.preventDefault();
+        openLocation(event);
       });
     });
     return;
@@ -1389,7 +1453,7 @@ function renderStores() {
       const categories = [...new Set(storeProducts.map((product) => product.productCategory).filter(Boolean))];
       const description = store.description || store.deliveryNotes || `${categories.slice(0, 3).join(", ") || "Retail and wholesale items"} from ${store.storeName}.`;
       return `
-        <article class="store-card business-directory-card ${state.focusedStoreId === store.id ? "is-active" : ""}">
+        <article class="store-card business-directory-card ${state.focusedStoreId === store.id ? "is-active" : ""}" data-focus-store-card="${escapeAttribute(store.id)}" role="button" tabindex="0" aria-label="Open ${escapeAttribute(store.storeName)}">
           <div class="business-logo">
               ${cardImageHtml(image, store.storeName, store.storeName)}
           </div>
@@ -1422,6 +1486,32 @@ function renderStores() {
     state.focusedBusinessCategory = "all";
     savePreviewState();
     renderMarket();
+  });
+
+  container.querySelectorAll("[data-focus-store-card]").forEach((card) => {
+    const openStore = (event) => {
+      if (event.target.closest("a, button, input, select, textarea, [data-view-image]")) {
+        return;
+      }
+
+      state.focusedStoreId = state.focusedStoreId === card.dataset.focusStoreCard ? "all" : card.dataset.focusStoreCard;
+      state.focusedBusinessCategory = "all";
+      state.activeShopStoreId = "";
+      state.shopQuery = "";
+      savePreviewState();
+      renderMarket();
+      document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    card.addEventListener("click", openStore);
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      openStore(event);
+    });
   });
 
   container.querySelectorAll("[data-focus-store]").forEach((button) => {
@@ -1468,17 +1558,12 @@ function renderProducts() {
   const selectedStore = getStore(state.focusedStoreId);
   const isShopMode = state.activeShopStoreId === state.focusedStoreId;
   if (isShopMode && selectedStore) {
-    const query = state.shopQuery.trim().toLowerCase();
+    const query = normalizeSearchValue(state.shopQuery);
     const matches = sellerProducts().filter((product) => {
       if (product.storeId !== selectedStore.id) {
         return false;
       }
-      if (!query) {
-        return true;
-      }
-      return `${product.productName} ${product.productCategory} ${product.description || ""} ${product.productOffer || ""}`
-        .toLowerCase()
-        .includes(query);
+      return productMatchesSearch(product, selectedStore, state.shopQuery);
     });
     const offerMatches = matches.filter((product) => product.productOffer);
     const regularMatches = matches.filter((product) => !product.productOffer);
@@ -1676,12 +1761,26 @@ function bindProductCardActions(container) {
 }
 
 function bindShopModeActions(container) {
-  const runShopSearch = (storeId, value) => {
+  const runShopSearch = (storeId, value, shouldRenderNow = false) => {
     state.activeShopStoreId = storeId;
     state.focusedStoreId = storeId;
-    state.shopQuery = String(value || "").trim();
+    state.shopQuery = String(value || "");
     savePreviewState();
-    renderMarket();
+
+    if (shopSearchRenderTimer) {
+      window.clearTimeout(shopSearchRenderTimer);
+      shopSearchRenderTimer = null;
+    }
+
+    if (shouldRenderNow) {
+      renderMarket();
+      return;
+    }
+
+    shopSearchRenderTimer = window.setTimeout(() => {
+      shopSearchRenderTimer = null;
+      renderMarket();
+    }, 120);
   };
 
   container.querySelectorAll("[data-shop-search]").forEach((input) => {
@@ -1691,14 +1790,14 @@ function bindShopModeActions(container) {
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        runShopSearch(input.dataset.shopSearch, input.value);
+        runShopSearch(input.dataset.shopSearch, input.value, true);
       }
     });
   });
 
   container.querySelectorAll("[data-shop-search-clear]").forEach((button) => {
     button.addEventListener("click", () => {
-      runShopSearch(button.dataset.shopSearchClear, "");
+      runShopSearch(button.dataset.shopSearchClear, "", true);
     });
   });
 
