@@ -1276,3 +1276,188 @@ body.seller-register-active .seller-auth-card {
     padding-bottom: 86px;
   }
 }
+
+/* Phone flow pass: public pages do not have a hamburger controller, so keep
+   their navigation and action areas visible in the normal document flow. */
+@media (max-width: 760px) {
+  .topbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+    gap: 10px !important;
+  }
+
+  .topbar > .topbar-actions,
+  .employee-topbar .topbar-actions {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-content: start !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .topbar > .topbar-actions .button,
+  .employee-topbar .topbar-actions .button,
+  .employee-topbar .topbar-actions .summary-chip {
+    flex: 1 1 auto !important;
+    min-width: min(100%, 112px) !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+  }
+
+  .section-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+    justify-content: stretch !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+
+  .section-head > *,
+  .section-head > div,
+  .section-head > .button-row,
+  .section-head > .summary-chip {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .button-row,
+  .hero-actions,
+  .toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .button-row > *,
+  .hero-actions > *,
+  .toolbar > * {
+    flex: 1 1 auto !important;
+    min-width: min(100%, 118px) !important;
+    max-width: 100% !important;
+  }
+
+  .button-row .button,
+  .hero-actions .button,
+  .toolbar .button,
+  .section-head .button,
+  .section-head .summary-chip {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+
+  .card,
+  .panel,
+  .hero,
+  .hero-copy,
+  .browse-card,
+  .summary-panel,
+  .cart-combined-card,
+  .admin-login-card,
+  .seller-auth-card {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .field,
+  .input,
+  select,
+  textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .filter-stack,
+  .chip-scroller,
+  .cart-combined-grid,
+  .contact-grid,
+  .dashboard-grid,
+  .feature-grid,
+  .timeline-grid,
+  .admin-shell,
+  .seller-settings-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .chip-scroller {
+    gap: 6px !important;
+  }
+
+  .chip-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .floating-cart-link {
+    right: 10px !important;
+    bottom: 10px !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .brand-block {
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+  }
+
+  .brand-logo {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .brand {
+    font-size: clamp(1.25rem, 7vw, 1.75rem) !important;
+    line-height: 1.04 !important;
+  }
+
+  .brand-tagline {
+    font-size: 0.76rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .section-title,
+  .hero h1,
+  .hero-copy h1 {
+    overflow-wrap: anywhere !important;
+  }
+
+  .button,
+  .summary-chip,
+  .filter-chip,
+  .meta-pill,
+  .status-pill {
+    min-height: 36px !important;
+    padding-inline: 9px !important;
+    font-size: 0.78rem !important;
+  }
+}
