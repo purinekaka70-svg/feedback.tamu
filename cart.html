@@ -110,36 +110,20 @@
             <form id="checkoutForm" class="stack">
               <div class="field-grid">
                 <label class="field">
-                  <span class="field-label">Full Name</span>
-                  <input id="buyerNameInput" class="input" name="fullName" placeholder="Full name" required />
-                </label>
-
-                <label class="field">
                   <span class="field-label">M-Pesa Name</span>
-                  <input id="mpesaNameInput" class="input" name="mpesaName" placeholder="Name used on M-Pesa" required />
+                  <input id="mpesaNameInput" class="input" name="mpesaName" placeholder="Name shown on M-Pesa message" required />
                 </label>
-              </div>
 
-              <div class="field-grid">
                 <label class="field">
                   <span class="field-label">M-Pesa Number</span>
-                  <input id="buyerPhoneInput" class="input" name="phone" placeholder="07XXXXXXXX" required />
-                </label>
-
-                <label class="field">
-                  <span class="field-label">Delivery Location</span>
-                  <input id="buyerLocationInput" class="input" name="location" placeholder="Estate, stage, landmark..." required />
+                  <input id="buyerPhoneInput" class="input" name="phone" placeholder="07XXXXXXXX" inputmode="tel" required />
                 </label>
               </div>
 
-              <div class="field-grid">
-                <label class="field">
-                  <span class="field-label">Delivery M-Pesa Reference</span>
-                  <input id="deliveryReferenceInput" class="input" name="deliveryPaymentRef" placeholder="Reference for till 7312380" required />
-                </label>
-
+              <div class="field">
+                <span class="field-label">Delivery Location</span>
+                <input id="buyerLocationInput" class="input" name="location" placeholder="County, estate, stage, landmark..." required />
                 <div class="field">
-                  <span class="field-label">Customer Location</span>
                   <div class="map-search-row">
                     <input id="buyerMapSearchInput" class="input" type="search" placeholder="Search estate, town, stage..." autocomplete="off" />
                     <button id="buyerMapSearchButton" class="button button-outline" type="button">Search</button>
@@ -155,13 +139,21 @@
 
               <div>
                 <p class="field-label">Pay Business Directly</p>
+                <div class="info-box">Pay each seller using the Till, Pochi, or bank details shown below, then enter the M-Pesa reference for that seller.</div>
                 <div id="sellerPaymentMethods" class="breakdown-list"></div>
               </div>
 
-              <div id="deliveryPaymentInstruction" class="info-box">Delivery fee is paid separately to till 7312380.</div>
+              <div>
+                <p class="field-label">Pay Delivery Fee</p>
+                <div id="deliveryPaymentInstruction" class="info-box">Delivery fee is paid separately to till 7312380.</div>
+                <label class="field">
+                  <span class="field-label">Delivery M-Pesa Reference</span>
+                  <input id="deliveryReferenceInput" class="input" name="deliveryPaymentRef" placeholder="Reference for delivery till 7312380" required />
+                </label>
+              </div>
 
               <div>
-                <p class="field-label">Delivery fee breakdown</p>
+                <p class="field-label">Delivery Breakdown</p>
                 <div id="deliveryBreakdown" class="breakdown-list"></div>
               </div>
 

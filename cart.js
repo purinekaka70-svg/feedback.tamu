@@ -548,9 +548,32 @@ function calculateAffordableDeliveryFee(distanceKm) {
   return Math.min(550, Math.max(40, Math.round(fee / 10) * 10));
 }
 
-function estimateFallbackDeliveryFee(storeCount = 1) {
+function likelySameCounty(store, profile = buyerProfile()) {
+  const buyerText = `${profile.location || ""}`.toLowerCase();
+  const storeText = `${store?.county || ""} ${store?.location || ""} ${store?.locationName || ""}`.toLowerCase();
+  if (!buyerText || !storeText) {
+    return false;
+  }
+  return buyerText
+    .split(/[,\s-]+/)
+    .filter((part) => part.length >= 4)
+    .some((part) => storeText.includes(part));
+}
+
+function countyAdjustedDeliveryFee(distanceKm, store, profile = buyerProfile()) {
+  const baseFee = calculateAffordableDeliveryFee(distanceKm);
+  if (!likelySameCounty(store, profile)) {
+    return baseFee;
+  }
+  return Math.max(40, Math.round((baseFee * 0.85) / 10) * 10);
+}
+
+function estimateFallbackDeliveryFee(storeCount = 1, sameCountyCount = 0) {
   const count = Math.max(1, Number(storeCount) || 1);
-  return Math.min(250, 70 + (count - 1) * 30);
+  const sameCounty = Math.max(0, Number(sameCountyCount) || 0);
+  const base = 70 + (count - 1) * 30;
+  const discount = Math.min(30, sameCounty * 10);
+  return Math.min(250, Math.max(50, base - discount));
 }
 
 function buildDeliverySummary(items, profile = buyerProfile()) {
@@ -574,13 +597,16 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
   const latitude = Number(profile.latitude);
   const longitude = Number(profile.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    const storeCount = new Set(
+    const stores = [...new Set(
       items
         .map((item) => getProduct(item.productId))
         .filter(Boolean)
         .map((product) => product.storeId)
-    ).size;
-    const estimatedFee = estimateFallbackDeliveryFee(storeCount);
+    )].map((storeId) => getStore(storeId)).filter(Boolean);
+    const estimatedFee = estimateFallbackDeliveryFee(
+      stores.length,
+      stores.filter((store) => likelySameCounty(store, profile)).length
+    );
     return {
       hasCoordinates: false,
       estimated: true,
@@ -629,8 +655,8 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
           })
         : null;
       const routeFee = hasStoreCoordinates
-        ? calculateAffordableDeliveryFee(distanceKm)
-        : estimateFallbackDeliveryFee(1);
+        ? countyAdjustedDeliveryFee(distanceKm, store, profile)
+        : estimateFallbackDeliveryFee(1, likelySameCounty(store, profile) ? 1 : 0);
 
       return {
         storeId: store.id,
@@ -639,6 +665,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
         distanceText: hasStoreCoordinates ? formatDistance(distanceKm) : "Distance estimate",
         fee: routeFee,
         estimated: !hasStoreCoordinates,
+        sameCounty: likelySameCounty(store, profile),
         quantity: group.quantity,
         subtotal: group.subtotal
       };
@@ -846,7 +873,10 @@ async function updateQuantity(productId, nextQuantity) {
 
 function fillCheckoutForm() {
   const profile = buyerProfile();
-  document.getElementById("buyerNameInput").value = profile.fullName || "";
+  const buyerNameInput = document.getElementById("buyerNameInput");
+  if (buyerNameInput) {
+    buyerNameInput.value = profile.fullName || profile.mpesaName || "";
+  }
   const mpesaNameInput = document.getElementById("mpesaNameInput");
   if (mpesaNameInput) {
     mpesaNameInput.value = profile.mpesaName || profile.fullName || "";
@@ -871,7 +901,7 @@ function readCheckoutForm() {
     });
 
   return {
-    fullName: document.getElementById("buyerNameInput").value.trim(),
+    fullName: document.getElementById("buyerNameInput")?.value.trim() || document.getElementById("mpesaNameInput")?.value.trim() || "",
     mpesaName: document.getElementById("mpesaNameInput")?.value.trim() || "",
     phone: document.getElementById("buyerPhoneInput").value.trim(),
     location: document.getElementById("buyerLocationInput").value.trim(),
@@ -914,7 +944,8 @@ function renderPaymentOptions(items) {
               ${storeCardAccount(store) ? `Bank account: ${storeCardAccount(store)}` : ""}
               ${!storeTillNumber(store) && !storePochiNumber(store) && !storeCardAccount(store) ? "Payment details pending from seller." : ""}
             </p>
-            <input class="input" data-business-payment-ref name="businessPaymentRef_${escapeAttr(store.id)}" value="${escapeAttr(existingRef)}" placeholder="Reference paid to ${escapeAttr(store.storeName)}" required />
+            <p class="tiny">Pay this seller directly first, then enter the payment reference below.</p>
+            <input class="input" data-business-payment-ref name="businessPaymentRef_${escapeAttr(store.id)}" value="${escapeAttr(existingRef)}" placeholder="M-Pesa reference paid to ${escapeAttr(store.storeName)}" required />
             <input type="hidden" data-business-payment-method value="${storeTillNumber(store) ? "M-Pesa Till" : storePochiNumber(store) ? "M-Pesa Pochi" : storeCardAccount(store) ? "Bank Account" : "Direct payment"}" />
           </article>
         `;
@@ -929,7 +960,7 @@ function syncPaymentMethodSelect(items) {
     return;
   }
   const delivery = buildDeliverySummary(items);
-  instruction.textContent = `Delivery fee: ${items.length ? delivery.label : currency(0)}. Pay separately to delivery till ${DELIVERY_TILL_NUMBER}, then enter that delivery reference above.`;
+  instruction.textContent = `Pay delivery ${items.length ? delivery.label : currency(0)} to Tamu Express Till ${DELIVERY_TILL_NUMBER}. After paying, enter the delivery M-Pesa reference below.`;
 }
 
 function renderDeliveryBreakdown(items) {
@@ -958,7 +989,7 @@ function renderDeliveryBreakdown(items) {
         (entry) => `
           <article class="breakdown-card">
             <strong>${entry.storeName}</strong>
-            <p>${entry.distanceText || formatDistance(entry.distanceKm)} | ${entry.quantity} item(s)</p>
+            <p>${entry.distanceText || formatDistance(entry.distanceKm)} | ${entry.quantity} item(s)${entry.sameCounty ? " | same-county rate" : ""}</p>
             <p>Subtotal ${currency(entry.subtotal)} | Delivery ${currency(entry.fee)}${entry.estimated ? " est." : ""}</p>
           </article>
         `
@@ -1200,8 +1231,8 @@ async function handleCheckout() {
   const profile = readCheckoutForm();
   const delivery = buildDeliverySummary(cart, profile);
 
-  if (!profile.fullName || !profile.mpesaName || !profile.phone || !profile.location) {
-    showToast("Fill in checkout details before submitting.", "warn");
+  if (!profile.mpesaName || !profile.phone || !profile.location) {
+    showToast("Fill M-Pesa name, M-Pesa number, and delivery location before submitting.", "warn");
     return;
   }
 
