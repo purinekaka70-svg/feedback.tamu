@@ -309,15 +309,11 @@ function productLineTotal(product, quantity) {
 }
 
 function offerMessage(product) {
-  return isBogoOffer(product)
-    ? `${product.productName}: Buy one get one free. Add once and 2 items go to cart, but you pay for 1.`
-    : product?.productOffer || "";
+  return product?.productOffer || "";
 }
 
 function offerCardMessage(offer) {
-  return [offer?.title, offer?.note]
-    .filter(Boolean)
-    .join(": ");
+  return offer?.note || offer?.title || "";
 }
 
 function bindHoldToast(element, messageFactory) {
@@ -1381,7 +1377,6 @@ function renderDeals() {
   });
 
   container.querySelectorAll("[data-offer-product]").forEach((button) => {
-    bindHoldToast(button, () => offerMessage(getProduct(button.dataset.offerProduct)));
     button.addEventListener("click", async () => {
       await addToCart(button.dataset.offerProduct);
     });
@@ -1827,9 +1822,14 @@ function bindCategoryCardActions(container) {
 }
 
 function bindProductCardActions(container) {
+  container.querySelectorAll("[data-product-offer-card]").forEach((card) => {
+    const productId = card.dataset.productOfferCard;
+    if (!productId) return;
+    bindHoldToast(card, () => offerMessage(getProduct(productId)));
+  });
+
   container.querySelectorAll("[data-add-product], [data-shop-add-product]").forEach((button) => {
     const productId = button.dataset.addProduct || button.dataset.shopAddProduct;
-    bindHoldToast(button, () => offerMessage(getProduct(productId)));
     button.addEventListener("click", async () => {
       await addToCart(productId);
     });
@@ -1973,7 +1973,7 @@ function productCardHtml(product) {
   const isOffer = Boolean(product.productOffer);
   const badge = isOffer ? "HOT DEAL" : "New";
   return `
-    <article class="product-card supermarket-product-card ${isOffer ? "is-offer-product" : ""}">
+    <article class="product-card supermarket-product-card ${isOffer ? "is-offer-product" : ""}" data-product-offer-card="${isOffer ? product.id : ""}">
       <div class="product-visual">
         ${cardImageHtml(product.productImage, product.productName, product.productName || product.productCategory)}
         <span class="product-card-badge">${badge}</span>
