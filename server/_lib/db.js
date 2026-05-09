@@ -9,6 +9,43 @@ function connectionString() {
     "";
 }
 
+function connectionSource() {
+  if (process.env.SUPABASE_DB_URL) return "SUPABASE_DB_URL";
+  if (process.env.DATABASE_URL) return "DATABASE_URL";
+  if (process.env.POSTGRES_URL) return "POSTGRES_URL";
+  if (process.env.SUPABASE_DB_HOST) return "SUPABASE_DB_HOST";
+  return "none";
+}
+
+function connectionSummary() {
+  const url = connectionString();
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      return {
+        source: connectionSource(),
+        host: parsed.hostname,
+        port: parsed.port || "",
+        database: parsed.pathname.replace(/^\/+/, "") || "",
+        user: decodeURIComponent(parsed.username || "")
+      };
+    } catch (error) {
+      return {
+        source: connectionSource(),
+        host: "invalid_connection_string",
+        error: String(error?.message || error).slice(0, 120)
+      };
+    }
+  }
+  return {
+    source: connectionSource(),
+    host: process.env.SUPABASE_DB_HOST || "",
+    port: process.env.SUPABASE_DB_PORT || "",
+    database: process.env.SUPABASE_DB_NAME || "postgres",
+    user: process.env.SUPABASE_DB_USER || "postgres"
+  };
+}
+
 function getPool() {
   if (!pool) {
     const url = connectionString();
@@ -48,4 +85,4 @@ async function tableExists(table) {
   return Number(rows[0]?.count || 0) > 0;
 }
 
-module.exports = { getPool, query, run, tableExists };
+module.exports = { connectionSummary, getPool, query, run, tableExists };
