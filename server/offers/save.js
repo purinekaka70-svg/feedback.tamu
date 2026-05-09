@@ -6,6 +6,13 @@ function publicId(value) {
   return text(value, 120) || `offer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+async function ensureOfferColumns() {
+  await query("alter table seller_offers add column if not exists offer_title text not null default ''");
+  await query("alter table seller_offers add column if not exists offer_note text not null default ''");
+  await query("alter table seller_offers add column if not exists offer_expiry text not null default ''");
+  await query("alter table seller_offers add column if not exists offer_image text not null default ''");
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   const session = requireRole(req, res, ["admin", "seller"]);
@@ -18,6 +25,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     const id = publicId(payload.id || payload.publicId);
+    await ensureOfferColumns().catch(() => {});
     const params = [
       id,
       String(sellerId),
@@ -40,7 +48,7 @@ module.exports = async function handler(req, res) {
       params
     );
     send(res, 201, { ok: true, offer: { id } });
-  } catch {
-    send(res, 500, { ok: false, message: "Failed to save offer." });
+  } catch (error) {
+    send(res, 500, { ok: false, message: "Failed to save offer.", detail: error?.message || "" });
   }
 };

@@ -21,6 +21,10 @@ async function columnExists(table, column) {
   return rows.length > 0;
 }
 
+async function ensureOfferTextColumn() {
+  await query("alter table products add column if not exists offer_text text not null default ''");
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   const session = requireRole(req, res, ["admin", "seller"]);
@@ -48,6 +52,7 @@ module.exports = async function handler(req, res) {
       Math.max(0, Math.trunc(number(payload.stock))),
       text(payload.description, 500)
     ];
+    await ensureOfferTextColumn().catch(() => {});
     const hasOfferText = await columnExists("products", "offer_text");
     let rows;
     if (payload.id && /^\d+$/.test(String(payload.id))) {
