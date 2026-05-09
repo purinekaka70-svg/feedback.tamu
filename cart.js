@@ -1,5 +1,6 @@
 const STORAGE_KEYS = {
   cartSession: "tamu_market_cart_session",
+  cartItems: "tamu_market_cart_items",
   buyerProfile: "tamu_market_buyer_profile",
   adminSession: "tamu_market_admin_session"
 };
@@ -163,29 +164,37 @@ async function loadCartFromBackend() {
   try {
     const response = await fetch(`${API_ENDPOINTS.cart}?sessionId=${encodeURIComponent(cartSessionId())}`, { cache: "no-store" });
     const data = await response.json();
-    cart = response.ok && data.ok
+    const backendCart = response.ok && data.ok
       ? (data.items || []).map((item) => ({
-          productId: String(item.product_id || item.productId || ""),
+          productId: String(item.product_public_id || item.product_id || item.productId || ""),
           quantity: Number(item.quantity || 1)
         })).filter((item) => item.productId)
       : [];
+    cart = backendCart.length ? backendCart : readStorage(STORAGE_KEYS.cartItems, []);
   } catch (error) {
-    cart = [];
+    cart = readStorage(STORAGE_KEYS.cartItems, []);
   }
+  writeStorage(STORAGE_KEYS.cartItems, cart);
 }
 
 async function saveCartItem(productId, quantity) {
   const product = getProduct(productId);
   if (!product) return;
+  writeStorage(STORAGE_KEYS.cartItems, cart);
   await postJson(API_ENDPOINTS.cart, {
     sessionId: cartSessionId(),
     productId,
     businessId: product.storeId,
+    productName: product.productName,
+    storeName: product.storeName || getStore(product.storeId)?.storeName || "",
+    unitPrice: product.productPrice,
+    image: product.productImage,
     quantity
   });
 }
 
 async function deleteCartItem(productId = "") {
+  writeStorage(STORAGE_KEYS.cartItems, cart);
   try {
     await fetch(API_ENDPOINTS.cart, {
       method: "DELETE",
@@ -663,6 +672,7 @@ function sanitizeCart() {
   const cleanCart = cart.filter((item) => validProducts.has(item.productId));
   if (cleanCart.length !== cart.length) {
     cart = cleanCart;
+    writeStorage(STORAGE_KEYS.cartItems, cart);
   }
 }
 
@@ -807,9 +817,11 @@ async function updateQuantity(productId, nextQuantity) {
 
   if (nextQuantity <= 0) {
     cart = cart.filter((item) => item.productId !== productId);
+    writeStorage(STORAGE_KEYS.cartItems, cart);
     await deleteCartItem(productId);
   } else {
     current.quantity = nextQuantity;
+    writeStorage(STORAGE_KEYS.cartItems, cart);
     await saveCartItem(productId, nextQuantity);
   }
 
@@ -1214,6 +1226,7 @@ async function handleCheckout() {
   }
 
   cart = [];
+  writeStorage(STORAGE_KEYS.cartItems, cart);
   await deleteCartItem();
   document.getElementById("checkoutSection")?.classList.add("is-hidden");
   renderCart();
@@ -1225,6 +1238,7 @@ async function handleCheckout() {
 function bindEvents() {
   document.getElementById("clearCartButton").addEventListener("click", async () => {
     cart = [];
+    writeStorage(STORAGE_KEYS.cartItems, cart);
     await deleteCartItem();
     renderCart();
     showToast("Cart cleared.", "warn");

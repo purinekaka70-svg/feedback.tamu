@@ -4,6 +4,7 @@ let cachedCategories = [];
 let cachedOffers = [];
 const STORAGE_KEYS = {
   cartSession: "tamu_market_cart_session",
+  cartItems: "tamu_market_cart_items",
   buyerProfile: "tamu_market_buyer_profile",
   adminSession: "tamu_market_admin_session",
   previewState: "tamu_market_preview_state"
@@ -164,24 +165,31 @@ async function loadCartFromBackend() {
   try {
     const response = await fetch(`./api/cart/index.php?sessionId=${encodeURIComponent(cartSessionId())}`, { cache: "no-store" });
     const data = await response.json();
-    state.cart = response.ok && data.ok
+    const backendCart = response.ok && data.ok
       ? (data.items || []).map((item) => ({
-          productId: String(item.product_id || item.productId || ""),
+          productId: String(item.product_public_id || item.product_id || item.productId || ""),
           quantity: Number(item.quantity || 1)
         })).filter((item) => item.productId)
       : [];
+    state.cart = backendCart.length ? backendCart : readStorage(STORAGE_KEYS.cartItems, []);
   } catch (error) {
-    state.cart = [];
+    state.cart = readStorage(STORAGE_KEYS.cartItems, []);
   }
+  writeStorage(STORAGE_KEYS.cartItems, state.cart);
 }
 
 async function saveCartItemToBackend(productId, quantity) {
   const product = getProduct(productId);
   if (!product) return;
+  writeStorage(STORAGE_KEYS.cartItems, state.cart);
   await postJson("./api/cart/index.php", {
     sessionId: cartSessionId(),
     productId,
     businessId: product.storeId,
+    productName: product.productName,
+    storeName: product.storeName || getStore(product.storeId)?.storeName || "",
+    unitPrice: product.productPrice,
+    image: product.productImage,
     quantity
   });
 }
@@ -196,6 +204,7 @@ async function clearCartBackend() {
   } catch (error) {
     // Backend errors are surfaced when cart reloads.
   }
+  writeStorage(STORAGE_KEYS.cartItems, []);
 }
 
 function createId(prefix) {
@@ -908,6 +917,7 @@ function sanitizeCart() {
   const cleanCart = state.cart.filter((item) => validProducts.has(item.productId));
   if (cleanCart.length !== state.cart.length) {
     state.cart = cleanCart;
+    writeStorage(STORAGE_KEYS.cartItems, state.cart);
   }
 }
 
@@ -1026,6 +1036,7 @@ async function addToCart(productId) {
   }
 
   const nextQuantity = state.cart.find((item) => item.productId === productId)?.quantity || 1;
+  writeStorage(STORAGE_KEYS.cartItems, state.cart);
   await saveCartItemToBackend(productId, nextQuantity);
   savePreviewState();
   renderCartSummary();

@@ -17,7 +17,12 @@ module.exports = async function handler(req, res) {
       return;
     }
     if (req.method === "DELETE" || payload.action === "clear") {
-      await query("delete from cart where session_id = $1", [sessionId]);
+      const productId = text(payload.productId, 120);
+      if (productId && payload.action !== "clear") {
+        await query("delete from cart where session_id = $1 and product_public_id = $2", [sessionId, productId]);
+      } else {
+        await query("delete from cart where session_id = $1", [sessionId]);
+      }
       send(res, 200, { ok: true });
       return;
     }
