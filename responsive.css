@@ -1120,3 +1120,84 @@ body.home-page .topbar-menu-overlay {
     z-index: 1250 !important;
   }
 }
+
+/* Final seller portal auth centering. Keep login/register centered before dashboard UI appears. */
+body.seller-auth-only {
+  min-height: 100vh !important;
+}
+
+body.seller-auth-only .site-shell {
+  width: min(calc(100% - 24px), 760px) !important;
+  min-height: 100vh !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  padding: 10px 0 !important;
+}
+
+body.seller-auth-only .content-shell {
+  min-height: 0 !important;
+  display: grid !important;
+  align-items: center !important;
+  justify-items: center !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 10px 0 !important;
+}
+
+body.seller-auth-only #sellerAuthSection {
+  width: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  margin: 0 auto !important;
+}
+
+body.seller-auth-only .seller-auth-shell {
+  width: 100% !important;
+  max-width: 620px !important;
+  margin: 0 auto !important;
+  align-self: center !important;
+  justify-self: center !important;
+}
+
+body.seller-auth-only .seller-auth-card {
+  width: 100% !important;
+  max-width: 620px !important;
+  margin: 0 auto !important;
+}
+
+body.seller-register-active .site-shell {
+  width: min(calc(100% - 24px), 860px) !important;
+}
+
+body.seller-register-active .seller-auth-shell,
+body.seller-register-active .seller-auth-card {
+  max-width: 760px !important;
+}
+
+body.seller-register-active .seller-auth-card {
+  max-height: calc(100vh - 118px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 760px) {
+  body.seller-auth-only .site-shell,
+  body.seller-register-active .site-shell {
+    width: min(calc(100% - 12px), 760px) !important;
+    padding: 6px 0 !important;
+  }
+
+  body.seller-auth-only .content-shell {
+    padding: 8px 0 !important;
+  }
+
+  body.seller-auth-only .seller-auth-card {
+    border-radius: 16px !important;
+  }
+
+  body.seller-register-active .seller-auth-card {
+    max-height: calc(100vh - 98px) !important;
+  }
+}
