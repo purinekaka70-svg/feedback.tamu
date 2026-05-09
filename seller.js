@@ -1000,7 +1000,7 @@ function renderOrders() {
         };
       });
       cachedOrders = updated;
-      const response = await postJson('./api/orders/update.php', { id: orderId, status: "paid", paymentStatus: "paid" });
+      const response = await postJson('./api/orders/update.php', { id: orderId, businessId: seller.id, status: "paid", paymentStatus: "paid" });
       if (!response.ok || response.data?.ok === false) {
         await loadSellerData();
         showToast(response.data?.detail || response.data?.message || "Payment update failed.", "warn");
@@ -1110,7 +1110,8 @@ async function updateSellerOrderStatus(orderId, status) {
       }
     : order);
   cachedOrders = updated;
-  const response = await postJson('./api/orders/update.php', { id: orderId, status });
+  const seller = currentSeller();
+  const response = await postJson('./api/orders/update.php', { id: orderId, businessId: seller?.id, status });
   if (!response.ok || response.data?.ok === false) {
     await loadSellerData();
     showToast(response.data?.detail || response.data?.message || "Order update failed.", "warn");

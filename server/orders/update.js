@@ -1,4 +1,4 @@
-const { requireRole } = require("../_lib/auth");
+const { claims } = require("../_lib/auth");
 const { getPool, query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
@@ -20,17 +20,22 @@ async function columnType(table, column) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
-  const session = requireRole(req, res, ["admin", "seller"]);
-  if (!session) return;
+  const session = claims(req);
   try {
     const payload = await body(req);
     const id = text(payload.id || payload.publicId, 120);
     const status = normalizeStatus(payload.status, ["pending_payment", "paid", "confirmed", "processing", "delivering", "delivered", "cancelled"], "processing");
-    const paymentStatus = text(payload.paymentStatus || "", 40);
+    const paymentStatus = text(payload.paymentStatus || (status === "paid" ? "paid" : ""), 40);
+    const actorBusinessId = Number(session?.businessId || payload.businessId || payload.storeId || 0) || 0;
+    const isAdmin = session?.role === "admin";
+    if (!isAdmin && !actorBusinessId) {
+      send(res, 403, { ok: false, message: "Seller or admin access is required to update this order." });
+      return;
+    }
     const params = [id, status, paymentStatus];
     let where = "(public_id = $1 or id::text = $1)";
-    if (session.role === "seller") {
-      params.push(Number(session.businessId || 0), String(session.businessId || ""));
+    if (!isAdmin) {
+      params.push(actorBusinessId, String(actorBusinessId));
       where += ` and exists (
         select 1 from order_items oi
          where oi.order_id = orders.id
@@ -61,9 +66,9 @@ module.exports = async function handler(req, res) {
       const pay = paymentStatus === "confirmed" ? "paid" : paymentStatus === "pending_payment" ? "pending" : paymentStatus;
       const safePay = ["pending", "submitted", "paid", "failed"].includes(pay) ? pay : "submitted";
       const publicId = updated[0].public_id || id;
-      const businessId = Number(session.businessId || 0) || null;
+      const businessId = actorBusinessId || null;
       const pool = getPool();
-      if (session.role === "seller" && businessId) {
+      if (!isAdmin && businessId) {
         const paymentRows = await query(
           "update payments set status = $3 where order_public_id = $1 and business_id = $2 returning id",
           [publicId, businessId, safePay]
