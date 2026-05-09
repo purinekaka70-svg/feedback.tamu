@@ -4,6 +4,14 @@
 };
 
 const DEFAULT_BUSINESS_CATEGORIES = ["Supermarket", "Retail", "Wholesale"];
+const IMAGE_PRESETS = {
+  product: { maxWidth: 300, maxHeight: 300, quality: 0.74, maxBytes: 120 * 1024 },
+  business: { maxWidth: 400, maxHeight: 400, quality: 0.76, maxBytes: 160 * 1024 },
+  offer: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 180 * 1024 },
+  location: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 180 * 1024 }
+};
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SOURCE_IMAGE_BYTES = 8 * 1024 * 1024;
 
 let map;
 let marker;
@@ -704,7 +712,7 @@ function renderProducts() {
     .map((product) => `
       <article class="list-card seller-catalog-card">
         <div class="seller-product-media">
-          ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}" loading="lazy">` : product.productCategory}
+          ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}" loading="lazy" decoding="async" width="300" height="300">` : product.productCategory}
           <span class="seller-catalog-badge">${product.productOffer ? "Offer" : "New"}</span>
         </div>
         <div class="seller-catalog-copy">
@@ -807,7 +815,7 @@ function renderOffers() {
     .map((offer) => `
       <article class="list-card seller-catalog-card seller-offer-card">
         <div class="seller-product-media">
-          ${offer.offerImage ? `<img src="${offer.offerImage}" alt="${offer.offerTitle}" loading="lazy">` : "Offer"}
+          ${offer.offerImage ? `<img src="${offer.offerImage}" alt="${offer.offerTitle}" loading="lazy" decoding="async" width="600" height="300">` : "Offer"}
         </div>
         <div class="seller-catalog-copy">
           <strong>${offer.offerTitle}</strong>
@@ -1275,17 +1283,77 @@ function buildSellerPayload(formData) {
 }
 
 async function fileToDataUrl(file) {
-  return new Promise((resolve) => {
-    if (!file || !file.size) {
-      resolve("");
-      return;
-    }
+  return optimizeImageFile(file);
+}
 
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => resolve("");
-    reader.readAsDataURL(file);
+function dataUrlBytes(dataUrl) {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  return Math.ceil(base64.length * 0.75);
+}
+
+function canvasToDataUrl(canvas, quality) {
+  return canvas.toDataURL("image/webp", quality);
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Image could not be read."));
+    };
+    image.src = url;
   });
+}
+
+async function optimizeImageFile(file, presetName = "product") {
+  if (!file || !file.size) {
+    return "";
+  }
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    throw new Error("Use JPG, PNG, or WebP images only.");
+  }
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+    throw new Error("Image is too large. Use a file under 8 MB.");
+  }
+
+  const preset = IMAGE_PRESETS[presetName] || IMAGE_PRESETS.product;
+  const image = await loadImageElement(file);
+  const scale = Math.min(1, preset.maxWidth / image.naturalWidth, preset.maxHeight / image.naturalHeight);
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) {
+    throw new Error("Image compression is not supported on this browser.");
+  }
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, 0, 0, width, height);
+
+  let quality = preset.quality;
+  let dataUrl = canvasToDataUrl(canvas, quality);
+  while (dataUrlBytes(dataUrl) > preset.maxBytes && quality > 0.46) {
+    quality = Math.max(0.46, quality - 0.08);
+    dataUrl = canvasToDataUrl(canvas, quality);
+  }
+
+  if (!dataUrl.startsWith("data:image/webp;base64,")) {
+    throw new Error("Image could not be converted to WebP.");
+  }
+  if (dataUrlBytes(dataUrl) > preset.maxBytes * 1.25) {
+    throw new Error("Image is still too large after compression. Try a simpler image.");
+  }
+  return dataUrl;
 }
 
 async function buildProductPayload(formData) {
@@ -1301,7 +1369,12 @@ async function buildProductPayload(formData) {
 
   const productId = String(formData.get("productId")).trim();
   const existingProduct = products().find((product) => product.id === productId);
-  const uploadedImage = await fileToDataUrl(formData.get("productImageFile"));
+  let uploadedImage = "";
+  try {
+    uploadedImage = await optimizeImageFile(formData.get("productImageFile"), "product");
+  } catch (error) {
+    return { ok: false, message: error.message || "Product image could not be optimized." };
+  }
   const productImage = uploadedImage || String(formData.get("productImageUrl")).trim() || existingProduct?.productImage || "";
   const productName = String(formData.get("productName")).trim();
   const productCategory = categoryLabelFromValue(formData.get("productCategory"));
@@ -1354,7 +1427,12 @@ async function buildOfferPayload(formData) {
   }
   const offerId = String(formData.get("offerId")).trim();
   const existingOffer = offers().find((offer) => offer.id === offerId);
-  const uploadedImage = await fileToDataUrl(formData.get("offerImageFile"));
+  let uploadedImage = "";
+  try {
+    uploadedImage = await optimizeImageFile(formData.get("offerImageFile"), "offer");
+  } catch (error) {
+    return { ok: false, message: error.message || "Offer image could not be optimized." };
+  }
   const offerImage = uploadedImage || String(formData.get("offerImageUrl")).trim() || existingOffer?.offerImage || "";
 
   return {

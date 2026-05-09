@@ -53,14 +53,14 @@ try {
             $stmt = $pdo->prepare(
                 'UPDATE categories SET business_id = ?, name = ?, image = ? WHERE id = ?'
             );
-            $stmt->execute([$businessId, safe_text($payload['name'], 100), validate_base64_image($payload['image'] ?? '', 1048576), (int) $id]);
+            $stmt->execute([$businessId, safe_text($payload['name'], 100), validate_base64_image($payload['image'] ?? '', 153600), (int) $id]);
         } else {
             $stmt = $pdo->prepare(
                 'INSERT INTO categories (business_id, name, image)
                  VALUES (?, ?, ?)
                  ON DUPLICATE KEY UPDATE image = VALUES(image)'
             );
-            $stmt->execute([$businessId, safe_text($payload['name'], 100), validate_base64_image($payload['image'] ?? '', 1048576)]);
+            $stmt->execute([$businessId, safe_text($payload['name'], 100), validate_base64_image($payload['image'] ?? '', 153600)]);
             $id = (string) $pdo->lastInsertId();
         }
         json_response(['ok' => true, 'category' => ['id' => $id]], 201);

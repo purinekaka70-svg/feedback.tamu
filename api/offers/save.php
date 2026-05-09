@@ -69,7 +69,7 @@ try {
         'offer_title' => safe_text($payload['offerTitle'], 150),
         'offer_note' => safe_text($payload['offerNote'], 500),
         'offer_expiry' => safe_text($payload['offerExpiry'], 40),
-        'offer_image' => validate_image_reference($payload['offerImage'] ?? '', 1048576),
+        'offer_image' => validate_image_reference($payload['offerImage'] ?? '', 230400),
     ]);
 
     json_response([

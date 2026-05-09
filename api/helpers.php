@@ -329,8 +329,8 @@ function validate_base64_image(?string $image, int $maxBytes = 1048576): string
         return '';
     }
 
-    if (!preg_match('/^data:image\/(png|jpe?g|webp|gif);base64,([A-Za-z0-9+\/=]+)$/', $image, $matches)) {
-        json_response(['ok' => false, 'message' => 'Only PNG, JPG, WEBP, or GIF images are allowed.'], 422);
+    if (!preg_match('/^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+\/=]+)$/', $image, $matches)) {
+        json_response(['ok' => false, 'message' => 'Only PNG, JPG, or WEBP images are allowed.'], 422);
     }
 
     $binary = base64_decode($matches[2], true);

@@ -9,7 +9,7 @@ $payload = read_json_input();
 require_fields($payload, ['name']);
 $name = safe_text($payload['name'], 100);
 $nameKey = strtolower(trim((string) preg_replace('/\s+/', ' ', $name)));
-$image = validate_base64_image($payload['image'] ?? '', 1048576);
+$image = validate_base64_image($payload['image'] ?? '', 153600);
 $businessId = trim_string($payload['businessId'] ?? '') !== '' ? int_value($payload['businessId']) : null;
 $claims = current_auth_claims();
 if (strtolower((string) ($claims['role'] ?? '')) === 'seller') {

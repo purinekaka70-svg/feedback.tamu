@@ -34,7 +34,7 @@ try {
             $stmt->execute([
                 (int) $id,
                 safe_text($payload['name'], 100),
-                validate_base64_image($payload['image'] ?? '', 1048576),
+                validate_base64_image($payload['image'] ?? '', 230400),
                 safe_text($payload['description'] ?? '', 500),
             ]);
         } else {
@@ -44,7 +44,7 @@ try {
             );
             $stmt->execute([
                 safe_text($payload['name'], 100),
-                validate_base64_image($payload['image'] ?? '', 1048576),
+                validate_base64_image($payload['image'] ?? '', 230400),
                 safe_text($payload['description'] ?? '', 500),
             ]);
             $id = (string) $pdo->lastInsertId();

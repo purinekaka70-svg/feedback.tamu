@@ -47,7 +47,7 @@ try {
         'business_id' => $businessId,
         'category_id' => int_value($categoryId),
         'name' => safe_text($payload['name'], 150),
-        'image' => validate_image_reference($payload['image'] ?? '', 1048576),
+        'image' => validate_image_reference($payload['image'] ?? '', 153600),
         'price' => float_value($payload['price']),
         'offer_flag' => !empty($payload['offerFlag']) ? 1 : 0,
         'stock' => max(0, int_value($payload['stock'] ?? 0)),

@@ -11,7 +11,7 @@ $password = (string) $payload['password'];
 if (strlen($password) < 8) {
     json_response(['ok' => false, 'message' => 'Password must be at least 8 characters.'], 422);
 }
-$logoImage = validate_base64_image($payload['logoImage'] ?? ($payload['logo'] ?? ''), 1048576);
+$logoImage = validate_base64_image($payload['logoImage'] ?? ($payload['logo'] ?? ''), 204800);
 
 try {
     $pdo = tamu_pdo();

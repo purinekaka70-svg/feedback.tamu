@@ -59,7 +59,7 @@ try {
                 logo_image = VALUES(logo_image),
                 status = VALUES(status)'
         );
-        $logo = validate_base64_image($payload['logoImage'] ?? $payload['logo'] ?? $payload['image'] ?? '', 1048576);
+        $logo = validate_base64_image($payload['logoImage'] ?? $payload['logo'] ?? $payload['image'] ?? '', 204800);
         $stmt->execute([
             trim_string($payload['userId'] ?? '') !== '' ? int_value($payload['userId']) : null,
             trim_string($payload['locationId'] ?? '') !== '' ? int_value($payload['locationId']) : null,
