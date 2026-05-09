@@ -17,8 +17,7 @@ module.exports = async function handler(req, res) {
     const businessById = Object.fromEntries(businesses.map((business) => [String(business.id), business]));
 
     const productRows = await query(
-      `select p.id, p.business_id, p.category_id, p.name, p.image, p.price, p.offer_flag, p.stock, p.description, p.created_at,
-              c.name as category_name
+      `select p.*, c.name as category_name
          from products p
          left join categories c on c.id = p.category_id
         order by p.created_at desc`
@@ -29,6 +28,7 @@ module.exports = async function handler(req, res) {
       const categoryName = row.category_name || row.category_id || "Other";
       const stockCount = Number(row.stock || 0);
       const stock = stockCount <= 0 ? "Out of stock" : stockCount <= 5 ? "Limited stock" : "In stock";
+      const offerText = row.offer_text || row.offer_note || row.offer || "";
       return [{
         id: String(row.id),
         businessId: String(row.business_id),
@@ -49,8 +49,9 @@ module.exports = async function handler(req, res) {
         stock,
         stockCount,
         productStock: stock,
-        offerFlag: Boolean(row.offer_flag),
-        productOffer: row.offer_flag ? "Offer" : "",
+        offerFlag: Boolean(row.offer_flag || offerText),
+        productOffer: offerText || (row.offer_flag ? "Offer" : ""),
+        offerText: offerText || (row.offer_flag ? "Offer" : ""),
         description: row.description || "",
         createdAt: row.created_at || ""
       }];

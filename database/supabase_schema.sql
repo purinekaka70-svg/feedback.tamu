@@ -88,6 +88,7 @@ create table if not exists products (
   image text not null default '',
   price numeric(12, 2) not null default 0,
   offer_flag boolean not null default false,
+  offer_text text not null default '',
   stock integer not null default 0,
   description text not null default '',
   created_at timestamptz not null default now()
