@@ -557,11 +557,23 @@ async function updateApplicationStatus(applicationId, status) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: applicationId, status })
     });
-    const result = await response.json();
+    const raw = await response.text();
+    let result = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      result = {
+        ok: false,
+        message: `Approval service returned ${response.status}. ${raw.replace(/\s+/g, " ").slice(0, 160)}`
+      };
+    }
     if (response.ok && result.ok) {
       await loadData();
     } else {
-      showToast(result.message || `Could not update business to ${status}.`, "warn");
+      const message = response.status === 403
+        ? "Admin session expired. Login again before approving sellers."
+        : (result.message || `Could not update business to ${status}.`);
+      showToast(message, "warn");
       return;
     }
   } catch (error) {

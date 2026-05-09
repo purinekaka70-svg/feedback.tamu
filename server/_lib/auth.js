@@ -44,7 +44,7 @@ function requireRole(req, res, roles) {
   const session = claims(req);
   const allowed = Array.isArray(roles) ? roles : [roles];
   if (!session?.role || !allowed.includes(session.role)) {
-    send(res, 401, { ok: false, message: "Unauthorized request." });
+    send(res, 403, { ok: false, message: "Unauthorized access. Please login again." });
     return null;
   }
   return session;
