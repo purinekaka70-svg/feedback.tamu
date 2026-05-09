@@ -1586,8 +1586,7 @@ function bindForms() {
       showToast(`${response.data?.message || `Registration failed (${response.status}).`}${details}`, "warn");
       return;
     }
-    event.currentTarget.reset();
-    syncPaymentFields();
+    clearSellerRegistrationForm(event.currentTarget);
     toggleForms(false);
     const successMessage = response.data?.message || "Successfully registered. Please wait for admin approval.";
     document.getElementById("loginStatus").textContent = successMessage;
@@ -1789,6 +1788,25 @@ function syncPaymentFields() {
       }
     }
   });
+}
+
+function clearSellerRegistrationForm(form) {
+  form.reset();
+  ["businessTypeSearch", "sellerMapSearchInput", "latitude", "longitude", "tillNumberInput", "pochiNumberInput", "cardAccountInput"].forEach((id) => {
+    const input = document.getElementById(id);
+    if (input) input.value = "";
+  });
+  const businessTypeSelect = document.getElementById("businessTypeSelect");
+  if (businessTypeSelect) businessTypeSelect.value = "";
+  document.querySelectorAll('[name="paymentMethods"]').forEach((input) => {
+    input.checked = false;
+  });
+  if (marker && map) {
+    map.removeLayer(marker);
+    marker = null;
+  }
+  setSellerMapStatus("Tip: search and then click the map to refine the exact pin.");
+  syncPaymentFields();
 }
 
 function bindActions() {
