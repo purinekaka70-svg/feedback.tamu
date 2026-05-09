@@ -376,6 +376,7 @@ function toggleForms(showRegistration) {
 function showDashboard() {
   const seller = currentSeller();
   if (!seller) {
+    hideDashboard();
     return;
   }
 
@@ -387,6 +388,7 @@ function showDashboard() {
   }
 
   document.body.classList.add("seller-dashboard-active");
+  document.body.classList.remove("seller-auth-only");
   document.body.classList.remove("seller-register-active");
   document.getElementById("sellerAuthSection").classList.add("is-hidden");
   document.getElementById("sellerDashboard").classList.remove("is-hidden");
@@ -410,7 +412,10 @@ function showDashboard() {
 }
 
 function hideDashboard() {
+  document.body.classList.add("seller-auth-only");
   document.body.classList.remove("seller-dashboard-active");
+  document.body.classList.remove("seller-menu-open");
+  closeSellerMenu();
   document.getElementById("sellerDashboard").classList.add("is-hidden");
   document.getElementById("sellerAuthSection").classList.remove("is-hidden");
   setCurrentSeller(null);
@@ -1896,6 +1901,9 @@ function bindLiveOrderUpdates() {
 }
 
 async function boot() {
+  document.body.classList.add("seller-auth-only");
+  document.body.classList.remove("seller-dashboard-active");
+  document.getElementById("sellerDashboard")?.classList.add("is-hidden");
   initReveal();
   initAdminTrigger();
   initMap();
@@ -1919,6 +1927,7 @@ async function boot() {
     await loadSellerData();
     showDashboard();
   } else {
+    hideDashboard();
     toggleForms(false);
   }
 }

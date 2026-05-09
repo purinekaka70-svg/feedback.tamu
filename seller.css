@@ -86,6 +86,121 @@
   }
 }
 
+/* Seller auth gate: never expose dashboard content until a verified approved login. */
+body.seller-auth-only {
+  overflow-x: hidden;
+}
+
+body.seller-auth-only #sellerDashboard,
+body.seller-auth-only .seller-workspace-bar,
+body.seller-auth-only .seller-menu-overlay {
+  display: none !important;
+}
+
+body.seller-auth-only #sellerAuthSection {
+  display: grid !important;
+}
+
+body.seller-auth-only .topbar-actions,
+body.seller-auth-only .footer {
+  display: none !important;
+}
+
+body.seller-auth-only .site-shell {
+  width: min(calc(100% - 16px), 760px);
+  min-height: 100vh;
+  padding: 10px 0;
+}
+
+body.seller-auth-only .topbar {
+  justify-content: center;
+  text-align: center;
+}
+
+body.seller-auth-only .brand-block {
+  align-items: center;
+}
+
+body.seller-auth-only .content-shell {
+  min-height: calc(100vh - 132px);
+  align-items: start;
+  justify-items: center;
+  margin-top: 8px;
+}
+
+body.seller-auth-only .seller-auth-shell,
+body.seller-auth-only .seller-auth-card {
+  width: 100%;
+  max-width: 560px;
+}
+
+body.seller-dashboard-active #sellerAuthSection {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  body.seller-auth-only .site-shell {
+    width: min(calc(100% - 10px), 760px);
+    padding: 6px 0 10px;
+  }
+
+  body.seller-auth-only .topbar {
+    padding: 9px 10px;
+    border-radius: 14px;
+  }
+
+  body.seller-auth-only .brand {
+    font-size: clamp(1.3rem, 7vw, 1.75rem);
+    line-height: 1;
+  }
+
+  body.seller-auth-only .brand-tagline {
+    font-size: 0.82rem;
+  }
+
+  body.seller-auth-only .content-shell {
+    min-height: auto;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  body.seller-auth-only .seller-auth-card {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  body.seller-auth-only .seller-auth-card .section-head {
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+
+  body.seller-auth-only .stack,
+  body.seller-auth-only .field-grid {
+    gap: 8px;
+  }
+
+  body.seller-auth-only .field-grid,
+  body.seller-auth-only .map-search-row,
+  body.seller-auth-only .checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  body.seller-auth-only .input {
+    min-height: 40px;
+    border-radius: 10px;
+    padding-inline: 10px;
+  }
+
+  body.seller-auth-only .button {
+    min-height: 38px;
+  }
+
+  body.seller-auth-only .location-map {
+    height: 220px;
+  }
+}
+
 *,
 *::before,
 *::after {
