@@ -854,7 +854,9 @@ async function postJson(url, payload) {
     return {
       ok: false,
       status: 0,
-      data: null
+      data: {
+        message: error?.message || "Network error. Please check the connection and try again."
+      }
     };
   }
 }
@@ -1366,12 +1368,13 @@ async function handleCheckout() {
   }
   document.getElementById("checkoutStatus").textContent = "Submitting order...";
   const response = await postJson(API_ENDPOINTS.createOrder, order);
+  const failureMessage = response.data?.message || (response.status ? `Order submission failed. Status ${response.status}.` : "Order submission failed. Check your connection.");
   document.getElementById("checkoutStatus").textContent = response.ok
     ? "Order submitted."
-    : "Order submission failed.";
+    : failureMessage;
 
   if (!response.ok || response.data?.ok === false) {
-    showToast(response.data?.message || "Could not save order.", "warn");
+    showToast(failureMessage, "warn");
     if (submitButton) {
       submitButton.disabled = false;
       submitButton.textContent = "Submit order";

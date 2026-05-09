@@ -21,6 +21,7 @@ let markerLayer = null;
 let cachedEmployeeOrders = [];
 let cachedBusinesses = [];
 let employeeOrderUnsubscribe = null;
+const EMPLOYEE_PORTAL_URL = "https://ummeats.vercel.app/employee.html";
 
 function readStorage(key, fallback) {
   try {
@@ -235,6 +236,9 @@ function employeeLoginErrorMessage(error) {
   if (code.includes("network-request-failed")) {
     return "Firebase login network failed. Check internet connection and Firebase config.";
   }
+  if (code.includes("unauthorized-continue-uri") || code.includes("unauthorized-domain")) {
+    return "Firebase rejected the reset link domain. Add ummeats.vercel.app to Firebase Authentication authorized domains.";
+  }
   return error?.message || "Invalid employee credentials or Firebase Auth failed.";
 }
 
@@ -249,8 +253,11 @@ async function sendEmployeePasswordReset(email) {
   }
 
   try {
-    await window.firebase.auth().sendPasswordResetEmail(email);
-    return { ok: true, message: "Password reset email sent. Check the employee inbox, then login with the new password." };
+    await window.firebase.auth().sendPasswordResetEmail(email, {
+      url: EMPLOYEE_PORTAL_URL,
+      handleCodeInApp: false
+    });
+    return { ok: true, message: "Password reset email sent. Check the employee inbox, set the new password, then return to the employee portal." };
   } catch (error) {
     return { ok: false, message: employeeLoginErrorMessage(error) };
   }

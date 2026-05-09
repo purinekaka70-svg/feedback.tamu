@@ -71,38 +71,58 @@ module.exports = async function handler(req, res) {
     const orderId = orderResult.rows[0].id;
     for (const item of items) {
       const businessId = await businessIdFor(item.businessId || item.storeId);
-      await client.query(
-        `insert into order_items
-         (order_id, product_public_id, product_name, store_public_id, business_id, store_name, quantity, unit_price, line_total)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [
-          orderId,
-          text(item.productId, 120),
-          text(item.productName, 150),
-          text(item.storeId, 120),
-          businessId,
-          text(item.storeName, 150),
-          Math.max(1, Math.trunc(number(item.quantity))),
-          number(item.unitPrice),
-          number(item.lineTotal)
-        ]
-      );
+      const itemValues = [
+        orderId,
+        text(item.productId, 120),
+        text(item.productName, 150),
+        text(item.storeId, 120),
+        businessId,
+        text(item.storeName, 150),
+        Math.max(1, Math.trunc(number(item.quantity))),
+        number(item.unitPrice),
+        number(item.lineTotal)
+      ];
+      try {
+        await client.query(
+          `insert into order_items
+           (order_id, product_public_id, product_name, store_public_id, business_id, store_name, quantity, unit_price, line_total)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          itemValues
+        );
+      } catch (error) {
+        if (error?.code !== "42703") throw error;
+        await client.query(
+          `insert into order_items
+           (order_id, product_public_id, product_name, store_public_id, store_name, quantity, unit_price, line_total)
+           values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [itemValues[0], itemValues[1], itemValues[2], itemValues[3], itemValues[5], itemValues[6], itemValues[7], itemValues[8]]
+        );
+      }
     }
     for (const route of Array.isArray(payload.routeBreakdown) ? payload.routeBreakdown : []) {
       await client.query(
         `insert into order_route_breakdown (order_id, store_public_id, store_name, distance_km, route_fee, quantity, subtotal)
          values ($1,$2,$3,$4,$5,$6,$7)`,
         [orderId, text(route.storeId, 120), text(route.storeName, 150), number(route.distanceKm), number(route.fee), Math.trunc(number(route.quantity)), number(route.subtotal)]
-      );
+      ).catch(() => {});
     }
     for (const payment of Array.isArray(payload.businessPayments) ? payload.businessPayments : []) {
       const reference = text(payment.reference || payload.mpesaReference, 120);
       if (!reference) continue;
       const businessId = await businessIdFor(payment.storeId || payment.businessId);
-      await client.query(
-        "insert into payments (order_public_id, business_id, method, reference, amount, status) values ($1,$2,$3,$4,$5,$6)",
-        [id, businessId, text(payment.method || payload.paymentMethod, 40), reference, number(payment.amount), paymentStatus(payment.status)]
-      );
+      const paymentValues = [id, businessId, text(payment.method || payload.paymentMethod, 40), reference, number(payment.amount), paymentStatus(payment.status)];
+      try {
+        await client.query(
+          "insert into payments (order_public_id, business_id, method, reference, amount, status) values ($1,$2,$3,$4,$5,$6)",
+          paymentValues
+        );
+      } catch (error) {
+        if (error?.code !== "42703") throw error;
+        await client.query(
+          "insert into payments (order_public_id, method, reference, amount, status) values ($1,$2,$3,$4,$5)",
+          [paymentValues[0], paymentValues[2], paymentValues[3], paymentValues[4], paymentValues[5]]
+        );
+      }
     }
     await client.query(
       "insert into deliveries (order_public_id, status, distance_km, delivery_fee) values ($1,$2,$3,$4)",
