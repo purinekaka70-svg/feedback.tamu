@@ -32,9 +32,10 @@ const routes = {
 
 function routeKey(req) {
   const queryPath = req.query?.path;
+  const parsedPath = String(req.url || "").split("?")[0].replace(/^\/api\/?/, "");
   const rawPath = Array.isArray(queryPath)
     ? queryPath.join("/")
-    : String(queryPath || "");
+    : String(queryPath || parsedPath || "");
   return rawPath
     .replace(/\.php$/i, "")
     .replace(/^\/+|\/+$/g, "")
@@ -45,7 +46,7 @@ module.exports = async function handler(req, res) {
   const key = routeKey(req);
   const loadEndpoint = routes[key] || routes[`${key}/index`];
   if (!loadEndpoint) {
-    send(res, 404, { ok: false, message: "API endpoint was not found." });
+    send(res, 404, { ok: false, message: "API endpoint was not found.", key });
     return;
   }
   const endpoint = loadEndpoint();
