@@ -701,6 +701,19 @@ function sellerOrders(seller) {
   });
 }
 
+function sellerPaymentForOrder(order, sellerId) {
+  const businessPayment = Array.isArray(order.businessPayments)
+    ? order.businessPayments.find((payment) => payment.storeId === sellerId || payment.businessId === sellerId)
+    : null;
+  const status = order.sellerPaymentStatus?.[sellerId]
+    || businessPayment?.status
+    || (order.paymentStatus === "paid" ? "paid" : "pending_payment");
+  return {
+    payment: businessPayment,
+    status: status === "pending" ? "pending_payment" : status
+  };
+}
+
 function renderCounts() {
   const seller = currentSeller();
   if (!seller) return;
@@ -904,10 +917,7 @@ function renderOrders() {
 
   container.innerHTML = sellerOrderList
     .map((order) => {
-      const businessPayment = Array.isArray(order.businessPayments)
-        ? order.businessPayments.find((payment) => payment.storeId === seller.id)
-        : null;
-      const sellerStatus = order.sellerPaymentStatus?.[seller.id] || businessPayment?.status || "pending";
+      const { payment: businessPayment, status: sellerStatus } = sellerPaymentForOrder(order, seller.id);
       const paymentStatus = sellerStatus === "paid" ? "paid" : sellerStatus;
       const orderStatus = normalizeOrderStatus(order.status);
       const sellerItems = Array.isArray(order.items)
@@ -959,8 +969,9 @@ function renderOrders() {
   });
 
   container.querySelectorAll("[data-mark-paid]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const orderId = button.dataset.markPaid;
+      button.disabled = true;
       const updated = orders().map((order) => {
         if (order.id !== orderId) return order;
         const sellerPaymentStatus = {
@@ -984,14 +995,20 @@ function renderOrders() {
         };
       });
       cachedOrders = updated;
-      postJson('./api/orders/update.php', { id: orderId, status: "paid", paymentStatus: "paid" });
+      const response = await postJson('./api/orders/update.php', { id: orderId, status: "paid", paymentStatus: "paid" });
+      if (!response.ok || response.data?.ok === false) {
+        await loadSellerData();
+        showToast(response.data?.detail || response.data?.message || "Payment update failed.", "warn");
+      } else {
+        await loadSellerData();
+        showToast("Business payment confirmed.", "success");
+      }
       renderCounts();
       renderOrders();
       renderSellerNotifications();
       renderSellerPaymentOrders();
       renderSellerCustomers();
       renderSellerAnalytics();
-      showToast("Business payment confirmed.", "success");
     });
   });
 
@@ -1066,10 +1083,7 @@ function sellerOrderInDateRange(order, range) {
 function filteredSellerOrders(seller) {
   const query = sellerOrderFilters.search.trim().toLowerCase();
   return sellerOrders(seller).filter((order) => {
-    const businessPayment = Array.isArray(order.businessPayments)
-      ? order.businessPayments.find((payment) => payment.storeId === seller.id)
-      : null;
-    const sellerStatus = order.sellerPaymentStatus?.[seller.id] || businessPayment?.status || "pending";
+    const { status: sellerStatus } = sellerPaymentForOrder(order, seller.id);
     const paymentStatus = sellerStatus === "paid" ? "paid" : sellerStatus;
     const orderStatus = normalizeOrderStatus(order.status);
     const matchesSearch = !query || sellerOrderSearchText(order, seller).includes(query);
@@ -1080,7 +1094,7 @@ function filteredSellerOrders(seller) {
   });
 }
 
-function updateSellerOrderStatus(orderId, status) {
+async function updateSellerOrderStatus(orderId, status) {
   const updated = orders().map((order) => order.id === orderId
     ? {
         ...order,
@@ -1091,14 +1105,20 @@ function updateSellerOrderStatus(orderId, status) {
       }
     : order);
   cachedOrders = updated;
-  postJson('./api/orders/update.php', { id: orderId, status });
+  const response = await postJson('./api/orders/update.php', { id: orderId, status });
+  if (!response.ok || response.data?.ok === false) {
+    await loadSellerData();
+    showToast(response.data?.detail || response.data?.message || "Order update failed.", "warn");
+  } else {
+    await loadSellerData();
+    showToast(`Order marked as ${labelize(status)}.`, status === "cancelled" ? "warn" : "success");
+  }
   renderCounts();
   renderOrders();
   renderSellerNotifications();
   renderSellerPaymentOrders();
   renderSellerCustomers();
   renderSellerAnalytics();
-  showToast(`Order marked as ${labelize(status)}.`, status === "cancelled" ? "warn" : "success");
 }
 
 function renderSellerNotifications() {
@@ -1107,9 +1127,7 @@ function renderSellerNotifications() {
   if (!seller || !container) return;
 
   const list = sellerOrders(seller).slice().reverse().map((order) => {
-    const payment = Array.isArray(order.businessPayments)
-      ? order.businessPayments.find((item) => item.storeId === seller.id)
-      : null;
+    const { payment } = sellerPaymentForOrder(order, seller.id);
     return {
       title: `Order ${order.id}`,
       detail: `${order.customer || "Customer"} | ${payment?.reference || "Payment ref pending"} | ${order.deliveryStatus || order.status || "pending"}`
@@ -1126,9 +1144,17 @@ function renderSellerPaymentOrders() {
   const container = document.getElementById("sellerPaidOrderList");
   if (!seller || !container) return;
 
-  const paid = sellerOrders(seller).filter((order) => order.sellerPaymentStatus?.[seller.id] === "paid");
+  const paid = sellerOrders(seller).filter((order) => sellerPaymentForOrder(order, seller.id).status === "paid");
   container.innerHTML = paid.length
-    ? paid.map((order) => `<article class="list-card"><strong>${order.id}</strong><p class="tiny">${order.customer || "Customer"} paid and confirmed.</p></article>`).join("")
+    ? paid.map((order) => {
+        const { payment } = sellerPaymentForOrder(order, seller.id);
+        return `<article class="list-card">
+          <strong>${order.customer || "Customer"}</strong>
+          <p class="tiny">Order ${order.id} | ${order.phone || "Phone pending"}</p>
+          <p class="tiny">Paid ${currency(payment?.amount || order.subtotal || 0)} | Ref ${payment?.reference || order.mpesaReference || "No reference submitted"}</p>
+          <p class="tiny">${Array.isArray(order.items) ? order.items.filter((item) => item.storeId === seller.id || item.businessId === seller.id).map((item) => `${item.productName} x${item.quantity}`).join(", ") : "Items pending"}</p>
+        </article>`;
+      }).join("")
     : '<div class="list-card">Confirmed paid orders will appear here.</div>';
 }
 
@@ -1163,7 +1189,7 @@ function renderSellerAnalytics() {
   const sellerProductList = products().filter((product) => product.sellerId === seller.id);
   const sellerOfferList = offers().filter((offer) => offer.sellerId === seller.id);
   const sellerOrderList = sellerOrders(seller);
-  const paidOrders = sellerOrderList.filter((order) => order.sellerPaymentStatus?.[seller.id] === "paid");
+  const paidOrders = sellerOrderList.filter((order) => sellerPaymentForOrder(order, seller.id).status === "paid");
   const revenue = sellerOrderList.reduce((sum, order) => {
     const businessPayment = Array.isArray(order.businessPayments)
       ? order.businessPayments.find((payment) => payment.storeId === seller.id)

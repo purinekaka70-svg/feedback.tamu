@@ -4,6 +4,23 @@ const { method, send, text } = require("../_lib/http");
 
 function publicOrder(row, items = [], routes = []) {
   const businessPayments = row.business_payments || [];
+  const paymentStoreIds = new Set(businessPayments.map((payment) => String(payment.storeId || payment.businessId || "")));
+  items.forEach((item) => {
+    const storeId = String(item.storeId || item.businessId || "");
+    if (!storeId || paymentStoreIds.has(storeId)) return;
+    businessPayments.push({
+      storeId,
+      businessId: storeId,
+      storeName: item.storeName || "Business",
+      method: row.payment_method || "Business direct payment",
+      reference: row.mpesa_reference || "",
+      amount: items
+        .filter((entry) => String(entry.storeId || entry.businessId || "") === storeId)
+        .reduce((sum, entry) => sum + Number(entry.lineTotal || 0), 0),
+      status: row.payment_status === "paid" ? "paid" : "pending_payment"
+    });
+    paymentStoreIds.add(storeId);
+  });
   const sellerPaymentStatus = businessPayments.reduce((statusMap, payment) => {
     statusMap[String(payment.storeId || payment.businessId || "")] = payment.status || "pending_payment";
     return statusMap;
@@ -30,6 +47,7 @@ function publicOrder(row, items = [], routes = []) {
     deliveryFee: Number(row.delivery_fee || 0),
     total: Number(row.total || 0),
     status: row.status || "pending_payment",
+    deliveryStatus: row.status || "pending_payment",
     createdAt: row.created_at || "",
     items,
     routeBreakdown: routes
