@@ -1,5 +1,13 @@
 const { findUserByEmail, issueAuth, verifyPassword } = require("../_lib/auth");
+const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+
+async function verifySupabasePassword(password, hash) {
+  if (!hash) return false;
+  if (await verifyPassword(password, hash)) return true;
+  const rows = await query("select crypt($1, $2) = $2 as ok", [String(password || ""), String(hash || "")]);
+  return rows[0]?.ok === true;
+}
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
@@ -9,7 +17,7 @@ module.exports = async function handler(req, res) {
     const password = String(payload.password || "");
     const admin = await findUserByEmail(email, "admin");
     const active = ["approved", "active"].includes(String(admin?.status || "").toLowerCase());
-    if (!admin || !active || !(await verifyPassword(password, admin.password))) {
+    if (!admin || !active || !(await verifySupabasePassword(password, admin.password))) {
       send(res, 401, { ok: false, message: "Invalid admin credentials." });
       return;
     }

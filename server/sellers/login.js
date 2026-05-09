@@ -3,6 +3,13 @@ const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { sellerFromBusiness } = require("../_lib/market");
 
+async function verifySupabasePassword(password, hash) {
+  if (!hash) return false;
+  if (await verifyPassword(password, hash)) return true;
+  const rows = await query("select crypt($1, $2) = $2 as ok", [String(password || ""), String(hash || "")]);
+  return rows[0]?.ok === true;
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   try {
@@ -19,7 +26,7 @@ module.exports = async function handler(req, res) {
     );
     const row = sellerRows[0];
     const account = row?.password ? row : await findUserByEmail(email, "seller");
-    if (!row || !account?.password || !(await verifyPassword(password, account.password))) {
+    if (!row || !account?.password || !(await verifySupabasePassword(password, account.password))) {
       send(res, 401, { ok: false, message: "Invalid seller credentials." });
       return;
     }
