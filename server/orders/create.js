@@ -14,6 +14,13 @@ function paymentStatus(value) {
   return ["pending", "submitted", "paid", "failed"].includes(normalized) ? normalized : "pending";
 }
 
+async function existingBusinessId(client, value) {
+  const id = Number(value || 0);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  const result = await client.query("select id from businesses where id = $1 limit 1", [id]);
+  return result.rows.length ? id : null;
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   const client = await getPool().connect();
@@ -26,6 +33,14 @@ module.exports = async function handler(req, res) {
     }
     const id = publicId(payload.id);
     await client.query("begin");
+    const businessIdCache = new Map();
+    const businessIdFor = async (value) => {
+      const key = String(value || "");
+      if (!businessIdCache.has(key)) {
+        businessIdCache.set(key, await existingBusinessId(client, value));
+      }
+      return businessIdCache.get(key);
+    };
     const orderResult = await client.query(
       `insert into orders
        (public_id, customer_name, customer_phone, buyer_location, buyer_latitude, buyer_longitude,
@@ -55,6 +70,7 @@ module.exports = async function handler(req, res) {
     );
     const orderId = orderResult.rows[0].id;
     for (const item of items) {
+      const businessId = await businessIdFor(item.businessId || item.storeId);
       await client.query(
         `insert into order_items
          (order_id, product_public_id, product_name, store_public_id, business_id, store_name, quantity, unit_price, line_total)
@@ -64,7 +80,7 @@ module.exports = async function handler(req, res) {
           text(item.productId, 120),
           text(item.productName, 150),
           text(item.storeId, 120),
-          Number(item.businessId || item.storeId || 0) || null,
+          businessId,
           text(item.storeName, 150),
           Math.max(1, Math.trunc(number(item.quantity))),
           number(item.unitPrice),
@@ -82,9 +98,10 @@ module.exports = async function handler(req, res) {
     for (const payment of Array.isArray(payload.businessPayments) ? payload.businessPayments : []) {
       const reference = text(payment.reference || payload.mpesaReference, 120);
       if (!reference) continue;
+      const businessId = await businessIdFor(payment.storeId || payment.businessId);
       await client.query(
         "insert into payments (order_public_id, business_id, method, reference, amount, status) values ($1,$2,$3,$4,$5,$6)",
-        [id, Number(payment.storeId || payment.businessId || 0) || null, text(payment.method || payload.paymentMethod, 40), reference, number(payment.amount), paymentStatus(payment.status)]
+        [id, businessId, text(payment.method || payload.paymentMethod, 40), reference, number(payment.amount), paymentStatus(payment.status)]
       );
     }
     await client.query(
@@ -96,8 +113,9 @@ module.exports = async function handler(req, res) {
     }
     await client.query("commit");
     send(res, 201, { ok: true, message: "Order saved.", order: { id: orderId, publicId: id } });
-  } catch {
+  } catch (error) {
     await client.query("rollback").catch(() => {});
+    console.error("Order create failed:", error);
     send(res, 500, { ok: false, message: "Failed to save order." });
   } finally {
     client.release();

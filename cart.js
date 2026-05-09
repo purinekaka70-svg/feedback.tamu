@@ -1059,8 +1059,8 @@ function renderPaymentOptions(items) {
               ${storeCardAccount(store) ? `Bank account: ${storeCardAccount(store)}` : ""}
               ${!storeTillNumber(store) && !storePochiNumber(store) && !storeCardAccount(store) ? "Payment details pending from seller." : ""}
             </p>
-            <p class="tiny">Pay this seller directly first, then enter the payment reference below.</p>
-            <input class="input" data-business-payment-ref name="businessPaymentRef_${escapeAttr(store.id)}" value="${escapeAttr(existingRef)}" placeholder="M-Pesa reference paid to ${escapeAttr(store.storeName)}" required />
+            <p class="tiny">Enter the payment reference if already paid. Orders can still be submitted while payment is pending.</p>
+            <input class="input" data-business-payment-ref name="businessPaymentRef_${escapeAttr(store.id)}" value="${escapeAttr(existingRef)}" placeholder="M-Pesa reference paid to ${escapeAttr(store.storeName)}, if available" />
             <input type="hidden" data-business-payment-method value="${storeTillNumber(store) ? "M-Pesa Till" : storePochiNumber(store) ? "M-Pesa Pochi" : storeCardAccount(store) ? "Bank Account" : "Direct payment"}" />
           </article>
         `;
@@ -1075,7 +1075,7 @@ function syncPaymentMethodSelect(items) {
     return;
   }
   const delivery = buildDeliverySummary(items);
-  instruction.textContent = `Pay delivery ${items.length ? delivery.label : currency(0)} to Tamu Express Till ${DELIVERY_TILL_NUMBER}. After paying, enter the delivery M-Pesa reference below.`;
+  instruction.textContent = `Pay delivery ${items.length ? delivery.label : currency(0)} to Tamu Express Till ${DELIVERY_TILL_NUMBER}. You may submit now and add the delivery reference later if payment is pending.`;
 }
 
 function renderDeliveryBreakdown(items) {
@@ -1355,26 +1355,16 @@ async function handleCheckout() {
     return;
   }
 
-  if (!profile.deliveryPaymentRef) {
-    showToast(`Enter the delivery payment reference for till ${DELIVERY_TILL_NUMBER}.`, "warn");
-    return;
-  }
-
-  const missingBusinessPayment = profile.businessPayments.find((payment) => !payment.ref);
-  if (missingBusinessPayment) {
-    showToast("Enter each business payment reference before submitting.", "warn");
-    return;
-  }
-
-  if (!profile.mpesaReference) {
-    showToast("Enter the M-Pesa reference code.", "warn");
-    return;
-  }
-
   const order = buildOrderPayload(profile, delivery);
   order.sessionId = cartSessionId();
   writeStorage(STORAGE_KEYS.buyerProfile, profile);
 
+  const submitButton = document.getElementById("submitOrderButton");
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Submitting...";
+  }
+  document.getElementById("checkoutStatus").textContent = "Submitting order...";
   const response = await postJson(API_ENDPOINTS.createOrder, order);
   document.getElementById("checkoutStatus").textContent = response.ok
     ? "Order submitted."
@@ -1382,6 +1372,10 @@ async function handleCheckout() {
 
   if (!response.ok || response.data?.ok === false) {
     showToast(response.data?.message || "Could not save order.", "warn");
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Submit order";
+    }
     return;
   }
 
@@ -1393,6 +1387,10 @@ async function handleCheckout() {
   await loadOrders();
   renderPlacedOrders();
   showToast("Order placed successfully.", "success");
+  if (submitButton) {
+    submitButton.disabled = false;
+    submitButton.textContent = "Submit order";
+  }
 }
 
 function bindEvents() {
@@ -1418,8 +1416,8 @@ function bindEvents() {
     useCurrentLocation();
   });
 
-  document.getElementById("submitOrderButton").addEventListener("click", () => {
-    handleCheckout();
+  document.getElementById("submitOrderButton").addEventListener("click", async () => {
+    await handleCheckout();
   });
 
   document.getElementById("checkoutForm").addEventListener("input", () => {
