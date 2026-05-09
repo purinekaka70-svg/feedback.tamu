@@ -61,12 +61,9 @@
         <nav class="side-nav">
           <button class="side-nav-button is-active" type="button" data-employee-view="dashboard">Dashboard</button>
           <button class="side-nav-button" type="button" data-employee-view="orders">Orders</button>
-          <button class="side-nav-button" type="button" data-employee-view="deliveries">Deliveries</button>
           <button class="side-nav-button" type="button" data-employee-view="notifications">Notifications</button>
-          <button class="side-nav-button" type="button" data-employee-view="maps">Maps/Tracking</button>
-          <button class="side-nav-button" type="button" data-employee-view="customerChats">Customer Chats</button>
-          <button class="side-nav-button" type="button" data-employee-view="adminChats">Admin Chats</button>
-          <button class="side-nav-button" type="button" data-employee-view="settings">Settings</button>
+          <button class="side-nav-button" type="button" data-employee-view="maps">Maps</button>
+          <button class="side-nav-button" type="button" data-employee-view="delivered">Delivered Orders</button>
           <button id="employeeLogoutButton" class="side-nav-button side-nav-danger" type="button">Logout</button>
         </nav>
 
@@ -83,6 +80,7 @@
           <div>
             <p class="eyebrow">Delivery Operations</p>
             <h1 id="employeeViewTitle">Dashboard</h1>
+            <p id="employeeCountyLabel" class="tiny">County pending</p>
           </div>
           <div class="topbar-actions">
             <span id="employeeActiveBadge" class="summary-chip">0 active</span>
@@ -127,15 +125,15 @@
           </article>
         </section>
 
-        <section class="employee-panel is-hidden" data-employee-panel="deliveries">
+        <section class="employee-panel is-hidden" data-employee-panel="delivered">
           <article class="card">
             <div class="section-head">
               <div>
-                <p class="eyebrow">Deliveries</p>
-                <h2 class="section-title">Update delivery progress.</h2>
+                <p class="eyebrow">Delivered Orders</p>
+                <h2 class="section-title">Completed deliveries in your county.</h2>
               </div>
             </div>
-            <div id="employeeDeliveryList" class="item-list"></div>
+            <div id="employeeDeliveredList" class="item-list"></div>
           </article>
         </section>
 

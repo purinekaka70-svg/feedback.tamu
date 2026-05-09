@@ -9,15 +9,33 @@ service cloud.firestore {
     function isEmployee(uid) {
       return signedIn()
         && exists(/databases/$(database)/documents/employees/$(uid))
-        && get(/databases/$(database)/documents/employees/$(uid)).data.approved == true;
+        && get(/databases/$(database)/documents/employees/$(uid)).data.approved == true
+        && get(/databases/$(database)/documents/employees/$(uid)).data.active == true
+        && get(/databases/$(database)/documents/employees/$(uid)).data.role == "employee";
+    }
+
+    function employeeCounty(uid) {
+      return get(/databases/$(database)/documents/employees/$(uid)).data.county;
     }
 
     match /employees/{employeeId} {
       allow read: if signedIn()
-        && request.auth.uid == employeeId
-        && resource.data.approved == true;
+        && (request.auth.uid == employeeId || resource.data.uid == request.auth.uid)
+        && resource.data.approved == true
+        && resource.data.active == true
+        && resource.data.role == "employee";
 
       allow create, update, delete: if false;
+    }
+
+    match /deliveryOrders/{orderId} {
+      allow read: if isEmployee(request.auth.uid)
+        && resource.data.county == employeeCounty(request.auth.uid);
+
+      allow create, update: if isEmployee(request.auth.uid)
+        && request.resource.data.county == employeeCounty(request.auth.uid);
+
+      allow delete: if false;
     }
 
     match /{document=**} {

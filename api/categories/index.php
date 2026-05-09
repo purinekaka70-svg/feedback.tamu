@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+const DEFAULT_CATEGORY_NAMES = ['Supermarket', 'Retail', 'Wholesale'];
 
 try {
     $pdo = tamu_pdo();
@@ -21,7 +22,25 @@ try {
         }
         $stmt = $pdo->prepare("SELECT id, business_id, name, image, created_at FROM categories {$where} ORDER BY name ASC");
         $stmt->execute($params);
-        json_response(['ok' => true, 'categories' => $stmt->fetchAll()]);
+        $categories = [];
+        foreach (DEFAULT_CATEGORY_NAMES as $index => $name) {
+            $categories[strtolower($name)] = [
+                'id' => 'default-' . ($index + 1),
+                'business_id' => null,
+                'businessId' => '',
+                'name' => $name,
+                'image' => '',
+                'created_at' => null,
+                'default' => true,
+            ];
+        }
+        foreach ($stmt->fetchAll() as $category) {
+            $key = strtolower(trim((string) $category['name']));
+            if ($key !== '') {
+                $categories[$key] = $category;
+            }
+        }
+        json_response(['ok' => true, 'categories' => array_values($categories)]);
     }
 
     if ($method === 'POST') {

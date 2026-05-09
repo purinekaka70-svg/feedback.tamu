@@ -5,10 +5,17 @@ require_once __DIR__ . '/../helpers.php';
 
 ensure_method('GET');
 
+const DEFAULT_MARKET_CATEGORIES = ['Supermarket', 'Retail', 'Wholesale'];
+
 function slug_id(string $value): string
 {
     $slug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $value), '-'));
     return $slug !== '' ? $slug : 'item';
+}
+
+function market_category_key(string $name): string
+{
+    return strtolower((string) preg_replace('/\s+/', ' ', trim($name)));
 }
 
 try {
@@ -109,10 +116,19 @@ try {
     }
 
     $categoryMap = [];
+    foreach (DEFAULT_MARKET_CATEGORIES as $defaultCategory) {
+        $categoryMap['default-' . market_category_key($defaultCategory)] = [
+            'id' => slug_id($defaultCategory),
+            'businessId' => '',
+            'name' => $defaultCategory,
+            'image' => '',
+            'default' => true,
+        ];
+    }
     if (table_exists($pdo, 'categories')) {
         $categoryImageColumn = column_exists($pdo, 'categories', 'image') ? ', image' : '';
         foreach ($pdo->query("SELECT id, business_id, name{$categoryImageColumn} FROM categories ORDER BY name ASC")->fetchAll() as $row) {
-            $key = (string) (($row['business_id'] ?? '') . '-' . $row['name']);
+            $key = (string) (($row['business_id'] ?? '') . '-' . market_category_key((string) $row['name']));
             $categoryMap[$key] = [
                 'id' => (string) ($row['id'] ?? slug_id($row['name'])),
                 'businessId' => (string) ($row['business_id'] ?? ''),
@@ -123,7 +139,7 @@ try {
     }
     foreach ($products as $product) {
         $name = $product['productCategory'];
-        $key = (string) ($product['businessId'] . '-' . $name);
+        $key = (string) ($product['businessId'] . '-' . market_category_key((string) $name));
         if (!isset($categoryMap[$key])) {
             $categoryMap[$key] = [
                 'id' => $product['categoryId'],

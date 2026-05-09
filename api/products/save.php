@@ -16,24 +16,28 @@ try {
 
     $businessId = int_value($payload['businessId']);
     $categoryId = trim_string($payload['categoryId']);
+    $categoryName = safe_text($payload['categoryName'] ?? $payload['productCategory'] ?? $payload['categoryId'], 100);
     $claims = current_auth_claims();
     if (strtolower((string) ($claims['role'] ?? '')) === 'seller' && (int) ($claims['businessId'] ?? 0) !== $businessId) {
         json_response(['ok' => false, 'message' => 'You can only manage products for your approved business.'], 403);
     }
 
     if (!is_numeric($categoryId)) {
+        if ($categoryName === '') {
+            json_response(['ok' => false, 'message' => 'Select a valid product category.'], 422);
+        }
         $insertCategory = $pdo->prepare(
             'INSERT INTO categories (business_id, name, image)
              VALUES (?, ?, "")
              ON DUPLICATE KEY UPDATE name = VALUES(name)'
         );
-        $insertCategory->execute([$businessId, $categoryId]);
+        $insertCategory->execute([$businessId, $categoryName]);
         $newCategoryId = (int) $pdo->lastInsertId();
         if ($newCategoryId > 0) {
             $categoryId = (string) $newCategoryId;
         } else {
             $findCategory = $pdo->prepare('SELECT id FROM categories WHERE business_id = ? AND name = ? LIMIT 1');
-            $findCategory->execute([$businessId, trim_string($payload['categoryId'])]);
+            $findCategory->execute([$businessId, $categoryName]);
             $categoryId = (string) $findCategory->fetchColumn();
         }
     }

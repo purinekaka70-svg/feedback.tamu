@@ -839,3 +839,49 @@ svg {
     font-size: 0.72rem !important;
   }
 }
+
+/* Final action-row override: keep buttons beside each other instead of stacked. */
+.topbar-actions,
+.button-row,
+.hero-actions,
+.toolbar,
+.section-head {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  max-width: 100% !important;
+  scrollbar-width: none;
+}
+
+.topbar-actions::-webkit-scrollbar,
+.button-row::-webkit-scrollbar,
+.hero-actions::-webkit-scrollbar,
+.toolbar::-webkit-scrollbar,
+.section-head::-webkit-scrollbar {
+  display: none;
+}
+
+.topbar-actions > *,
+.button-row > *,
+.hero-actions > *,
+.toolbar > *,
+.section-head > .button,
+.section-head > .button-row {
+  flex: 0 0 auto !important;
+}
+
+.topbar-actions .button,
+.button-row .button,
+.hero-actions .button,
+.toolbar .button,
+.section-head .button {
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+}

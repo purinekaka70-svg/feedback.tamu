@@ -75,10 +75,9 @@
 
                 <label class="field">
                   <span class="field-label">Business Type</span>
-                  <select class="input" name="businessType" required>
-                    <option value="supermarket">Supermarket</option>
-                    <option value="retail">Retail</option>
-                    <option value="wholesale">Wholesale</option>
+                  <input id="businessTypeSearch" class="input smart-select-search" type="search" placeholder="Search business category..." autocomplete="off" />
+                  <select id="businessTypeSelect" class="input smart-select" name="businessType" required>
+                    <option value="">Loading categories...</option>
                   </select>
                 </label>
               </div>
@@ -268,7 +267,10 @@
             <form id="sellerCategoryForm" class="stack">
               <label class="field">
                 <span class="field-label">Category name</span>
-                <input class="input" name="categoryName" placeholder="Dairy, Bakery, Bulk rice..." required />
+                <input id="sellerCategorySearch" class="input smart-select-search" type="search" placeholder="Search categories..." autocomplete="off" />
+                <select id="sellerCategorySelect" class="input smart-select" name="categoryName" required>
+                  <option value="">Loading categories...</option>
+                </select>
               </label>
               <button class="button button-primary" type="submit">Add category</button>
             </form>
@@ -293,8 +295,10 @@
 
                 <label class="field">
                   <span class="field-label">Category</span>
-                  <input class="input" name="productCategory" list="sellerCategoryOptions" placeholder="Dairy" required />
-                  <datalist id="sellerCategoryOptions"></datalist>
+                  <input id="productCategorySearch" class="input smart-select-search" type="search" placeholder="Search categories..." autocomplete="off" />
+                  <select id="productCategorySelect" class="input smart-select" name="productCategory" required>
+                    <option value="">Loading categories...</option>
+                  </select>
                 </label>
               </div>
 

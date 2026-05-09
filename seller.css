@@ -124,6 +124,22 @@ button {
   gap: 14px;
 }
 
+.smart-select-search {
+  margin-bottom: 6px;
+}
+
+.smart-select {
+  cursor: pointer;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(240, 253, 244, 0.96));
+}
+
+.smart-select:focus,
+.smart-select-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -488,7 +504,6 @@ button {
   grid-template-columns: 1fr;
   align-items: start;
   gap: 12px;
-  min-height: calc(100vh - 32px);
   padding: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 253, 244, 0.94));
   border-radius: 22px;
@@ -711,7 +726,6 @@ body.seller-dashboard-active #sellerDashboard {
 body.seller-dashboard-active .seller-workspace-bar {
   top: 10px;
   gap: 8px;
-  min-height: calc(100vh - 20px);
   padding: 10px;
   border-radius: 16px;
 }
@@ -827,8 +841,8 @@ body.seller-dashboard-active .seller-product-media img {
 }
 
 body.seller-dashboard-active .footer {
-  margin-top: 10px;
-  padding: 12px 16px;
+  margin-top: 6px;
+  padding: 8px 12px;
   border-radius: 16px;
 }
 
@@ -1397,7 +1411,7 @@ body.seller-dashboard-active .footer {
   body.seller-dashboard-active .card[data-seller-panel],
   body.seller-dashboard-active form.stack,
   body.seller-dashboard-active .footer {
-    padding: 10px;
+    padding: 8px;
   }
 
   body.seller-dashboard-active #sellerDashboard,

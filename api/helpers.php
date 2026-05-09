@@ -45,6 +45,93 @@ function auth_secret(): string
     return $secret;
 }
 
+function base64url_decode_json(string $value): array
+{
+    $decoded = base64_decode(strtr($value, '-_', '+/') . str_repeat('=', (4 - strlen($value) % 4) % 4), true);
+    if ($decoded === false) {
+        return [];
+    }
+    $json = json_decode($decoded, true);
+    return is_array($json) ? $json : [];
+}
+
+function bearer_token(): string
+{
+    $header = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    if (stripos($header, 'Bearer ') !== 0) {
+        return '';
+    }
+    return trim(substr($header, 7));
+}
+
+function firebase_project_id(): string
+{
+    $projectId = trim_string(getenv('TAMU_FIREBASE_PROJECT_ID') ?: '');
+    if ($projectId !== '') {
+        return $projectId;
+    }
+
+    $configFile = dirname(__DIR__) . '/firebase-config.js';
+    if (is_file($configFile)) {
+        $contents = (string) file_get_contents($configFile);
+        if (preg_match('/projectId\s*:\s*["\']([^"\']+)["\']/', $contents, $matches)) {
+            return $matches[1];
+        }
+    }
+
+    return '';
+}
+
+function verify_firebase_id_token(string $token): array
+{
+    $parts = explode('.', $token);
+    if (count($parts) !== 3) {
+        return [];
+    }
+
+    [$header64, $payload64, $signature64] = $parts;
+    $header = base64url_decode_json($header64);
+    $payload = base64url_decode_json($payload64);
+    $projectId = firebase_project_id();
+    $kid = (string) ($header['kid'] ?? '');
+    if (($header['alg'] ?? '') !== 'RS256' || $kid === '' || $projectId === '') {
+        return [];
+    }
+
+    $now = time();
+    $issuer = 'https://securetoken.google.com/' . $projectId;
+    if (($payload['aud'] ?? '') !== $projectId
+        || ($payload['iss'] ?? '') !== $issuer
+        || trim_string($payload['sub'] ?? '') === ''
+        || (int) ($payload['exp'] ?? 0) < $now
+        || (int) ($payload['iat'] ?? 0) > $now + 60) {
+        return [];
+    }
+
+    $cacheFile = sys_get_temp_dir() . '/tamu_firebase_certs.json';
+    $certs = [];
+    if (is_file($cacheFile) && filemtime($cacheFile) > $now - 3600) {
+        $certs = json_decode((string) file_get_contents($cacheFile), true) ?: [];
+    }
+    if (!$certs) {
+        $context = stream_context_create(['http' => ['timeout' => 5]]);
+        $json = @file_get_contents('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com', false, $context);
+        $certs = $json ? (json_decode($json, true) ?: []) : [];
+        if ($certs) {
+            @file_put_contents($cacheFile, json_encode($certs));
+        }
+    }
+
+    $cert = (string) ($certs[$kid] ?? '');
+    $signature = base64_decode(strtr($signature64, '-_', '+/') . str_repeat('=', (4 - strlen($signature64) % 4) % 4), true);
+    if ($cert === '' || $signature === false) {
+        return [];
+    }
+
+    $verified = openssl_verify($header64 . '.' . $payload64, $signature, $cert, OPENSSL_ALGO_SHA256);
+    return $verified === 1 ? $payload : [];
+}
+
 function issue_auth_cookie(array $claims): void
 {
     $claims['iat'] = time();

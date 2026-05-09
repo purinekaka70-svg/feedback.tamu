@@ -3,6 +3,8 @@
   adminSession: "tamu_market_admin_session"
 };
 
+const DEFAULT_BUSINESS_CATEGORIES = ["Supermarket", "Retail", "Wholesale"];
+
 let map;
 let marker;
 let cachedProducts = [];
@@ -180,6 +182,19 @@ function showToast(message, variant = "info") {
       }
     }, 300);
   }, 3800);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
 }
 
 function setSellerMapStatus(message) {
@@ -466,14 +481,16 @@ async function loadSellerData() {
   try {
     const [marketRes, orderRes] = await Promise.all([
       fetch('./api/marketplace/list.php', { cache: 'no-store' }),
-      fetch(`./api/orders/list.php${seller ? `?businessId=${encodeURIComponent(seller.id)}` : ''}`, { cache: 'no-store' })
+      seller
+        ? fetch(`./api/orders/list.php?businessId=${encodeURIComponent(seller.id)}`, { cache: 'no-store' })
+        : Promise.resolve(null)
     ]);
     const marketData = await marketRes.json();
-    const orderData = await orderRes.json();
+    const orderData = orderRes ? await orderRes.json() : { orders: [] };
     cachedProducts = marketRes.ok && marketData.ok ? (marketData.products || []) : [];
     cachedCategories = marketRes.ok && marketData.ok ? (marketData.categories || []) : [];
     cachedOffers = marketRes.ok && marketData.ok ? (marketData.offers || []) : [];
-    cachedOrders = orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
+    cachedOrders = orderRes && orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
   } catch (error) {
     cachedProducts = [];
     cachedCategories = [];
@@ -536,12 +553,96 @@ function sellerCategories() {
     .filter((category) => !seller || !category.businessId || category.businessId === seller.id);
 }
 
+function normalizeCategoryName(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function categoryKey(value) {
+  return normalizeCategoryName(value).toLowerCase();
+}
+
+function categoryLabelFromValue(value) {
+  const normalized = normalizeCategoryName(value);
+  if (!normalized) return "";
+  const defaultMatch = DEFAULT_BUSINESS_CATEGORIES.find((item) => categoryKey(item) === categoryKey(normalized));
+  if (defaultMatch) return defaultMatch;
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function uniqueCategoryNames(names) {
+  const seen = new Set();
+  const result = [];
+  names.forEach((name) => {
+    const label = categoryLabelFromValue(name);
+    const key = categoryKey(label);
+    if (!label || seen.has(key)) return;
+    seen.add(key);
+    result.push(label);
+  });
+  return result;
+}
+
 function categoriesForSeller(seller = currentSeller()) {
   const globalCategories = cachedCategories.map((category) => category.name || category).filter(Boolean);
   const storeCategories = sellerCategories()
     .filter((category) => !seller || category.sellerId === seller.id)
     .map((category) => category.name);
-  return [...new Set([...globalCategories, ...storeCategories])].filter(Boolean);
+  const dynamicCategories = uniqueCategoryNames([...globalCategories, ...storeCategories])
+    .filter((category) => !DEFAULT_BUSINESS_CATEGORIES.some((defaultCategory) => categoryKey(defaultCategory) === categoryKey(category)))
+    .sort((left, right) => left.localeCompare(right));
+  return [...DEFAULT_BUSINESS_CATEGORIES, ...dynamicCategories];
+}
+
+function renderSmartCategorySelect(selectId, searchId, selectedValue = "") {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  const search = document.getElementById(searchId);
+  const query = categoryKey(search?.value || "");
+  const allCategories = categoriesForSeller();
+  const selected = normalizeCategoryName(selectedValue || select.value);
+  const visibleCategories = allCategories.filter((category) => !query || categoryKey(category).includes(query));
+  const categoriesToRender = visibleCategories.length ? visibleCategories : allCategories;
+  const configuredStoreCategories = selectId === "sellerCategorySelect"
+    ? new Set(sellerCategories()
+      .filter((category) => category.sellerId === currentSeller()?.id)
+      .map((category) => categoryKey(category.name)))
+    : new Set();
+
+  select.innerHTML = [
+    '<option value="">Select category</option>',
+    ...categoriesToRender.map((category) => {
+      const disabled = configuredStoreCategories.has(categoryKey(category)) ? " disabled" : "";
+      const label = disabled ? `${category} (already added)` : category;
+      return `<option value="${escapeAttribute(category)}"${disabled}>${escapeHtml(label)}</option>`;
+    })
+  ].join("");
+
+  const selectedMatch = allCategories.find((category) => categoryKey(category) === categoryKey(selected));
+  if (selectedMatch && !configuredStoreCategories.has(categoryKey(selectedMatch))) {
+    select.value = selectedMatch;
+  } else if (!select.value && categoriesToRender.length) {
+    select.value = categoriesToRender.find((category) => !configuredStoreCategories.has(categoryKey(category))) || "";
+  }
+}
+
+function renderAllCategorySelects() {
+  renderSmartCategorySelect("businessTypeSelect", "businessTypeSearch");
+  renderSmartCategorySelect("sellerCategorySelect", "sellerCategorySearch");
+  renderSmartCategorySelect("productCategorySelect", "productCategorySearch");
+}
+
+function bindSmartCategorySearches() {
+  [
+    ["businessTypeSearch", "businessTypeSelect"],
+    ["sellerCategorySearch", "sellerCategorySelect"],
+    ["productCategorySearch", "productCategorySelect"]
+  ].forEach(([searchId, selectId]) => {
+    const search = document.getElementById(searchId);
+    if (!search || search.dataset.bound === "true") return;
+    search.dataset.bound = "true";
+    search.addEventListener("input", () => renderSmartCategorySelect(selectId, searchId));
+  });
 }
 
 function orders() {
@@ -627,7 +728,7 @@ function renderProducts() {
 
       document.getElementById("productId").value = product.id;
       document.querySelector('[name="productName"]').value = product.productName;
-      document.querySelector('[name="productCategory"]').value = product.productCategory;
+      renderSmartCategorySelect("productCategorySelect", "productCategorySearch", product.productCategory);
       document.querySelector('[name="productPrice"]').value = product.productPrice;
       document.querySelector('[name="productStock"]').value = product.productStock;
       document.querySelector('[name="productDeal"]').value = product.productOffer || "";
@@ -656,13 +757,10 @@ function renderProducts() {
 function renderSellerCategories() {
   const seller = currentSeller();
   const container = document.getElementById("sellerCategoryList");
-  const options = document.getElementById("sellerCategoryOptions");
-  if (!seller || !container || !options) return;
+  if (!seller || !container) return;
 
   const list = sellerCategories().filter((category) => category.sellerId === seller.id);
-  options.innerHTML = categoriesForSeller(seller)
-    .map((category) => `<option value="${category}"></option>`)
-    .join("");
+  renderAllCategorySelects();
 
   container.innerHTML = list.length
     ? list.map((category) => `
@@ -1206,11 +1304,19 @@ async function buildProductPayload(formData) {
   const uploadedImage = await fileToDataUrl(formData.get("productImageFile"));
   const productImage = uploadedImage || String(formData.get("productImageUrl")).trim() || existingProduct?.productImage || "";
   const productName = String(formData.get("productName")).trim();
-  const productCategory = String(formData.get("productCategory")).trim();
+  const productCategory = categoryLabelFromValue(formData.get("productCategory"));
   const productStock = String(formData.get("productStock")).trim();
   const productOffer = String(formData.get("productDeal")).trim();
   const businessId = seller.id;
-  const categoryId = `${businessId}-${slugify(productCategory)}`;
+  const categoryId = productCategory;
+
+  if (!productName) {
+    return { ok: false, message: "Enter a product name." };
+  }
+
+  if (!productCategory || !categoriesForSeller(seller).some((category) => categoryKey(category) === categoryKey(productCategory))) {
+    return { ok: false, message: "Select a valid product category." };
+  }
 
   return {
     ok: true,
@@ -1273,6 +1379,8 @@ function resetProductForm() {
   form.reset();
   document.getElementById("productId").value = "";
   document.getElementById("saveProductBtn").textContent = "Save Product";
+  document.getElementById("productCategorySearch").value = "";
+  renderSmartCategorySelect("productCategorySelect", "productCategorySearch");
 }
 
 function resetOfferForm() {
@@ -1422,6 +1530,8 @@ function bindForms() {
       id: nextProduct.id,
       businessId: nextProduct.businessId,
       categoryId: nextProduct.productCategory,
+      categoryName: nextProduct.productCategory,
+      productCategory: nextProduct.productCategory,
       name: nextProduct.productName,
       image: nextProduct.productImage,
       price: nextProduct.productPrice,
@@ -1470,12 +1580,14 @@ function bindForms() {
     event.preventDefault();
     const seller = currentSeller();
     const formData = new FormData(event.currentTarget);
-    const name = String(formData.get("categoryName")).trim();
+    const name = categoryLabelFromValue(formData.get("categoryName"));
     if (!seller || !name) return;
 
-    const exists = categoriesForSeller(seller).some((category) => category.toLowerCase() === name.toLowerCase());
+    const exists = sellerCategories()
+      .filter((category) => category.sellerId === seller.id)
+      .some((category) => categoryKey(category.name) === categoryKey(name));
     if (exists) {
-      showToast("Category already exists.", "warn");
+      showToast("This category is already enabled for your store.", "warn");
       return;
     }
 
@@ -1672,8 +1784,11 @@ async function boot() {
   initMap();
   bindForms();
   bindActions();
+  bindSmartCategorySearches();
   bindSellerOrderFilters();
   bindLiveOrderUpdates();
+  await loadSellerData();
+  renderAllCategorySelects();
 
   const seller = currentSeller();
   if (seller) {

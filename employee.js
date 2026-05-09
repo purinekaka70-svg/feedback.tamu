@@ -5,9 +5,9 @@ const EMPLOYEE_KEYS = {
 const employeeViewMeta = {
   dashboard: "Dashboard",
   orders: "Orders",
-  deliveries: "Deliveries",
   notifications: "Notifications",
-  maps: "Maps/Tracking",
+  maps: "Maps",
+  delivered: "Delivered Orders",
   customerChats: "Customer Chats",
   adminChats: "Admin Chats",
   settings: "Settings"
@@ -20,6 +20,7 @@ let routeLayer = null;
 let markerLayer = null;
 let cachedEmployeeOrders = [];
 let cachedBusinesses = [];
+let employeeOrderUnsubscribe = null;
 
 function readStorage(key, fallback) {
   try {
@@ -40,6 +41,44 @@ function writeStorage(key, value) {
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function normalizeCounty(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/county$/i, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function employeeCounty() {
+  return currentEmployee?.county || currentEmployee?.location || currentEmployee?.assignedCounty || "";
+}
+
+async function firebaseIdToken() {
+  const user = window.firebase?.auth?.().currentUser;
+  return user ? user.getIdToken() : "";
+}
+
+function orderCountyValues(order) {
+  return [
+    order.county,
+    order.buyerCounty,
+    order.locationCounty,
+    order.buyerLocation,
+    order.storeName,
+    ...asArray(order.stores),
+    ...asArray(order.items).flatMap((item) => [item.county, item.storeCounty, item.storeName])
+  ].filter(Boolean);
+}
+
+function orderMatchesEmployeeCounty(order) {
+  const target = normalizeCounty(employeeCounty());
+  if (!target) return false;
+  return orderCountyValues(order).some((value) => {
+    const normalized = normalizeCounty(value);
+    return normalized === target || normalized.includes(target);
+  });
 }
 
 function currency(value) {
@@ -127,21 +166,37 @@ async function employeeRecordForFirebaseUser(user) {
 }
 
 function isEmployeeActive(account) {
-  return account?.approved === true;
+  return account?.approved === true
+    && account?.active === true
+    && String(account?.role || "employee").toLowerCase() === "employee"
+    && Boolean(account?.county || account?.location || account?.assignedCounty);
 }
 
 async function loadEmployeeOrders() {
+  if (!currentEmployee) {
+    cachedEmployeeOrders = [];
+    return;
+  }
+
   try {
+    const token = await firebaseIdToken();
+    if (!token) {
+      cachedEmployeeOrders = [];
+      return;
+    }
     const [orderRes, marketRes] = await Promise.all([
-      fetch('./api/orders/list.php', { cache: 'no-store' }),
+      fetch(`./api/employee/orders.php?county=${encodeURIComponent(employeeCounty())}`, {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` }
+      }),
       fetch('./api/marketplace/list.php', { cache: 'no-store' })
     ]);
     const orderData = await orderRes.json();
     const marketData = await marketRes.json();
-    cachedEmployeeOrders = orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
+    cachedEmployeeOrders = orderRes.ok && orderData.ok ? mergeOrders(cachedEmployeeOrders, orderData.orders || []) : [];
     cachedBusinesses = marketRes.ok && marketData.ok ? (marketData.businesses || []) : [];
   } catch (error) {
-    cachedEmployeeOrders = [];
+    cachedEmployeeOrders = cachedEmployeeOrders.filter(orderMatchesEmployeeCounty);
     cachedBusinesses = [];
   }
 }
@@ -160,7 +215,7 @@ async function signInEmployee(email, password) {
 
     if (!isEmployeeActive(account)) {
       await window.firebase.auth().signOut();
-      return { ok: false, message: "Employee account is not approved or is not registered in Firestore." };
+      return { ok: false, message: "Employee account is not approved, active, or assigned to a county in Firestore." };
     }
 
     return { ok: true, account };
@@ -216,10 +271,14 @@ function normalizeOrder(order) {
     customer: order.customer || order.customerName || "Customer",
     phone: order.phone || order.customerPhone || order.mpesaNumber || "",
     buyerLocation: order.buyerLocation || order.location || "Customer location pending",
+    county: order.county || order.buyerCounty || order.locationCounty || "",
     paymentRef,
     mpesaReference: order.mpesaReference || paymentRef,
     status: String(order.status || "pending_payment").toLowerCase(),
     deliveryStatus: String(order.deliveryStatus || order.status || "pending").toLowerCase(),
+    assignedEmployeeId: order.assignedEmployeeId || "",
+    assignedEmployeeEmail: order.assignedEmployeeEmail || "",
+    assignedEmployeeName: order.assignedEmployeeName || "",
     items,
     businessPayments: asArray(order.businessPayments),
     subtotal,
@@ -229,11 +288,30 @@ function normalizeOrder(order) {
 }
 
 function orders() {
-  return cachedEmployeeOrders.map(normalizeOrder);
+  return cachedEmployeeOrders.map(normalizeOrder).filter(orderMatchesEmployeeCounty);
 }
 
 function saveOrders(nextOrders) {
-  cachedEmployeeOrders = nextOrders.map(normalizeOrder);
+  cachedEmployeeOrders = nextOrders.map(normalizeOrder).filter(orderMatchesEmployeeCounty);
+}
+
+function mergeOrders(current, incoming) {
+  const byId = new Map();
+  [...current, ...incoming].map(normalizeOrder).forEach((order) => {
+    if (!order.id || !orderMatchesEmployeeCounty(order)) return;
+    const existing = byId.get(order.id) || {};
+    const merged = { ...existing, ...order };
+    ["assignedEmployeeId", "assignedEmployeeEmail", "assignedEmployeeName"].forEach((key) => {
+      if (!merged[key] && existing[key]) {
+        merged[key] = existing[key];
+      }
+    });
+    if ((!merged.deliveryStatus || merged.deliveryStatus === "pending") && existing.deliveryStatus) {
+      merged.deliveryStatus = existing.deliveryStatus;
+    }
+    byId.set(order.id, merged);
+  });
+  return [...byId.values()].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 }
 
 function applications() {
@@ -260,6 +338,10 @@ function activeDeliveryOrders() {
 
 function assignedOrders() {
   return orders().filter(isAssignedToEmployee);
+}
+
+function deliveredOrders() {
+  return orders().filter((order) => order.status === "delivered" || order.deliveryStatus === "delivered");
 }
 
 function orderItemsText(order) {
@@ -313,17 +395,36 @@ function mapsUrl(order) {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
 
-function updateOrder(orderId, patch) {
+async function syncOrderToFirestore(order) {
+  if (!currentEmployee || !window.firebase?.firestore || !order?.id) return;
+  try {
+    const db = window.firebase.firestore();
+    await db.collection("deliveryOrders").doc(String(order.id)).set({
+      ...order,
+      county: employeeCounty(),
+      countyKey: normalizeCounty(employeeCounty()),
+      updatedAt: new Date().toISOString(),
+      source: "tamu-express"
+    }, { merge: true });
+  } catch (error) {
+    // Firestore sync is best-effort; API persistence remains the authority.
+  }
+}
+
+async function updateOrder(orderId, patch) {
   const now = new Date().toISOString();
   const nextOrders = orders().map((order) => order.id === orderId
     ? { ...order, ...patch, updatedAt: now }
     : order);
   saveOrders(nextOrders);
   renderEmployee();
-  fetch('./api/orders/update.php', {
+  const updatedOrder = orders().find((order) => order.id === orderId);
+  await syncOrderToFirestore(updatedOrder);
+  const token = await firebaseIdToken();
+  fetch('./api/employee/orders.php', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: orderId, status: patch.status })
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ id: orderId, county: employeeCounty(), status: patch.status, deliveryStatus: patch.deliveryStatus })
   }).catch(() => {});
 }
 
@@ -354,13 +455,14 @@ function renderStats() {
   const allOrders = orders();
   const assigned = assignedOrders();
   const active = activeDeliveryOrders();
-  const delivered = assigned.filter((order) => order.status === "delivered" || order.deliveryStatus === "delivered");
+  const delivered = deliveredOrders();
   document.getElementById("employeeActiveBadge").textContent = `${active.length} active`;
+  document.getElementById("employeeCountyLabel").textContent = `${employeeCounty()} county`;
   document.getElementById("employeeStats").innerHTML = `
     <article class="card stat-card"><span>Available</span><strong>${active.length}</strong></article>
     <article class="card stat-card"><span>Assigned</span><strong>${assigned.length}</strong></article>
     <article class="card stat-card"><span>Delivered</span><strong>${delivered.length}</strong></article>
-    <article class="card stat-card"><span>All Orders</span><strong>${allOrders.length}</strong></article>
+    <article class="card stat-card"><span>County Orders</span><strong>${allOrders.length}</strong></article>
   `;
 }
 
@@ -410,21 +512,22 @@ function bindOrderActions(container) {
 function renderOrderLists() {
   const available = activeDeliveryOrders().slice().reverse();
   const assigned = assignedOrders().slice().reverse();
+  const delivered = deliveredOrders().slice().reverse();
   const orderContainer = document.getElementById("employeeOrderList");
-  const deliveryContainer = document.getElementById("employeeDeliveryList");
+  const deliveredContainer = document.getElementById("employeeDeliveredList");
   const previewContainer = document.getElementById("employeeAssignedPreview");
 
   orderContainer.innerHTML = available.length
     ? available.map((order) => orderCard(order)).join("")
     : '<div class="list-card">No active delivery orders yet.</div>';
-  deliveryContainer.innerHTML = assigned.length
-    ? assigned.map((order) => orderCard(order)).join("")
-    : '<div class="list-card">Accept an order to begin delivery tracking.</div>';
+  deliveredContainer.innerHTML = delivered.length
+    ? delivered.map((order) => orderCard(order)).join("")
+    : '<div class="list-card">Delivered orders in your county will appear here.</div>';
   previewContainer.innerHTML = assigned.slice(0, 4).length
     ? assigned.slice(0, 4).map((order) => orderCard(order, true)).join("")
     : '<div class="list-card">No assigned deliveries yet.</div>';
 
-  [orderContainer, deliveryContainer, previewContainer].forEach(bindOrderActions);
+  [orderContainer, deliveredContainer, previewContainer].forEach(bindOrderActions);
 }
 
 function renderNotifications() {
@@ -574,6 +677,28 @@ function renderEmployee() {
   }
 }
 
+function subscribeEmployeeOrders() {
+  if (!currentEmployee || !window.firebase?.firestore) return;
+  if (employeeOrderUnsubscribe) {
+    employeeOrderUnsubscribe();
+    employeeOrderUnsubscribe = null;
+  }
+
+  try {
+    const db = window.firebase.firestore();
+    employeeOrderUnsubscribe = db.collection("deliveryOrders")
+      .where("county", "==", employeeCounty())
+      .onSnapshot((snapshot) => {
+        const liveOrders = [];
+        snapshot.forEach((doc) => liveOrders.push({ id: doc.id, ...doc.data() }));
+        cachedEmployeeOrders = mergeOrders(cachedEmployeeOrders, liveOrders);
+        renderEmployee();
+      });
+  } catch (error) {
+    showToast("Live delivery sync is unavailable for this account.", "warn");
+  }
+}
+
 function closeEmployeeMenu() {
   const sidebar = document.getElementById("employeeSidebar");
   const overlay = document.getElementById("employeeSidebarOverlay");
@@ -648,6 +773,10 @@ function bindNavigation() {
     showToast("Orders refreshed.");
   });
   document.getElementById("employeeLogoutButton")?.addEventListener("click", async () => {
+    if (employeeOrderUnsubscribe) {
+      employeeOrderUnsubscribe();
+      employeeOrderUnsubscribe = null;
+    }
     if (window.firebase?.auth) {
       await window.firebase.auth().signOut().catch(() => {});
     }
@@ -657,6 +786,7 @@ function bindNavigation() {
   window.setInterval(async () => {
     if (!currentEmployee) return;
     await loadEmployeeOrders();
+    cachedEmployeeOrders.forEach(syncOrderToFirestore);
     renderEmployee();
   }, 12000);
 }
@@ -685,6 +815,8 @@ async function restoreSession() {
   }
 
   currentEmployee = account;
+  subscribeEmployeeOrders();
+  await loadEmployeeOrders();
   return true;
 }
 
@@ -708,13 +840,15 @@ function bindLogin() {
     status.textContent = "";
     form.reset();
     showDashboard();
+    subscribeEmployeeOrders();
+    await loadEmployeeOrders();
+    cachedEmployeeOrders.forEach(syncOrderToFirestore);
     renderEmployee();
     setEmployeeView("dashboard");
   });
 }
 
 async function boot() {
-  await loadEmployeeOrders();
   bindLogin();
   bindNavigation();
 
