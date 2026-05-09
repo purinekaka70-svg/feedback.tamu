@@ -3,6 +3,7 @@ const { send } = require("../server/_lib/http");
 const routes = {
   "admin/applications": "../server/admin/applications",
   "admin/control": "../server/admin/control",
+  "admin/debug-login": "../server/admin/debug-login",
   "admin/login": "../server/admin/login",
   "auth/logout": "../server/auth/logout",
   "auth/session": "../server/auth/session",

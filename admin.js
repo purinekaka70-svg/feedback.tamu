@@ -179,9 +179,18 @@ function showAdminDashboard() {
 function bindAdminLogin() {
   const form = document.getElementById("adminAccessForm");
   const status = document.getElementById("adminAccessStatus");
+  const passwordInput = document.getElementById("adminAccessPassword");
+  const passwordToggle = document.getElementById("adminPasswordToggle");
   if (!form || !status) {
     return;
   }
+
+  passwordToggle?.addEventListener("click", () => {
+    if (!passwordInput) return;
+    const showing = passwordInput.type === "text";
+    passwordInput.type = showing ? "password" : "text";
+    passwordToggle.textContent = showing ? "Show password" : "Hide password";
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -207,7 +216,10 @@ function bindAdminLogin() {
         return;
       }
       if (!response.ok || !result.ok) {
-        status.textContent = result.message || "Invalid admin credentials.";
+        const extra = result.details
+          ? ` role=${result.details.role || "none"} status=${result.details.status || "none"} passwordLength=${result.details.passwordLength}`
+          : "";
+        status.textContent = `${result.message || "Invalid admin credentials."}${extra}`;
         return;
       }
       window.localStorage.setItem(STORAGE_KEYS.adminSession, "active");

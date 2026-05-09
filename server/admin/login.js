@@ -63,6 +63,31 @@ async function repairConfiguredAdmin(email, password) {
   return rows[0] || null;
 }
 
+async function adminDiagnostic(email, password, existingAdmin, active, valid) {
+  const adminAnyRole = await findUserByEmail(email);
+  const bootstrapAllowed = adminCredentialPairs().some((pair) =>
+    email.toLowerCase() === pair.email.toLowerCase() &&
+    password === pair.password
+  );
+  return {
+    reason: !adminAnyRole
+      ? "admin_email_not_found"
+      : String(adminAnyRole.role || "").toLowerCase() !== "admin"
+        ? "email_exists_but_role_is_not_admin"
+        : !active
+          ? "admin_status_not_approved"
+          : existingAdmin && !valid
+            ? "password_does_not_match"
+            : "admin_login_not_allowed",
+    emailFound: Boolean(adminAnyRole),
+    role: adminAnyRole?.role || null,
+    status: adminAnyRole?.status || null,
+    bootstrapAllowed,
+    expectedEmail: DEFAULT_ADMIN_EMAIL,
+    passwordLength: password.length
+  };
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   try {
@@ -76,7 +101,12 @@ module.exports = async function handler(req, res) {
       admin = await repairConfiguredAdmin(email, password);
     }
     if (!admin) {
-      send(res, 401, { ok: false, message: "Invalid admin credentials." });
+      const details = await adminDiagnostic(email, password, admin, active, valid);
+      send(res, 401, {
+        ok: false,
+        message: `Invalid admin credentials (${details.reason}).`,
+        details
+      });
       return;
     }
     issueAuth(res, { userId: admin.id, role: "admin", email: admin.email });
