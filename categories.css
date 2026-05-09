@@ -1295,10 +1295,15 @@ button {
 
 .shop-search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
   width: 100%;
+}
+
+.shop-search-row .button {
+  min-width: max-content;
+  white-space: nowrap;
 }
 
 .shop-here-results {
@@ -2533,11 +2538,16 @@ body.is-image-viewing {
     overflow-x: auto !important;
   }
 
+  .shop-mode-search {
+    min-width: 0 !important;
+  }
+
   .shop-search-row {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto !important;
   }
 
   .shop-search-row .button {
-    width: 100% !important;
+    width: auto !important;
+    padding-inline: 10px !important;
   }
 }

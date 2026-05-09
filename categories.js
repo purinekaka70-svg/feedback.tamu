@@ -1400,7 +1400,6 @@ function renderProducts() {
           <span class="field-label">What do you want to buy?</span>
           <span class="shop-search-row">
             <input class="input shop-here-input" data-shop-search="${selectedStore.id}" type="search" value="${escapeAttribute(state.shopQuery)}" placeholder="Search rice, sugar, phone, drinks..." />
-            <button class="button button-primary button-small" data-shop-search-submit="${selectedStore.id}" type="button">Search</button>
             <button class="button button-outline button-small" data-shop-search-clear="${selectedStore.id}" type="button">Clear</button>
           </span>
           <span class="tiny">${query ? `${matches.length} result${matches.length === 1 ? "" : "s"} for "${escapeHtml(state.shopQuery)}"` : "Type a product name to filter this store."}</span>
@@ -1596,13 +1595,6 @@ function bindShopModeActions(container) {
         event.preventDefault();
         runShopSearch(input.dataset.shopSearch, input.value);
       }
-    });
-  });
-
-  container.querySelectorAll("[data-shop-search-submit]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const input = container.querySelector(`[data-shop-search="${button.dataset.shopSearchSubmit}"]`);
-      runShopSearch(button.dataset.shopSearchSubmit, input?.value || "");
     });
   });
 
