@@ -124,14 +124,33 @@ async function postJson(url, payload) {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json().catch(() => ({}));
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      data = {
+        ok: false,
+        message: `Server returned ${response.status}.`,
+        error: raw.replace(/\s+/g, " ").slice(0, 220)
+      };
+    }
     return {
       ok: response.ok,
       status: response.status,
-      data
+      data,
+      raw
     };
   } catch (error) {
-    return { ok: false, status: 0, data: null };
+    return {
+      ok: false,
+      status: 0,
+      data: {
+        ok: false,
+        message: "Network request failed.",
+        error: String(error?.message || error).slice(0, 220)
+      }
+    };
   }
 }
 
@@ -1564,7 +1583,7 @@ function bindForms() {
     });
     if (!response.ok || response.data?.ok === false) {
       const details = response.data?.error ? ` ${response.data.error}` : "";
-      showToast(`${response.data?.message || "Registration failed."}${details}`, "warn");
+      showToast(`${response.data?.message || `Registration failed (${response.status}).`}${details}`, "warn");
       return;
     }
     event.currentTarget.reset();
