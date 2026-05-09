@@ -99,24 +99,60 @@ function current_auth_claims(): array
     secure_session_start();
     $claims = auth_cookie_claims();
     if ($claims) {
-        return $claims;
+        return normalize_auth_claims($claims);
     }
 
     if (!empty($_SESSION['role'])) {
-        return [
+        return normalize_auth_claims([
             'userId' => $_SESSION['user_id'] ?? null,
             'businessId' => $_SESSION['business_id'] ?? null,
             'role' => $_SESSION['role'],
-        ];
+        ]);
     }
 
     return [];
 }
 
+function normalize_auth_claims(array $claims): array
+{
+    $role = strtolower((string) ($claims['role'] ?? ''));
+    if ($role !== 'seller') {
+        return $claims;
+    }
+
+    $businessId = int_value($claims['businessId'] ?? 0);
+    if ($businessId <= 0) {
+        return [];
+    }
+
+    try {
+        $pdo = tamu_pdo();
+        if (!table_exists($pdo, 'businesses')) {
+            return [];
+        }
+
+        $stmt = $pdo->prepare('SELECT id, user_id, status FROM businesses WHERE id = ? LIMIT 1');
+        $stmt->execute([$businessId]);
+        $business = $stmt->fetch();
+        if (!$business || strtolower((string) ($business['status'] ?? '')) !== 'approved') {
+            return [];
+        }
+
+        $claims['businessId'] = (int) $business['id'];
+        $claims['userId'] = $claims['userId'] ?? ($business['user_id'] ?? null);
+        $claims['role'] = 'seller';
+        $claims['status'] = 'approved';
+        return $claims;
+    } catch (PDOException $error) {
+        return [];
+    }
+}
+
 function require_auth_roles(array $roles): void
 {
     secure_session_start();
-    $role = current_user_role();
+    $claims = current_auth_claims();
+    $role = strtolower((string) ($claims['role'] ?? ''));
     $allowed = array_map(static function ($item): string {
         return strtolower((string) $item);
     }, $roles);
@@ -216,6 +252,26 @@ function validate_base64_image(?string $image, int $maxBytes = 1048576): string
     }
 
     return $image;
+}
+
+function validate_image_reference(?string $image, int $maxBytes = 1048576): string
+{
+    $image = trim_string($image);
+    if ($image === '') {
+        return '';
+    }
+
+    if (preg_match('/^data:image\//', $image)) {
+        return validate_base64_image($image, $maxBytes);
+    }
+
+    if (filter_var($image, FILTER_VALIDATE_URL)
+        && preg_match('/^https?:\/\//i', $image)
+        && strlen($image) <= 2048) {
+        return $image;
+    }
+
+    json_response(['ok' => false, 'message' => 'Use a valid image URL or PNG/JPG/WEBP/GIF upload.'], 422);
 }
 
 function safe_error(string $message, int $status = 500): void

@@ -16,5 +16,6 @@ json_response([
         'userId' => $claims['userId'] ?? null,
         'businessId' => $claims['businessId'] ?? null,
         'role' => $role,
+        'status' => $claims['status'] ?? null,
     ],
 ]);

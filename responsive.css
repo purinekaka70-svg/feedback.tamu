@@ -363,15 +363,16 @@ form {
 body.admin-menu-open,
 body.seller-menu-open,
 body.employee-menu-open,
-body.legacy-seller-menu-open {
+body.legacy-seller-menu-open,
+body.topbar-menu-open {
   overflow: hidden !important;
-  touch-action: none;
 }
 
 .admin-menu-toggle,
 .seller-menu-toggle,
 .employee-menu-toggle,
-.seller-menu-toggle[type="button"] {
+.seller-menu-toggle[type="button"],
+.topbar-menu-toggle {
   z-index: 1100 !important;
   touch-action: manipulation;
 }
@@ -379,7 +380,8 @@ body.legacy-seller-menu-open {
 .admin-sidebar-overlay,
 .seller-menu-overlay,
 .employee-sidebar-overlay,
-.seller-sidebar-overlay {
+.seller-sidebar-overlay,
+.topbar-menu-overlay {
   position: fixed !important;
   inset: 0 !important;
   z-index: 900 !important;
@@ -392,7 +394,8 @@ body.legacy-seller-menu-open {
 .admin-sidebar-overlay.is-open,
 .seller-menu-overlay.is-open,
 .employee-sidebar-overlay.is-open,
-.seller-sidebar-overlay.is-open {
+.seller-sidebar-overlay.is-open,
+.topbar-menu-overlay.is-open {
   opacity: 1 !important;
   pointer-events: auto !important;
   background: rgba(15, 23, 42, 0.48) !important;
@@ -401,10 +404,27 @@ body.legacy-seller-menu-open {
 .admin-sidebar,
 .seller-workspace-nav,
 .employee-sidebar,
-.seller-sidebar {
+.seller-sidebar,
+.topbar-actions {
   z-index: 1000 !important;
   will-change: transform;
   backface-visibility: hidden;
+}
+
+.topbar-menu-toggle {
+  display: none;
+  border: 1px solid rgba(21, 128, 61, 0.2);
+  background: rgba(255, 255, 255, 0.96);
+  color: #15803d;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.14);
+}
+
+.topbar-menu-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .field-grid {
@@ -667,6 +687,7 @@ svg {
   .admin-menu-toggle,
   .seller-menu-toggle,
   .employee-menu-toggle,
+  .topbar-menu-toggle,
   body[data-seller-page="true"] > .seller-menu-toggle {
     position: fixed !important;
     top: 10px !important;
@@ -679,6 +700,12 @@ svg {
     min-width: 42px !important;
     min-height: 42px !important;
     border-radius: 12px !important;
+    gap: 4px !important;
+  }
+
+  .topbar-menu-toggle {
+    left: auto !important;
+    right: 10px !important;
   }
 
   .admin-app-shell,
@@ -704,6 +731,7 @@ svg {
   .admin-sidebar,
   .employee-sidebar,
   .seller-workspace-nav,
+  .topbar-actions,
   body[data-seller-page="true"] > .seller-sidebar {
     position: fixed !important;
     top: 0 !important;
@@ -725,8 +753,22 @@ svg {
 
   .admin-sidebar,
   .employee-sidebar,
+  .topbar-actions,
   body[data-seller-page="true"] > .seller-sidebar {
     padding: 68px 12px 14px !important;
+  }
+
+  .topbar-actions {
+    display: grid !important;
+    align-content: start !important;
+    gap: 10px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid rgba(21, 128, 61, 0.14) !important;
+  }
+
+  .topbar-actions .button {
+    width: 100% !important;
+    justify-content: flex-start !important;
   }
 
   .seller-workspace-nav {
@@ -736,6 +778,7 @@ svg {
   .admin-sidebar.is-open,
   .employee-sidebar.is-open,
   .seller-workspace-nav.is-open,
+  .topbar-actions.is-open,
   body[data-seller-page="true"] > .seller-sidebar[data-open="true"] {
     visibility: visible !important;
     transform: translate3d(0, 0, 0) !important;
@@ -744,6 +787,7 @@ svg {
   .admin-sidebar:not(.is-open),
   .employee-sidebar:not(.is-open),
   .seller-workspace-nav:not(.is-open),
+  .topbar-actions:not(.is-open),
   body[data-seller-page="true"] > .seller-sidebar[data-open="false"] {
     visibility: hidden !important;
   }

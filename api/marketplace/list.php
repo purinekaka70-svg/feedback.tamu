@@ -78,6 +78,8 @@ try {
                 continue;
             }
             $categoryName = (string) ($row['category_name'] ?? $row['category_id'] ?? 'Other');
+            $stockCount = (int) ($row['stock'] ?? 0);
+            $stockLabel = $stockCount <= 0 ? 'Out of stock' : ($stockCount <= 5 ? 'Limited stock' : 'In stock');
             $products[] = [
                 'id' => (string) $row['id'],
                 'businessId' => (string) $row['business_id'],
@@ -95,8 +97,9 @@ try {
                 'productImage' => $row['image'] ?? '',
                 'price' => (float) $row['price'],
                 'productPrice' => (float) $row['price'],
-                'stock' => $row['stock'] ?? 'In stock',
-                'productStock' => $row['stock'] ?? 'In stock',
+                'stock' => $stockLabel,
+                'stockCount' => $stockCount,
+                'productStock' => $stockLabel,
                 'offerFlag' => (bool) $row['offer_flag'],
                 'productOffer' => (bool) $row['offer_flag'] ? 'Offer' : '',
                 'description' => $row['description'] ?? '',

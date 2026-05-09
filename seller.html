@@ -38,17 +38,34 @@
     </header>
 
     <main class="content-shell">
-      <section id="sellerAuthSection" class="dashboard-grid reveal reveal-delay-1">
-        <article class="card">
+      <section id="sellerAuthSection" class="seller-auth-shell reveal reveal-delay-1">
+        <article class="card seller-auth-card">
           <div class="section-head">
-            <h2 id="formTitle">New Seller Registration</h2>
-            <div class="button-row">
-              <button id="showRegistration" class="button button-primary button-small">Register</button>
-              <button id="showLogin" class="button button-outline button-small">Login</button>
+            <div>
+              <p class="eyebrow">Seller Access</p>
+              <h2 id="formTitle">Seller Login</h2>
             </div>
           </div>
 
-          <div id="registrationForm" class="stack">
+          <div id="loginForm" class="stack">
+            <form id="sellerLoginForm" class="stack">
+              <label class="field">
+                <span class="field-label">Email</span>
+                <input class="input" type="email" name="email" placeholder="seller@example.com" autocomplete="email" required />
+              </label>
+
+              <label class="field">
+                <span class="field-label">Password</span>
+                <input class="input" type="password" name="password" autocomplete="current-password" required />
+              </label>
+
+              <button class="button button-primary" type="submit">Login</button>
+              <p id="loginStatus" class="tiny"></p>
+            </form>
+            <p class="auth-switch-text">Don’t have an account? <button id="showRegistration" class="auth-switch-link" type="button">Register</button></p>
+          </div>
+
+          <div id="registrationForm" class="stack is-hidden">
             <form id="sellerRegistrationForm" class="stack">
               <div class="field-grid">
                 <label class="field">
@@ -68,13 +85,13 @@
 
               <div class="field-grid">
                 <label class="field">
-                  <span class="field-label">Owner Name</span>
-                  <input class="input" name="ownerName" placeholder="John Doe" required />
+                  <span class="field-label">Seller Name</span>
+                  <input class="input" name="ownerName" placeholder="John Doe" autocomplete="name" required />
                 </label>
 
                 <label class="field">
-                  <span class="field-label">Phone Number</span>
-                  <input class="input" name="phone" placeholder="07XXXXXXXX" required />
+                  <span class="field-label">Phone</span>
+                  <input class="input" name="phone" placeholder="07XXXXXXXX" autocomplete="tel" required />
                 </label>
               </div>
 
@@ -92,7 +109,7 @@
 
               <div class="field-grid">
                 <label class="field">
-                  <span class="field-label">County (Kenya)</span>
+                  <span class="field-label">Location</span>
                   <select class="input" name="county" required>
                     <option value="">Select county</option>
                     <option>Baringo</option>
@@ -147,8 +164,8 @@
               </div>
 
               <div class="field">
-                <span class="field-label">Business Location</span>
-                <p class="tiny">Click on the map to set your pickup location</p>
+                <span class="field-label">Map pin</span>
+                <p class="tiny">Optional: set an exact pickup point now, or update it later in Business Settings.</p>
                 <div class="map-search-row">
                   <input id="sellerMapSearchInput" class="input" type="search" placeholder="Search place, town, stage, landmark..." />
                   <button id="sellerMapSearchButton" class="button button-outline button-small" type="button">Search</button>
@@ -160,7 +177,7 @@
                 <input type="hidden" name="longitude" id="longitude" />
               </div>
 
-              <fieldset class="field fieldset">
+              <fieldset class="field fieldset is-hidden">
                 <legend class="field-label">Payment Methods</legend>
                 <div class="checkbox-grid">
                   <label class="checkbox-chip">
@@ -196,39 +213,7 @@
 
               <button class="button button-primary" type="submit">Register Business</button>
             </form>
-          </div>
-
-          <div id="loginForm" class="stack is-hidden">
-            <form id="sellerLoginForm" class="stack">
-              <label class="field">
-                <span class="field-label">Email</span>
-                <input class="input" type="email" name="email" placeholder="your@email.com" required />
-              </label>
-
-              <label class="field">
-                <span class="field-label">Password</span>
-                <input class="input" type="password" name="password" required />
-              </label>
-
-              <button class="button button-primary" type="submit">Login</button>
-              <p id="loginStatus" class="tiny"></p>
-            </form>
-          </div>
-        </article>
-
-        <article class="card">
-          <div class="section-head">
-            <h2>Getting Started</h2>
-            <span class="tiny">How to join the marketplace</span>
-          </div>
-
-          <div class="info-box">
-            <ol>
-              <li><strong>Register:</strong> Fill out the registration form with your business details.</li>
-              <li><strong>Wait for Approval:</strong> Our admin team will review and approve your application.</li>
-              <li><strong>Login:</strong> Once approved, use your email and password to access your seller dashboard.</li>
-              <li><strong>Manage:</strong> Add products, create offers, view orders, and manage payments.</li>
-            </ol>
+            <p class="auth-switch-text">Already have an account? <button id="showLogin" class="auth-switch-link" type="button">Login</button></p>
           </div>
         </article>
       </section>
@@ -248,10 +233,11 @@
             <button class="button button-primary button-small" type="button" data-seller-view="overview">Dashboard</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="orders">Orders</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="products">Products</button>
+            <button class="button button-ghost button-small" type="button" data-seller-view="categories">Categories</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="offers">Offers</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="payments">Payments</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="notifications">Notifications</button>
-            <button class="button button-ghost button-small" type="button" data-seller-view="settings">Settings</button>
+            <button class="button button-ghost button-small" type="button" data-seller-view="settings">Business Settings</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="logout">Logout</button>
           </nav>
         </section>
@@ -529,6 +515,14 @@
               <span class="tiny">People who placed orders with your business</span>
             </div>
             <div id="sellerCustomerList" class="item-list"></div>
+          </article>
+
+          <article class="card" data-seller-panel="overview">
+            <div class="section-head">
+              <h2>Dashboard Home</h2>
+              <span class="tiny">Orders, products, and notifications summary</span>
+            </div>
+            <div id="sellerHomeSummary" class="seller-home-summary"></div>
           </article>
 
           <article class="card" data-seller-panel="overview">

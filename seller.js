@@ -137,6 +137,7 @@ async function verifySellerSession(seller = currentSeller()) {
     return response.ok
       && result.ok
       && session.role === "seller"
+      && session.status === "approved"
       && String(session.businessId || "") === String(seller.id || seller.businessId || "");
   } catch (error) {
     return false;
@@ -309,11 +310,19 @@ function toggleForms(showRegistration) {
   const registrationForm = document.getElementById("registrationForm");
   const loginForm = document.getElementById("loginForm");
   const formTitle = document.getElementById("formTitle");
+  const loginStatus = document.getElementById("loginStatus");
+  document.body.classList.toggle("seller-register-active", showRegistration);
 
   if (showRegistration) {
     registrationForm.classList.remove("is-hidden");
     loginForm.classList.add("is-hidden");
-    formTitle.textContent = "New Seller Registration";
+    formTitle.textContent = "Seller Registration";
+    if (loginStatus) loginStatus.textContent = "";
+    window.setTimeout(() => {
+      if (map) {
+        map.invalidateSize();
+      }
+    }, 80);
     return;
   }
 
@@ -336,6 +345,7 @@ function showDashboard() {
   }
 
   document.body.classList.add("seller-dashboard-active");
+  document.body.classList.remove("seller-register-active");
   document.getElementById("sellerAuthSection").classList.add("is-hidden");
   document.getElementById("sellerDashboard").classList.remove("is-hidden");
   document.getElementById("registrationForm").classList.add("is-hidden");
@@ -351,6 +361,7 @@ function showDashboard() {
   renderSellerNotifications();
   renderSellerPaymentOrders();
   renderSellerCustomers();
+  renderSellerHomeSummary();
   renderSellerAnalytics();
   fillSellerSettingsForms();
   setSellerView("overview");
@@ -361,7 +372,7 @@ function hideDashboard() {
   document.getElementById("sellerDashboard").classList.add("is-hidden");
   document.getElementById("sellerAuthSection").classList.remove("is-hidden");
   setCurrentSeller(null);
-  document.getElementById("formTitle").textContent = "New Seller Registration";
+  toggleForms(false);
 }
 
 function initReveal() {
@@ -395,9 +406,6 @@ function initAdminTrigger() {
   const status = document.getElementById("adminLoginStatus");
   const usernameInput = document.getElementById("adminUsernameInput");
   const passwordInput = document.getElementById("adminPasswordInput");
-  let clickCount = 0;
-  let resetTimer;
-
   function openModal() {
     modal.classList.remove("is-hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -412,17 +420,11 @@ function initAdminTrigger() {
     status.textContent = "";
   }
 
-  footer.addEventListener("click", () => {
-    clickCount += 1;
-    window.clearTimeout(resetTimer);
-    resetTimer = window.setTimeout(() => {
-      clickCount = 0;
-    }, 1200);
-
-    if (clickCount === 4) {
-      clickCount = 0;
-      window.location.href = "./admin.html";
+  footer.addEventListener("click", (event) => {
+    if (event.target.closest("[data-footer-link]")) {
+      return;
     }
+    window.location.href = "./admin.html";
   });
 
   document.querySelectorAll("[data-close-admin-modal]").forEach((button) => {
@@ -1048,6 +1050,40 @@ function renderSellerAnalytics() {
   `;
 }
 
+function renderSellerHomeSummary() {
+  const seller = currentSeller();
+  const container = document.getElementById("sellerHomeSummary");
+  if (!seller || !container) return;
+
+  const sellerProductList = products().filter((product) => product.sellerId === seller.id);
+  const sellerOrderList = sellerOrders(seller);
+  const activeOrders = sellerOrderList.filter((order) => !["delivered", "cancelled"].includes(normalizeOrderStatus(order.status)));
+  const latestOrder = sellerOrderList[0];
+  const lowStockProducts = sellerProductList.filter((product) => String(product.productStock || product.stock || "").toLowerCase() !== "in stock");
+  const notifications = [
+    ...activeOrders.slice(0, 2).map((order) => `Order ${order.id || "pending"} needs attention`),
+    ...lowStockProducts.slice(0, 2).map((product) => `${product.productName || "Product"} is ${product.productStock || product.stock}`)
+  ];
+
+  container.innerHTML = `
+    <article class="seller-summary-card">
+      <span class="summary-chip">Orders</span>
+      <strong>${activeOrders.length} active</strong>
+      <p class="tiny">${latestOrder ? `Latest: ${latestOrder.customer || "Customer"} | ${currency(latestOrder.total || 0)}` : "No orders yet."}</p>
+    </article>
+    <article class="seller-summary-card">
+      <span class="summary-chip">Products</span>
+      <strong>${sellerProductList.length} listed</strong>
+      <p class="tiny">${lowStockProducts.length ? `${lowStockProducts.length} product${lowStockProducts.length === 1 ? "" : "s"} need stock review.` : "Inventory is ready for buyers."}</p>
+    </article>
+    <article class="seller-summary-card">
+      <span class="summary-chip">Notifications</span>
+      <strong>${notifications.length} update${notifications.length === 1 ? "" : "s"}</strong>
+      <p class="tiny">${notifications[0] || "No urgent notifications."}</p>
+    </article>
+  `;
+}
+
 function fillSellerSettingsForms() {
   const seller = currentSeller();
   if (!seller) return;
@@ -1074,8 +1110,11 @@ function fillSellerSettingsForms() {
 function buildSellerPayload(formData) {
   const email = String(formData.get("email")).trim().toLowerCase();
   const password = String(formData.get("password"));
+  const selectedLocation = String(formData.get("county")).trim();
   const latitude = parseFloat(formData.get("latitude"));
   const longitude = parseFloat(formData.get("longitude"));
+  const safeLatitude = Number.isFinite(latitude) ? latitude : 0;
+  const safeLongitude = Number.isFinite(longitude) ? longitude : 0;
   const paymentMethods = formData.getAll("paymentMethods");
   const tillNumber = String(formData.get("tillNumber") || "").trim();
   const pochiNumber = String(formData.get("pochiNumber") || "").trim();
@@ -1089,12 +1128,8 @@ function buildSellerPayload(formData) {
     return { ok: false, message: "Password must be at least 8 characters long." };
   }
 
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return { ok: false, message: "Please select your business location on the map." };
-  }
-
-  if (paymentMethods.length === 0) {
-    return { ok: false, message: "Select at least one payment method." };
+  if (!selectedLocation) {
+    return { ok: false, message: "Select your business location." };
   }
 
   if (paymentMethods.includes("M-Pesa Till") && !tillNumber) {
@@ -1119,8 +1154,8 @@ function buildSellerPayload(formData) {
       phone: String(formData.get("phone")).trim(),
       email,
       password,
-      latitude,
-      longitude,
+      latitude: safeLatitude,
+      longitude: safeLongitude,
       paymentMethods,
       paymentOptions: paymentMethods,
       tillNumber,
@@ -1129,9 +1164,9 @@ function buildSellerPayload(formData) {
       bankAccount: cardAccount,
       type: String(formData.get("businessType")).trim(),
       businessType: String(formData.get("businessType")).trim(),
-      county: String(formData.get("county")).trim(),
-      locationId: slugify(String(formData.get("county")).trim()),
-      location: String(formData.get("county")).trim(),
+      county: selectedLocation,
+      locationId: slugify(selectedLocation),
+      location: selectedLocation,
       logo: "",
       logoImage: "",
       rating: 4.5,
@@ -1199,6 +1234,7 @@ async function buildProductPayload(formData) {
       productOffer,
       image: productImage,
       productImage,
+      stockQuantity: productStock === "Out of stock" ? 0 : productStock === "Limited stock" ? 5 : 999,
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }
@@ -1347,8 +1383,8 @@ function bindForms() {
     event.currentTarget.reset();
     syncPaymentFields();
     toggleForms(false);
-    document.getElementById("loginStatus").textContent = "Registration sent. Your business account is waiting for admin approval.";
-    showToast("Registration sent. Please wait for admin approval before logging in.", "success");
+    document.getElementById("loginStatus").textContent = "Your account has been submitted successfully. Please wait for admin approval.";
+    showToast("Your account has been submitted successfully. Please wait for admin approval.", "success");
   });
 
   document.getElementById("sellerLoginForm").addEventListener("submit", async (event) => {
@@ -1390,7 +1426,7 @@ function bindForms() {
       image: nextProduct.productImage,
       price: nextProduct.productPrice,
       offerFlag: nextProduct.offerFlag,
-      stock: nextProduct.productStock,
+      stock: nextProduct.stockQuantity,
       description: nextProduct.description || ""
     });
     if (!response.ok || response.data?.ok === false) {
@@ -1548,7 +1584,7 @@ function bindActions() {
   const logoutSeller = async () => {
     await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
     hideDashboard();
-    toggleForms(true);
+    toggleForms(false);
     showToast("Logged out successfully.", "info");
   };
   document.getElementById("logoutBtn").addEventListener("click", logoutSeller);
@@ -1613,6 +1649,7 @@ function refreshSellerOrderViews() {
   renderSellerNotifications();
   renderSellerPaymentOrders();
   renderSellerCustomers();
+  renderSellerHomeSummary();
   renderSellerAnalytics();
 }
 
@@ -1650,7 +1687,7 @@ async function boot() {
     await loadSellerData();
     showDashboard();
   } else {
-    toggleForms(true);
+    toggleForms(false);
   }
 }
 

@@ -407,6 +407,64 @@ button {
   margin-top: 10px;
 }
 
+.seller-auth-shell {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.seller-auth-card {
+  width: 100%;
+  max-width: 620px;
+}
+
+.seller-auth-card .section-head {
+  margin-bottom: 14px;
+}
+
+.auth-switch-text {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-switch-link {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.seller-home-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.seller-summary-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.seller-summary-card strong {
+  font-size: 1.05rem;
+}
+
 #sellerDashboard {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
@@ -1309,6 +1367,10 @@ body.seller-dashboard-active .footer {
   }
 
   .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-home-summary {
     grid-template-columns: 1fr;
   }
 

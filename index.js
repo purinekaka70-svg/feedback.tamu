@@ -19,9 +19,6 @@ function initAdminTrigger() {
   const status = document.getElementById("adminLoginStatus");
   const usernameInput = document.getElementById("adminUsernameInput");
   const passwordInput = document.getElementById("adminPasswordInput");
-  let clickCount = 0;
-  let resetTimer;
-
   function openModal() {
     modal.classList.remove("is-hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -42,17 +39,11 @@ function initAdminTrigger() {
     });
   });
 
-  footer.addEventListener("click", () => {
-    clickCount += 1;
-    window.clearTimeout(resetTimer);
-    resetTimer = window.setTimeout(() => {
-      clickCount = 0;
-    }, 1200);
-
-    if (clickCount === 4) {
-      clickCount = 0;
-      window.location.href = "./admin.html";
+  footer.addEventListener("click", (event) => {
+    if (event.target.closest("[data-footer-link]")) {
+      return;
     }
+    window.location.href = "./admin.html";
   });
 
   document.querySelectorAll("[data-close-admin-modal]").forEach((button) => {

@@ -16,7 +16,7 @@ try {
     }
 
     $stmt = $pdo->prepare(
-        "SELECT b.*, u.password
+        "SELECT b.*, u.password, u.status AS user_status
          FROM businesses b
          LEFT JOIN users u ON u.id = b.user_id OR u.email = b.email
          WHERE b.email = ?
@@ -42,6 +42,9 @@ try {
     }
     if ($sellerStatus !== 'approved') {
         json_response(['ok' => false, 'message' => 'Your business account is not approved.', 'status' => $sellerStatus], 403);
+    }
+    if (strtolower((string) ($seller['user_status'] ?? 'approved')) !== 'approved') {
+        json_response(['ok' => false, 'message' => 'Your seller login is not approved yet.', 'status' => $seller['user_status'] ?? 'pending'], 403);
     }
 
     secure_session_start();

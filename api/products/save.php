@@ -43,10 +43,10 @@ try {
         'business_id' => $businessId,
         'category_id' => int_value($categoryId),
         'name' => safe_text($payload['name'], 150),
-        'image' => validate_base64_image($payload['image'] ?? '', 1048576),
+        'image' => validate_image_reference($payload['image'] ?? '', 1048576),
         'price' => float_value($payload['price']),
         'offer_flag' => !empty($payload['offerFlag']) ? 1 : 0,
-        'stock' => int_value($payload['stock'] ?? 0),
+        'stock' => max(0, int_value($payload['stock'] ?? 0)),
         'description' => safe_text($payload['description'] ?? '', 500),
     ];
 

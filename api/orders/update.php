@@ -15,6 +15,21 @@ $paymentRef = trim_string($payload['paymentRef'] ?? $payload['mpesaReference'] ?
 
 try {
     $pdo = tamu_pdo();
+    $claims = current_auth_claims();
+    if (strtolower((string) ($claims['role'] ?? '')) === 'seller') {
+        $businessId = (string) ($claims['businessId'] ?? '');
+        $orderCheck = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM orders o
+             JOIN order_items oi ON oi.order_id = o.id
+             WHERE o.public_id = ? AND oi.store_public_id = ?'
+        );
+        $orderCheck->execute([trim_string($payload['id']), $businessId]);
+        if ((int) $orderCheck->fetchColumn() < 1) {
+            json_response(['ok' => false, 'message' => 'You can only update orders for your approved business.'], 403);
+        }
+    }
+
     $sets = [];
     $params = [];
 

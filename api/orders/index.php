@@ -20,6 +20,19 @@ try {
         require_auth_roles(['admin', 'seller']);
         $payload = read_json_input();
         require_fields($payload, ['id']);
+        $claims = current_auth_claims();
+        if (strtolower((string) ($claims['role'] ?? '')) === 'seller') {
+            $orderCheck = $pdo->prepare(
+                'SELECT COUNT(*)
+                 FROM orders o
+                 JOIN order_items oi ON oi.order_id = o.id
+                 WHERE o.public_id = ? AND oi.store_public_id = ?'
+            );
+            $orderCheck->execute([trim_string($payload['id']), (string) ($claims['businessId'] ?? '')]);
+            if ((int) $orderCheck->fetchColumn() < 1) {
+                json_response(['ok' => false, 'message' => 'You can only update orders for your approved business.'], 403);
+            }
+        }
         $allowedStatuses = ['pending', 'pending_payment', 'paid', 'processing', 'delivered', 'cancelled'];
         $sets = [];
         $params = [];
@@ -65,6 +78,19 @@ try {
         $payload = read_json_input();
         require_fields($payload, ['id']);
         $id = trim_string($payload['id']);
+        $claims = current_auth_claims();
+        if (strtolower((string) ($claims['role'] ?? '')) === 'seller') {
+            $orderCheck = $pdo->prepare(
+                'SELECT COUNT(*)
+                 FROM orders o
+                 JOIN order_items oi ON oi.order_id = o.id
+                 WHERE o.public_id = ? AND oi.store_public_id = ?'
+            );
+            $orderCheck->execute([$id, (string) ($claims['businessId'] ?? '')]);
+            if ((int) $orderCheck->fetchColumn() < 1) {
+                json_response(['ok' => false, 'message' => 'You can only delete orders for your approved business.'], 403);
+            }
+        }
         $stmt = $pdo->prepare('DELETE FROM orders WHERE public_id = ?');
         $stmt->execute([$id]);
         json_response(['ok' => true]);
