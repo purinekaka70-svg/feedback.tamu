@@ -534,18 +534,23 @@ function calculateAffordableDeliveryFee(distanceKm) {
   let fee;
 
   if (distance <= 2) {
-    fee = 40 + distance * 20;
+    fee = 30 + distance * 15;
   } else if (distance <= 5) {
-    fee = 80 + (distance - 2) * 20;
+    fee = 60 + (distance - 2) * 15;
   } else if (distance <= 10) {
-    fee = 150 + (distance - 5) * 25;
+    fee = 110 + (distance - 5) * 18;
   } else if (distance <= 20) {
-    fee = 300 + (distance - 10) * 18;
+    fee = 200 + (distance - 10) * 12;
   } else {
-    fee = 500 + (distance - 20) * 20;
+    fee = 320 + (distance - 20) * 10;
   }
 
-  return Math.min(1000, Math.max(40, Math.round(fee / 10) * 10));
+  return Math.min(550, Math.max(40, Math.round(fee / 10) * 10));
+}
+
+function estimateFallbackDeliveryFee(storeCount = 1) {
+  const count = Math.max(1, Number(storeCount) || 1);
+  return Math.min(250, 70 + (count - 1) * 30);
 }
 
 function buildDeliverySummary(items, profile = buyerProfile()) {
@@ -569,14 +574,22 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
   const latitude = Number(profile.latitude);
   const longitude = Number(profile.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    const storeCount = new Set(
+      items
+        .map((item) => getProduct(item.productId))
+        .filter(Boolean)
+        .map((product) => product.storeId)
+    ).size;
+    const estimatedFee = estimateFallbackDeliveryFee(storeCount);
     return {
       hasCoordinates: false,
-      fee: 0,
+      estimated: true,
+      fee: estimatedFee,
       subtotal,
-      total: subtotal,
+      total: subtotal + estimatedFee,
       breakdown: [],
       consolidationFee: 0,
-      label: "Pin map location"
+      label: `${currency(estimatedFee)} est.`
     };
   }
 
@@ -608,22 +621,24 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
       }
       const storeLatitude = Number(store.latitude);
       const storeLongitude = Number(store.longitude);
-      if (!Number.isFinite(storeLatitude) || !Number.isFinite(storeLongitude)) {
-        return null;
-      }
-
-      const distanceKm = haversineDistanceKm(buyerPoint, {
-        latitude: storeLatitude,
-        longitude: storeLongitude
-      });
-      const routeFee = calculateAffordableDeliveryFee(distanceKm);
+      const hasStoreCoordinates = Number.isFinite(storeLatitude) && Number.isFinite(storeLongitude);
+      const distanceKm = hasStoreCoordinates
+        ? haversineDistanceKm(buyerPoint, {
+            latitude: storeLatitude,
+            longitude: storeLongitude
+          })
+        : null;
+      const routeFee = hasStoreCoordinates
+        ? calculateAffordableDeliveryFee(distanceKm)
+        : estimateFallbackDeliveryFee(1);
 
       return {
         storeId: store.id,
         storeName: store.storeName,
         distanceKm,
-        distanceText: formatDistance(distanceKm),
+        distanceText: hasStoreCoordinates ? formatDistance(distanceKm) : "Distance estimate",
         fee: routeFee,
+        estimated: !hasStoreCoordinates,
         quantity: group.quantity,
         subtotal: group.subtotal
       };
@@ -635,6 +650,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
 
   return {
     hasCoordinates: true,
+    estimated: breakdown.some((entry) => entry.estimated),
     fee,
     subtotal,
     total: subtotal + fee,
@@ -926,7 +942,13 @@ function renderDeliveryBreakdown(items) {
   }
 
   if (!delivery.hasCoordinates) {
-    container.innerHTML = '<div class="breakdown-card"><p>Pin buyer location on the map to calculate delivery from each seller.</p></div>';
+    container.innerHTML = `
+      <div class="breakdown-card">
+        <strong>Affordable delivery estimate</strong>
+        <p>Search your area, tap the map, or use your location for exact distance pricing.</p>
+        <p>Estimated fee now: ${delivery.label}</p>
+      </div>
+    `;
     return delivery;
   }
 
@@ -936,8 +958,8 @@ function renderDeliveryBreakdown(items) {
         (entry) => `
           <article class="breakdown-card">
             <strong>${entry.storeName}</strong>
-            <p>${formatDistance(entry.distanceKm)} | ${entry.quantity} item(s)</p>
-            <p>Subtotal ${currency(entry.subtotal)} | Delivery ${currency(entry.fee)}</p>
+            <p>${entry.distanceText || formatDistance(entry.distanceKm)} | ${entry.quantity} item(s)</p>
+            <p>Subtotal ${currency(entry.subtotal)} | Delivery ${currency(entry.fee)}${entry.estimated ? " est." : ""}</p>
           </article>
         `
       )
@@ -975,16 +997,16 @@ function renderSummaryPanels() {
   }
 
   if (!delivery.hasCoordinates) {
-    info.textContent = "Use your location to calculate delivery.";
-    status.textContent = "Waiting for customer location.";
+    info.textContent = `Estimated affordable delivery is ${delivery.label}. Add map location for exact distance.`;
+    status.textContent = `Subtotal ${currency(delivery.subtotal)} + estimated delivery ${currency(delivery.fee)} = ${currency(delivery.total)}.`;
     return;
   }
 
   info.textContent =
     delivery.breakdown.length > 1
-      ? `${delivery.breakdown.length} pickup routes included.`
-      : "Delivery fee calculated.";
-  status.textContent = `Subtotal ${currency(delivery.subtotal)} + delivery ${currency(delivery.fee)} = ${currency(delivery.total)}.`;
+      ? `${delivery.breakdown.length} pickup routes included. Affordable delivery calculated.`
+      : "Affordable delivery fee calculated.";
+  status.textContent = `Subtotal ${currency(delivery.subtotal)} + ${delivery.estimated ? "estimated " : ""}delivery ${currency(delivery.fee)} = ${currency(delivery.total)}.`;
 }
 
 function renderCart() {
@@ -1176,8 +1198,6 @@ async function handleCheckout() {
   }
 
   const profile = readCheckoutForm();
-  const latitude = Number(profile.latitude);
-  const longitude = Number(profile.longitude);
   const delivery = buildDeliverySummary(cart, profile);
 
   if (!profile.fullName || !profile.mpesaName || !profile.phone || !profile.location) {
@@ -1193,16 +1213,6 @@ async function handleCheckout() {
   const missingBusinessPayment = profile.businessPayments.find((payment) => !payment.ref);
   if (missingBusinessPayment) {
     showToast("Enter each business payment reference before submitting.", "warn");
-    return;
-  }
-
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    showToast("Use your location to calculate delivery.", "warn");
-    return;
-  }
-
-  if (!delivery.hasCoordinates) {
-    showToast("Customer location is required for delivery pricing.", "warn");
     return;
   }
 

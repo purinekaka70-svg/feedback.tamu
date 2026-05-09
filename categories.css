@@ -1293,6 +1293,14 @@ button {
   font-size: 0.78rem;
 }
 
+.shop-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+
 .shop-here-results {
   display: grid;
   gap: 6px;
@@ -2523,5 +2531,13 @@ body.is-image-viewing {
     display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
+  }
+
+  .shop-search-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shop-search-row .button {
+    width: 100% !important;
   }
 }

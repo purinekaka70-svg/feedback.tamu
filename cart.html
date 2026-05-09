@@ -140,12 +140,18 @@
 
                 <div class="field">
                   <span class="field-label">Customer Location</span>
+                  <div class="map-search-row">
+                    <input id="buyerMapSearchInput" class="input" type="search" placeholder="Search estate, town, stage..." autocomplete="off" />
+                    <button id="buyerMapSearchButton" class="button button-outline" type="button">Search</button>
+                  </div>
                   <button id="useMyLocationButton" class="button button-outline" type="button">Use My Location</button>
                   <p id="buyerMapSearchStatus" class="tiny">Location is needed for delivery fee.</p>
                 </div>
                 <input id="buyerLatitudeInput" name="latitude" type="hidden" />
                 <input id="buyerLongitudeInput" name="longitude" type="hidden" />
               </div>
+
+              <div id="buyerLocationMap" class="location-map" aria-label="Buyer delivery location map"></div>
 
               <div>
                 <p class="field-label">Pay Business Directly</p>

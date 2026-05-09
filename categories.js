@@ -698,18 +698,23 @@ function calculateAffordableDeliveryFee(distanceKm) {
   let fee;
 
   if (distance <= 2) {
-    fee = 40 + distance * 20;
+    fee = 30 + distance * 15;
   } else if (distance <= 5) {
-    fee = 80 + (distance - 2) * 20;
+    fee = 60 + (distance - 2) * 15;
   } else if (distance <= 10) {
-    fee = 150 + (distance - 5) * 25;
+    fee = 110 + (distance - 5) * 18;
   } else if (distance <= 20) {
-    fee = 300 + (distance - 10) * 18;
+    fee = 200 + (distance - 10) * 12;
   } else {
-    fee = 500 + (distance - 20) * 20;
+    fee = 320 + (distance - 20) * 10;
   }
 
-  return Math.min(1000, Math.max(40, Math.round(fee / 10) * 10));
+  return Math.min(550, Math.max(40, Math.round(fee / 10) * 10));
+}
+
+function estimateFallbackDeliveryFee(storeCount = 1) {
+  const count = Math.max(1, Number(storeCount) || 1);
+  return Math.min(250, 70 + (count - 1) * 30);
 }
 
 function buildDeliverySummary(cartItems, profile = buyerProfile()) {
@@ -729,10 +734,21 @@ function buildDeliverySummary(cartItems, profile = buyerProfile()) {
   const latitude = Number(profile.latitude);
   const longitude = Number(profile.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    const storeCount = new Set(
+      cartItems
+        .map((item) => getProduct(item.productId))
+        .filter(Boolean)
+        .map((product) => product.storeId)
+    ).size;
+    const estimatedFee = estimateFallbackDeliveryFee(storeCount);
     return {
       subtotal,
-      fee: 0,
-      label: "Set location in cart"
+      fee: estimatedFee,
+      estimated: true,
+      total: subtotal + estimatedFee,
+      breakdown: [],
+      consolidationFee: 0,
+      label: `${currency(estimatedFee)} est.`
     };
   }
 
@@ -751,21 +767,23 @@ function buildDeliverySummary(cartItems, profile = buyerProfile()) {
     }
     const storeLatitude = Number(store.latitude);
     const storeLongitude = Number(store.longitude);
-    if (!Number.isFinite(storeLatitude) || !Number.isFinite(storeLongitude)) {
-      return null;
-    }
-
-    const distanceKm = haversineDistanceKm(buyerPoint, {
-      latitude: storeLatitude,
-      longitude: storeLongitude
-    });
-    const fee = calculateAffordableDeliveryFee(distanceKm);
+    const hasStoreCoordinates = Number.isFinite(storeLatitude) && Number.isFinite(storeLongitude);
+    const distanceKm = hasStoreCoordinates
+      ? haversineDistanceKm(buyerPoint, {
+          latitude: storeLatitude,
+          longitude: storeLongitude
+        })
+      : null;
+    const fee = hasStoreCoordinates
+      ? calculateAffordableDeliveryFee(distanceKm)
+      : estimateFallbackDeliveryFee(1);
     return {
       storeId: store.id,
       storeName: store.storeName,
       distanceKm,
-      distanceText: formatDistance(distanceKm),
-      fee
+      distanceText: hasStoreCoordinates ? formatDistance(distanceKm) : "Distance estimate",
+      fee,
+      estimated: !hasStoreCoordinates
     };
   }).filter(Boolean);
 
@@ -775,6 +793,7 @@ function buildDeliverySummary(cartItems, profile = buyerProfile()) {
   return {
     subtotal,
     fee,
+    estimated: breakdown.some((entry) => entry.estimated),
     breakdown,
     consolidationFee,
     label: currency(fee)
@@ -1379,7 +1398,12 @@ function renderProducts() {
         </div>
         <label class="field shop-mode-search">
           <span class="field-label">What do you want to buy?</span>
-          <input class="input shop-here-input" data-shop-search="${selectedStore.id}" type="search" value="${state.shopQuery}" placeholder="Search rice, sugar, phone, drinks..." />
+          <span class="shop-search-row">
+            <input class="input shop-here-input" data-shop-search="${selectedStore.id}" type="search" value="${escapeAttribute(state.shopQuery)}" placeholder="Search rice, sugar, phone, drinks..." />
+            <button class="button button-primary button-small" data-shop-search-submit="${selectedStore.id}" type="button">Search</button>
+            <button class="button button-outline button-small" data-shop-search-clear="${selectedStore.id}" type="button">Clear</button>
+          </span>
+          <span class="tiny">${query ? `${matches.length} result${matches.length === 1 ? "" : "s"} for "${escapeHtml(state.shopQuery)}"` : "Type a product name to filter this store."}</span>
         </label>
       </section>
       ${offerMatches.length ? `
@@ -1410,7 +1434,13 @@ function renderProducts() {
           </div>
         </section>
       ` : ""}
-      ${!matches.length ? '<div class="card empty-shop-result">No matching products in this business.</div>' : ""}
+      ${!matches.length ? `
+        <div class="card empty-shop-result">
+          <strong>No matching products in this business.</strong>
+          <p class="tiny">Try another word or clear the search to see everything from this seller.</p>
+          <button class="button button-outline button-small" data-shop-search-clear="${selectedStore.id}" type="button">View all products</button>
+        </div>
+      ` : ""}
     `;
     bindProductCardActions(container);
     bindShopModeActions(container);
@@ -1549,12 +1579,36 @@ function bindProductCardActions(container) {
 }
 
 function bindShopModeActions(container) {
+  const runShopSearch = (storeId, value) => {
+    state.activeShopStoreId = storeId;
+    state.focusedStoreId = storeId;
+    state.shopQuery = String(value || "").trim();
+    savePreviewState();
+    renderMarket();
+  };
+
   container.querySelectorAll("[data-shop-search]").forEach((input) => {
     input.addEventListener("input", () => {
-      state.activeShopStoreId = input.dataset.shopSearch;
-      state.focusedStoreId = input.dataset.shopSearch;
-      state.shopQuery = input.value;
-      renderMarket();
+      runShopSearch(input.dataset.shopSearch, input.value);
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        runShopSearch(input.dataset.shopSearch, input.value);
+      }
+    });
+  });
+
+  container.querySelectorAll("[data-shop-search-submit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const input = container.querySelector(`[data-shop-search="${button.dataset.shopSearchSubmit}"]`);
+      runShopSearch(button.dataset.shopSearchSubmit, input?.value || "");
+    });
+  });
+
+  container.querySelectorAll("[data-shop-search-clear]").forEach((button) => {
+    button.addEventListener("click", () => {
+      runShopSearch(button.dataset.shopSearchClear, "");
     });
   });
 
