@@ -4,6 +4,10 @@ const { method, send, text } = require("../_lib/http");
 
 function publicOrder(row, items = [], routes = []) {
   const businessPayments = row.business_payments || [];
+  const rawStatus = row.status || "pending_payment";
+  const displayStatus = row.payment_status === "paid" && ["pending", "pending_payment", "paid"].includes(String(rawStatus))
+    ? "paid"
+    : rawStatus;
   const paymentStoreIds = new Set(businessPayments.map((payment) => String(payment.storeId || payment.businessId || "")));
   items.forEach((item) => {
     const storeId = String(item.storeId || item.businessId || "");
@@ -46,8 +50,8 @@ function publicOrder(row, items = [], routes = []) {
     subtotal: Number(row.subtotal || 0),
     deliveryFee: Number(row.delivery_fee || 0),
     total: Number(row.total || 0),
-    status: row.status || "pending_payment",
-    deliveryStatus: row.status || "pending_payment",
+    status: displayStatus,
+    deliveryStatus: rawStatus,
     createdAt: row.created_at || "",
     items,
     routeBreakdown: routes
