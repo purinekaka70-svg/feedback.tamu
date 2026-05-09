@@ -10,6 +10,14 @@ function compactError(error) {
     .slice(0, 260);
 }
 
+async function columnType(table, column) {
+  const rows = await query(
+    "select data_type, udt_name from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = $2 limit 1",
+    [table, column]
+  );
+  return rows[0] || {};
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   const session = requireRole(req, res, ["admin", "seller"]);
@@ -29,10 +37,18 @@ module.exports = async function handler(req, res) {
            and (oi.business_id = $4 or oi.store_public_id = $5)
       )`;
     }
+    const statusColumn = await columnType("orders", "status");
+    const paymentStatusColumn = await columnType("orders", "payment_status");
+    const statusUpdate = statusColumn.udt_name === "order_status"
+      ? "case when nullif($2,'') is null then status else $2::order_status end"
+      : "coalesce(nullif($2,''), status)";
+    const paymentStatusUpdate = paymentStatusColumn.udt_name === "payment_status"
+      ? "case when nullif($3,'') is null then payment_status else $3::payment_status end"
+      : "coalesce(nullif($3,''), payment_status)";
     const updated = await query(
       `update orders
-          set status = coalesce(nullif($2,''), status),
-              payment_status = coalesce(nullif($3,''), payment_status)
+          set status = ${statusUpdate},
+              payment_status = ${paymentStatusUpdate}
         where ${where}
         returning id, public_id, mpesa_reference, payment_method`,
       params
