@@ -295,6 +295,25 @@ function currency(value) {
   return `KSh ${Number(value).toLocaleString()}`;
 }
 
+function isBogoOffer(product) {
+  return /buy\s*1\s*get\s*1|buy\s*one\s*get\s*one|bogo|one\s*free/i.test(String(product?.productOffer || ""));
+}
+
+function paidQuantityForProduct(product, quantity) {
+  const qty = Math.max(0, Number(quantity) || 0);
+  return isBogoOffer(product) ? Math.ceil(qty / 2) : qty;
+}
+
+function productLineTotal(product, quantity) {
+  return product ? product.productPrice * paidQuantityForProduct(product, quantity) : 0;
+}
+
+function offerMessage(product) {
+  return isBogoOffer(product)
+    ? `${product.productName}: Buy one get one free. Add once and 2 items go to cart, but you pay for 1.`
+    : product?.productOffer || "";
+}
+
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
@@ -863,7 +882,7 @@ function buildDeliverySummary(cartItems, profile = buyerProfile()) {
 
   const subtotal = cartItems.reduce((sum, item) => {
     const product = getProduct(item.productId);
-    return sum + (product ? product.productPrice * item.quantity : 0);
+    return sum + productLineTotal(product, item.quantity);
   }, 0);
 
   const latitude = Number(profile.latitude);
@@ -996,8 +1015,10 @@ async function createLocalOrderFromStore(storeId) {
         quantity: item.quantity,
         price: product.productPrice,
         unitPrice: product.productPrice,
-        total: product.productPrice * item.quantity,
-        lineTotal: product.productPrice * item.quantity
+        total: productLineTotal(product, item.quantity),
+        lineTotal: productLineTotal(product, item.quantity),
+        offer: product.productOffer || "",
+        paidQuantity: paidQuantityForProduct(product, item.quantity)
       };
     })
     .filter(Boolean);
@@ -1087,7 +1108,7 @@ function sanitizeCart() {
   }
 }
 
-function showToast(message, tone = "success") {
+function showToast(message, tone = "success", duration = 2600) {
   const container = document.getElementById("toastContainer");
   const toast = document.createElement("div");
   toast.className = `toast toast--${tone}`;
@@ -1096,7 +1117,7 @@ function showToast(message, tone = "success") {
 
   window.setTimeout(() => {
     toast.remove();
-  }, 2600);
+  }, duration);
 }
 
 function initReveal() {
@@ -1194,11 +1215,12 @@ async function addToCart(productId) {
     return;
   }
 
+  const addQuantity = isBogoOffer(product) ? 2 : 1;
   const existing = state.cart.find((item) => item.productId === productId);
   if (existing) {
-    existing.quantity += 1;
+    existing.quantity += addQuantity;
   } else {
-    state.cart.push({ productId, quantity: 1 });
+    state.cart.push({ productId, quantity: addQuantity });
   }
 
   const nextQuantity = state.cart.find((item) => item.productId === productId)?.quantity || 1;
@@ -1303,7 +1325,28 @@ function renderDeals() {
     .join("");
 
   container.querySelectorAll("[data-offer-product]").forEach((button) => {
+    let offerHoldTimer = null;
+    const clearOfferHold = () => {
+      if (offerHoldTimer) {
+        window.clearTimeout(offerHoldTimer);
+        offerHoldTimer = null;
+      }
+    };
+    button.addEventListener("pointerdown", () => {
+      clearOfferHold();
+      offerHoldTimer = window.setTimeout(() => {
+        const product = getProduct(button.dataset.offerProduct);
+        const message = offerMessage(product);
+        if (message) {
+          showToast(message, "info", 5200);
+        }
+      }, 650);
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
+      button.addEventListener(eventName, clearOfferHold);
+    });
     button.addEventListener("click", async () => {
+      clearOfferHold();
       await addToCart(button.dataset.offerProduct);
     });
   });
@@ -1747,8 +1790,30 @@ function bindCategoryCardActions(container) {
 
 function bindProductCardActions(container) {
   container.querySelectorAll("[data-add-product], [data-shop-add-product]").forEach((button) => {
+    let offerHoldTimer = null;
+    const productId = button.dataset.addProduct || button.dataset.shopAddProduct;
+    const clearOfferHold = () => {
+      if (offerHoldTimer) {
+        window.clearTimeout(offerHoldTimer);
+        offerHoldTimer = null;
+      }
+    };
+    button.addEventListener("pointerdown", () => {
+      clearOfferHold();
+      offerHoldTimer = window.setTimeout(() => {
+        const product = getProduct(productId);
+        const message = offerMessage(product);
+        if (message) {
+          showToast(message, "info", 5200);
+        }
+      }, 650);
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
+      button.addEventListener(eventName, clearOfferHold);
+    });
     button.addEventListener("click", async () => {
-      await addToCart(button.dataset.addProduct || button.dataset.shopAddProduct);
+      clearOfferHold();
+      await addToCart(productId);
     });
   });
   container.querySelectorAll("[data-view-product]").forEach((button) => {
@@ -1914,7 +1979,7 @@ function productCardHtml(product) {
 function renderCartSummary() {
   const subtotal = state.cart.reduce((sum, item) => {
     const product = getProduct(item.productId);
-    return sum + (product ? product.productPrice * item.quantity : 0);
+    return sum + productLineTotal(product, item.quantity);
   }, 0);
   const itemCount = state.cart.reduce((sum, item) => sum + item.quantity, 0);
   const delivery = buildDeliverySummary(state.cart);

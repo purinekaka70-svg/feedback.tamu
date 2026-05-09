@@ -283,7 +283,7 @@ function selectedStoreSummaries(items) {
       subtotal: 0
     };
     current.quantity += item.quantity;
-    current.subtotal += product.productPrice * item.quantity;
+    current.subtotal += productLineTotal(product, item.quantity);
     groupedByStore.set(store.id, current);
   });
 
@@ -292,6 +292,19 @@ function selectedStoreSummaries(items) {
 
 function currency(value) {
   return `KSh ${Number(value).toLocaleString()}`;
+}
+
+function isBogoOffer(product) {
+  return /buy\s*1\s*get\s*1|buy\s*one\s*get\s*one|bogo|one\s*free/i.test(String(product?.productOffer || ""));
+}
+
+function paidQuantityForProduct(product, quantity) {
+  const qty = Math.max(0, Number(quantity) || 0);
+  return isBogoOffer(product) ? Math.ceil(qty / 2) : qty;
+}
+
+function productLineTotal(product, quantity) {
+  return product ? product.productPrice * paidQuantityForProduct(product, quantity) : 0;
 }
 
 function formatOrderTime(value) {
@@ -707,7 +720,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
 
   const subtotal = items.reduce((sum, item) => {
     const product = getProduct(item.productId);
-    return sum + (product ? product.productPrice * item.quantity : 0);
+    return sum + productLineTotal(product, item.quantity);
   }, 0);
 
   const latitude = Number(profile.latitude);
@@ -754,7 +767,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
 
     current.quantity += item.quantity;
     current.weightKg += productWeightKg(product) * item.quantity;
-    current.subtotal += product.productPrice * item.quantity;
+    current.subtotal += productLineTotal(product, item.quantity);
     groupedByStore.set(product.storeId, current);
   });
 
@@ -1194,7 +1207,8 @@ function renderCart() {
         <article class="cart-item">
           <strong>${product.productName}</strong>
           <p>${store.storeName}</p>
-          <p>${currency(product.productPrice)} each | Total ${currency(product.productPrice * item.quantity)}</p>
+          <p>${currency(product.productPrice)} each | Total ${currency(productLineTotal(product, item.quantity))}</p>
+          ${isBogoOffer(product) ? `<p class="tiny">Buy one get one free applied: ${item.quantity} item(s), pay for ${paidQuantityForProduct(product, item.quantity)}.</p>` : ""}
           <div class="button-row">
             <button class="button button-ghost button-small" data-cart-action="decrease" data-product-id="${product.id}" type="button">-</button>
             <span class="summary-chip">${item.quantity}</span>
@@ -1350,8 +1364,10 @@ function buildOrderPayload(profile, delivery) {
         quantity: item.quantity,
         price: product.productPrice,
         unitPrice: product.productPrice,
-        total: product.productPrice * item.quantity,
-        lineTotal: product.productPrice * item.quantity
+        total: productLineTotal(product, item.quantity),
+        lineTotal: productLineTotal(product, item.quantity),
+        offer: product.productOffer || "",
+        paidQuantity: paidQuantityForProduct(product, item.quantity)
       };
     })
     .filter(Boolean);
