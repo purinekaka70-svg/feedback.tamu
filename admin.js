@@ -1325,14 +1325,12 @@ function bindAdminNavigation() {
   const toggle = document.getElementById("adminMenuToggle");
   const sidebar = document.getElementById("adminSidebar");
   const overlay = document.getElementById("adminSidebarOverlay");
-  const shell = document.querySelector(".admin-app-shell");
 
   if (toggle && toggle.dataset.bound !== "true") {
     toggle.dataset.bound = "true";
     toggle.addEventListener("click", () => {
       if (window.matchMedia("(min-width: 981px)").matches) {
-        const collapsed = shell?.classList.toggle("admin-sidebar-collapsed");
-        toggle.setAttribute("aria-expanded", String(!collapsed));
+        closeAdminMenu();
         return;
       }
       closeOtherMenusForAdmin();
@@ -1352,8 +1350,6 @@ function bindAdminNavigation() {
   window.addEventListener("resize", () => {
     if (window.matchMedia("(min-width: 981px)").matches) {
       closeAdminMenu();
-    } else {
-      shell?.classList.remove("admin-sidebar-collapsed");
     }
   });
 

@@ -1573,9 +1573,7 @@ function toggleSellerMenu(event) {
   if (!nav || !overlay || !toggle) return;
 
   if (window.matchMedia("(min-width: 901px)").matches) {
-    const dashboard = document.getElementById("sellerDashboard");
-    const isCollapsed = dashboard?.classList.toggle("seller-sidebar-collapsed");
-    toggle.setAttribute("aria-expanded", String(!isCollapsed));
+    closeSellerMenu();
     return;
   }
 
@@ -1842,7 +1840,6 @@ function bindActions() {
   document.getElementById("sellerPanelLogoutBtn").addEventListener("click", logoutSeller);
 
   document.getElementById("sellerWorkspaceToggle").addEventListener("click", toggleSellerMenu);
-  document.getElementById("sellerWorkspaceToggle").addEventListener("touchend", toggleSellerMenu, { passive: false });
   document.getElementById("sellerMenuOverlay").addEventListener("click", closeSellerMenu);
 
   document.querySelectorAll("[data-seller-view]").forEach((button) => {
@@ -1858,8 +1855,6 @@ function bindActions() {
   window.addEventListener("resize", () => {
     if (window.matchMedia("(min-width: 901px)").matches) {
       closeSellerMenu();
-    } else {
-      document.getElementById("sellerDashboard")?.classList.remove("seller-sidebar-collapsed");
     }
   });
 
