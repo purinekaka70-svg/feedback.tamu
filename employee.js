@@ -230,12 +230,30 @@ function employeeLoginErrorMessage(error) {
     return "Wrong employee email or password in Firebase Auth.";
   }
   if (code.includes("too-many-requests")) {
-    return "Too many login attempts. Try again later or reset the Firebase password.";
+    return "Firebase temporarily blocked this email after too many failed attempts. Wait a few minutes or use Reset Firebase password.";
   }
   if (code.includes("network-request-failed")) {
     return "Firebase login network failed. Check internet connection and Firebase config.";
   }
   return error?.message || "Invalid employee credentials or Firebase Auth failed.";
+}
+
+async function sendEmployeePasswordReset(email) {
+  const firebase = await ensureFirebaseApp();
+  if (!firebase.ok) {
+    return firebase;
+  }
+
+  if (!email) {
+    return { ok: false, message: "Enter the employee email first, then reset the password." };
+  }
+
+  try {
+    await window.firebase.auth().sendPasswordResetEmail(email);
+    return { ok: true, message: "Password reset email sent. Check the employee inbox, then login with the new password." };
+  } catch (error) {
+    return { ok: false, message: employeeLoginErrorMessage(error) };
+  }
 }
 
 async function loadEmployeeOrders() {
@@ -894,6 +912,7 @@ async function restoreSession() {
 function bindLogin() {
   const form = document.getElementById("employeeLoginForm");
   const status = document.getElementById("employeeLoginStatus");
+  const resetButton = document.getElementById("employeeResetPasswordButton");
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
@@ -916,6 +935,16 @@ function bindLogin() {
     cachedEmployeeOrders.forEach(syncOrderToFirestore);
     renderEmployee();
     setEmployeeView("dashboard");
+  });
+
+  resetButton?.addEventListener("click", async () => {
+    const emailInput = document.getElementById("employeeEmail");
+    const email = String(emailInput?.value || "").trim();
+    resetButton.disabled = true;
+    status.textContent = "Sending reset email...";
+    const result = await sendEmployeePasswordReset(email);
+    status.textContent = result.message;
+    resetButton.disabled = false;
   });
 }
 
