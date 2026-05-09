@@ -385,6 +385,24 @@ textarea {
   color: var(--muted);
 }
 
+.delivery-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(22, 163, 74, 0.08);
+  color: var(--accent-strong);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.delivery-metric-row strong {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
 .stage-card {
   background: linear-gradient(180deg, #f8fbf8 0%, #eef7ef 100%);
 }

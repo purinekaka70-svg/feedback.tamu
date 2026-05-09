@@ -529,23 +529,131 @@ function haversineDistanceKm(from, to) {
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function calculateAffordableDeliveryFee(distanceKm) {
-  const distance = Math.max(0, Number(distanceKm) || 0);
-  let fee;
+const COUNTY_REGIONS = {
+  coast: ["mombasa", "kwale", "kilifi", "tana river", "lamu", "taita taveta"],
+  "nairobi metro": ["nairobi", "kiambu", "kajiado", "machakos", "muranga"],
+  central: ["nyeri", "kirinyaga", "muranga", "nyandarua", "kiambu"],
+  "rift valley": ["turkana", "west pokot", "samburu", "trans nzoia", "uasin gishu", "elgeyo marakwet", "nandi", "baringo", "laikipia", "nakuru", "narok", "kajiado", "kericho", "bomet"],
+  western: ["kakamega", "vihiga", "bungoma", "busia"],
+  nyanza: ["kisumu", "siaya", "homa bay", "migori", "kisii", "nyamira"],
+  eastern: ["marsabit", "isiolo", "meru", "tharaka nithi", "embu", "kitui", "makueni", "machakos"],
+  "north eastern": ["garissa", "wajir", "mandera"]
+};
 
-  if (distance <= 2) {
-    fee = 30 + distance * 15;
-  } else if (distance <= 5) {
-    fee = 60 + (distance - 2) * 15;
-  } else if (distance <= 10) {
-    fee = 110 + (distance - 5) * 18;
-  } else if (distance <= 20) {
-    fee = 200 + (distance - 10) * 12;
+const COUNTY_ALIASES = {
+  "taita-taveta": "taita taveta",
+  "elgeyo-marakwet": "elgeyo marakwet",
+  "homa-bay": "homa bay",
+  "trans-nzoia": "trans nzoia",
+  "tharaka-nithi": "tharaka nithi",
+  "west-pokot": "west pokot"
+};
+
+function normalizeCountyName(value = "") {
+  const cleaned = String(value || "")
+    .toLowerCase()
+    .replace(/county/g, "")
+    .replace(/[^a-z\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return COUNTY_ALIASES[cleaned] || cleaned;
+}
+
+function allCountyNames() {
+  return [...new Set(Object.values(COUNTY_REGIONS).flat())];
+}
+
+function countyFromText(value = "") {
+  const text = normalizeCountyName(value);
+  if (!text) return "";
+  return allCountyNames().find((county) => text.includes(county)) || "";
+}
+
+function storeCounty(store) {
+  return countyFromText(`${store?.county || ""} ${store?.location || ""} ${store?.locationName || ""}`);
+}
+
+function buyerCounty(profile = buyerProfile()) {
+  return countyFromText(profile.location || "");
+}
+
+function countyRegion(county = "") {
+  const normalized = normalizeCountyName(county);
+  return Object.entries(COUNTY_REGIONS).find(([, counties]) => counties.includes(normalized))?.[0] || "";
+}
+
+function routeClassification(distanceKm, store, profile = buyerProfile()) {
+  const distance = Math.max(0, Number(distanceKm) || 0);
+  const fromCounty = storeCounty(store);
+  const toCounty = buyerCounty(profile);
+  const sameCounty = Boolean(fromCounty && toCounty && fromCounty === toCounty) || likelySameCounty(store, profile);
+  const sameRegion = Boolean(fromCounty && toCounty && countyRegion(fromCounty) && countyRegion(fromCounty) === countyRegion(toCounty));
+
+  if (distance <= 5 || (sameCounty && distance <= 12)) {
+    return { key: "local", label: "Same business area", sameCounty, sameRegion };
+  }
+  if (sameCounty || distance <= 80) {
+    return { key: "same-county", label: "Same county", sameCounty: true, sameRegion };
+  }
+  if (sameRegion || distance <= 160) {
+    return { key: "nearby-county", label: "Nearby county", sameCounty: false, sameRegion: true };
+  }
+  return { key: "regional", label: "Different region", sameCounty: false, sameRegion: false };
+}
+
+function productWeightKg(product) {
+  const text = `${product?.productName || ""} ${product?.productCategory || ""}`.toLowerCase();
+  if (/furniture|sofa|bed|mattress|table|chair/.test(text)) return 8;
+  if (/hardware|cement|paint|metal|tile|tool/.test(text)) return 3;
+  if (/electronics|speaker|tv|fridge|woofer/.test(text)) return 2;
+  if (/water|drink|flour|rice|sugar|grocery|food|fresh/.test(text)) return 1.2;
+  if (/shoes|bag|cosmetic|beauty/.test(text)) return 0.8;
+  if (/cloth|fashion|collection|wear|shirt|dress/.test(text)) return 0.45;
+  return 0.7;
+}
+
+function groupBulkSummary(group) {
+  const quantity = Math.max(1, Number(group.quantity) || 1);
+  const weightKg = Math.max(0.5, Number(group.weightKg) || quantity * 0.7);
+  const quantityFee = Math.min(120, Math.max(0, quantity - 2) * 8);
+  const weightFee = weightKg > 5 ? Math.min(350, (weightKg - 5) * 18) : 0;
+  return {
+    quantity,
+    weightKg,
+    fee: Math.round((quantityFee + weightFee) / 10) * 10
+  };
+}
+
+function calculateMarketplaceDeliveryFee(distanceKm, store, group, profile = buyerProfile()) {
+  const distance = Math.max(0, Number(distanceKm) || 0);
+  const route = routeClassification(distance, store, profile);
+  const bulk = groupBulkSummary(group);
+  let baseFee;
+  let cap;
+
+  if (route.key === "local") {
+    baseFee = 40 + distance * 8;
+    cap = 100;
+  } else if (route.key === "same-county") {
+    baseFee = 90 + distance * 2;
+    cap = 250;
+  } else if (route.key === "nearby-county") {
+    baseFee = 220 + distance * 1.35;
+    cap = 500;
   } else {
-    fee = 320 + (distance - 20) * 10;
+    baseFee = 450 + distance * 1.15;
+    cap = bulk.weightKg > 25 || bulk.quantity > 15 ? 2000 : 1500;
   }
 
-  return Math.min(550, Math.max(40, Math.round(fee / 10) * 10));
+  const fee = Math.round(Math.min(cap, baseFee + bulk.fee) / 10) * 10;
+  return {
+    fee: Math.max(40, fee),
+    routeKey: route.key,
+    routeLabel: route.label,
+    sameCounty: route.sameCounty,
+    sameRegion: route.sameRegion,
+    estimatedWeightKg: bulk.weightKg
+  };
 }
 
 function likelySameCounty(store, profile = buyerProfile()) {
@@ -560,20 +668,13 @@ function likelySameCounty(store, profile = buyerProfile()) {
     .some((part) => storeText.includes(part));
 }
 
-function countyAdjustedDeliveryFee(distanceKm, store, profile = buyerProfile()) {
-  const baseFee = calculateAffordableDeliveryFee(distanceKm);
-  if (!likelySameCounty(store, profile)) {
-    return baseFee;
-  }
-  return Math.max(40, Math.round((baseFee * 0.85) / 10) * 10);
-}
-
-function estimateFallbackDeliveryFee(storeCount = 1, sameCountyCount = 0) {
+function estimateFallbackDeliveryFee(storeCount = 1, sameCountyCount = 0, quantity = 1) {
   const count = Math.max(1, Number(storeCount) || 1);
   const sameCounty = Math.max(0, Number(sameCountyCount) || 0);
-  const base = 70 + (count - 1) * 30;
+  const qty = Math.max(1, Number(quantity) || 1);
+  const base = 70 + (count - 1) * 30 + Math.min(80, Math.max(0, qty - 2) * 8);
   const discount = Math.min(30, sameCounty * 10);
-  return Math.min(250, Math.max(50, base - discount));
+  return Math.min(350, Math.max(50, base - discount));
 }
 
 function buildDeliverySummary(items, profile = buyerProfile()) {
@@ -605,7 +706,8 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
     )].map((storeId) => getStore(storeId)).filter(Boolean);
     const estimatedFee = estimateFallbackDeliveryFee(
       stores.length,
-      stores.filter((store) => likelySameCounty(store, profile)).length
+      stores.filter((store) => likelySameCounty(store, profile)).length,
+      items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
     );
     return {
       hasCoordinates: false,
@@ -631,10 +733,12 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
     const current = groupedByStore.get(product.storeId) || {
       storeId: product.storeId,
       quantity: 0,
+      weightKg: 0,
       subtotal: 0
     };
 
     current.quantity += item.quantity;
+    current.weightKg += productWeightKg(product) * item.quantity;
     current.subtotal += product.productPrice * item.quantity;
     groupedByStore.set(product.storeId, current);
   });
@@ -654,25 +758,36 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
             longitude: storeLongitude
           })
         : null;
-      const routeFee = hasStoreCoordinates
-        ? countyAdjustedDeliveryFee(distanceKm, store, profile)
-        : estimateFallbackDeliveryFee(1, likelySameCounty(store, profile) ? 1 : 0);
+      const pricing = hasStoreCoordinates
+        ? calculateMarketplaceDeliveryFee(distanceKm, store, group, profile)
+        : {
+            fee: estimateFallbackDeliveryFee(1, likelySameCounty(store, profile) ? 1 : 0, group.quantity),
+            routeKey: likelySameCounty(store, profile) ? "same-county" : "estimate",
+            routeLabel: likelySameCounty(store, profile) ? "Same county estimate" : "Affordable estimate",
+            sameCounty: likelySameCounty(store, profile),
+            sameRegion: false,
+            estimatedWeightKg: group.weightKg
+          };
 
       return {
         storeId: store.id,
         storeName: store.storeName,
         distanceKm,
         distanceText: hasStoreCoordinates ? formatDistance(distanceKm) : "Distance estimate",
-        fee: routeFee,
+        fee: pricing.fee,
+        routeType: pricing.routeKey,
+        routeLabel: pricing.routeLabel,
+        estimatedWeightKg: pricing.estimatedWeightKg,
         estimated: !hasStoreCoordinates,
-        sameCounty: likelySameCounty(store, profile),
+        sameCounty: pricing.sameCounty,
+        sameRegion: pricing.sameRegion,
         quantity: group.quantity,
         subtotal: group.subtotal
       };
     })
     .filter(Boolean);
 
-  const consolidationFee = breakdown.length > 1 ? (breakdown.length - 1) * 25 : 0;
+  const consolidationFee = breakdown.length > 1 ? Math.min(80, (breakdown.length - 1) * 20) : 0;
   const fee = breakdown.reduce((sum, entry) => sum + entry.fee, 0) + consolidationFee;
 
   return {
@@ -989,8 +1104,12 @@ function renderDeliveryBreakdown(items) {
         (entry) => `
           <article class="breakdown-card">
             <strong>${entry.storeName}</strong>
-            <p>${entry.distanceText || formatDistance(entry.distanceKm)} | ${entry.quantity} item(s)${entry.sameCounty ? " | same-county rate" : ""}</p>
-            <p>Subtotal ${currency(entry.subtotal)} | Delivery ${currency(entry.fee)}${entry.estimated ? " est." : ""}</p>
+            <div class="delivery-metric-row">
+              <span>${entry.routeLabel || "Delivery route"}</span>
+              <strong>${currency(entry.fee)}${entry.estimated ? " est." : ""}</strong>
+            </div>
+            <p>${entry.distanceText || formatDistance(entry.distanceKm)} | ${entry.quantity} item(s) | approx. ${Number(entry.estimatedWeightKg || 0).toFixed(1)} kg</p>
+            <p>Products ${currency(entry.subtotal)} | ${entry.sameCounty ? "same-county affordable rate" : entry.sameRegion ? "nearby-region rate" : "marketplace rate"}</p>
           </article>
         `
       )
@@ -1035,8 +1154,8 @@ function renderSummaryPanels() {
 
   info.textContent =
     delivery.breakdown.length > 1
-      ? `${delivery.breakdown.length} pickup routes included. Affordable delivery calculated.`
-      : "Affordable delivery fee calculated.";
+      ? `${delivery.breakdown.length} pickup routes included with affordable marketplace pricing.`
+      : "Affordable marketplace delivery fee calculated.";
   status.textContent = `Subtotal ${currency(delivery.subtotal)} + ${delivery.estimated ? "estimated " : ""}delivery ${currency(delivery.fee)} = ${currency(delivery.total)}.`;
 }
 
