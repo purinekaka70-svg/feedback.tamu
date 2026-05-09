@@ -359,20 +359,23 @@ button {
   color: var(--ink);
 }
 
-.location-search-wrap {
+.location-search-wrap,
+.business-search-wrap {
   display: flex;
   justify-content: center;
   width: 100%;
 }
 
-.location-search-field {
+.location-search-field,
+.business-search-field {
   position: relative;
   display: block;
   width: min(100%, 430px);
   margin-inline: auto;
 }
 
-.location-search-icon {
+.location-search-icon,
+.business-search-icon {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -384,12 +387,22 @@ button {
   transform: translateY(-50%);
 }
 
-.location-search-input {
+.location-search-input,
+.business-search-input {
   min-height: 40px;
   padding-left: 36px;
   border-radius: 999px;
   background: #fff;
   box-shadow: 0 8px 22px rgba(17, 24, 39, 0.05);
+}
+
+.business-search-wrap {
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+.business-search-field {
+  width: min(100%, 500px);
 }
 
 .location-empty-state {

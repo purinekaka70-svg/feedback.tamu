@@ -115,6 +115,7 @@ const state = {
   activeShopStoreId: readStorage(STORAGE_KEYS.previewState, {}).activeShopStoreId || "",
   shopQuery: readStorage(STORAGE_KEYS.previewState, {}).shopQuery || "",
   locationSearch: "",
+  businessSearch: readStorage(STORAGE_KEYS.previewState, {}).businessSearch || "",
   search: "",
   cart: []
 };
@@ -274,6 +275,7 @@ function savePreviewState() {
     focusedBusinessCategory: state.focusedBusinessCategory,
     activeShopStoreId: state.activeShopStoreId,
     shopQuery: state.shopQuery,
+    businessSearch: state.businessSearch,
     search: state.search,
     updatedAt: new Date().toISOString()
   });
@@ -543,6 +545,7 @@ function currentCategories() {
 
 function visibleStores() {
   const query = state.search.toLowerCase();
+  const businessQuery = state.businessSearch.trim().toLowerCase();
   const products = sellerProducts();
 
   return approvedStores().filter((store) => {
@@ -566,8 +569,21 @@ function visibleStores() {
 
         return `${product.productName} ${product.productCategory}`.toLowerCase().includes(query);
       });
+    const matchesBusinessSearch =
+      !businessQuery ||
+      String(store.storeName || "").toLowerCase().includes(businessQuery) ||
+      String(store.businessType || "").toLowerCase().includes(businessQuery) ||
+      String(store.phone || "").toLowerCase().includes(businessQuery) ||
+      productCategories.join(" ").toLowerCase().includes(businessQuery) ||
+      products.some((product) => {
+        if (product.storeId !== store.id) {
+          return false;
+        }
 
-    return matchesType && matchesLocation && matchesCategory && matchesSearch;
+        return `${product.productName} ${product.productCategory}`.toLowerCase().includes(businessQuery);
+      });
+
+    return matchesType && matchesLocation && matchesCategory && matchesSearch && matchesBusinessSearch;
   });
 }
 
@@ -1141,7 +1157,10 @@ function renderStores() {
   const allStores = approvedStores().filter((store) => {
     const matchesType = state.selectedType === "all" || store.businessType === state.selectedType;
     const query = state.search.toLowerCase();
-    return matchesType && (!query || String(store.storeName || "").toLowerCase().includes(query) || String(store.location || store.county || "").toLowerCase().includes(query));
+    const businessQuery = state.businessSearch.trim().toLowerCase();
+    return matchesType &&
+      (!query || String(store.storeName || "").toLowerCase().includes(query) || String(store.location || store.county || "").toLowerCase().includes(query)) &&
+      (!businessQuery || String(store.storeName || "").toLowerCase().includes(businessQuery) || String(store.businessType || "").toLowerCase().includes(businessQuery));
   });
   const locationQuery = state.locationSearch.trim().toLowerCase();
   const profile = buyerProfile();
@@ -1207,6 +1226,7 @@ function renderStores() {
       button.addEventListener("click", () => {
         state.focusedLocation = button.dataset.focusLocation;
         state.locationSearch = "";
+        state.businessSearch = "";
         state.focusedStoreId = "all";
         state.focusedBusinessCategory = "all";
         state.activeShopStoreId = "";
@@ -1722,6 +1742,7 @@ function updateMarketplaceViewShell() {
   const marketTitle = marketSection?.querySelector(".section-title");
   const marketEyebrow = marketSection?.querySelector(".eyebrow");
   const locationSearchWrap = document.getElementById("locationSearchWrap");
+  const businessSearchWrap = document.getElementById("businessSearchWrap");
   const productTitle = productSection?.querySelector(".section-title");
   const productBackButton = document.getElementById("productBackButton");
   const marketBackButton = document.getElementById("marketBackButton");
@@ -1733,6 +1754,7 @@ function updateMarketplaceViewShell() {
   marketSection?.classList.toggle("is-hidden", state.focusedStoreId !== "all");
   productSection?.classList.toggle("is-hidden", state.focusedStoreId === "all");
   locationSearchWrap?.classList.toggle("is-hidden", state.focusedLocation !== "all" || state.focusedStoreId !== "all");
+  businessSearchWrap?.classList.toggle("is-hidden", state.focusedLocation === "all" || state.focusedStoreId !== "all");
 
   if (marketTitle) {
     marketTitle.textContent = state.focusedLocation === "all" ? "Choose your location." : "Choose a business.";
@@ -1774,8 +1796,13 @@ function bindEvents() {
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
     state.locationSearch = "";
+    state.businessSearch = "";
     state.search = "";
     document.getElementById("searchInput").value = "";
+    const businessSearch = document.getElementById("businessSearchInput");
+    if (businessSearch) {
+      businessSearch.value = "";
+    }
     savePreviewState();
     renderMarket();
   });
@@ -1783,6 +1810,7 @@ function bindEvents() {
   document.getElementById("marketBackButton")?.addEventListener("click", () => {
     state.focusedLocation = "all";
     state.locationSearch = "";
+    state.businessSearch = "";
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
     state.activeShopStoreId = "";
@@ -1817,6 +1845,21 @@ function bindEvents() {
     });
   }
 
+  const businessSearchInput = document.getElementById("businessSearchInput");
+  if (businessSearchInput) {
+    businessSearchInput.value = state.businessSearch;
+    businessSearchInput.addEventListener("input", (event) => {
+      state.businessSearch = event.target.value;
+      savePreviewState();
+      renderMarket();
+      window.setTimeout(() => {
+        const input = document.getElementById("businessSearchInput");
+        input?.focus();
+        input?.setSelectionRange(input.value.length, input.value.length);
+      }, 0);
+    });
+  }
+
   const clearCartButton = document.getElementById("clearCartButton");
   if (clearCartButton) {
     clearCartButton.addEventListener("click", async () => {
@@ -1835,12 +1878,17 @@ function bindEvents() {
     state.focusedBusinessCategory = savedState.focusedBusinessCategory || state.focusedBusinessCategory;
     state.activeShopStoreId = savedState.activeShopStoreId || "";
     state.shopQuery = savedState.shopQuery || "";
+    state.businessSearch = savedState.businessSearch || "";
     state.selectedType = "all";
     state.selectedCategory = "all";
     state.search = "";
     const search = document.getElementById("searchInput");
     if (search) {
       search.value = state.search;
+    }
+    const businessSearch = document.getElementById("businessSearchInput");
+    if (businessSearch) {
+      businessSearch.value = state.businessSearch;
     }
     renderMarket();
   });
