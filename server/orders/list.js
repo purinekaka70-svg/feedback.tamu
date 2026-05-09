@@ -3,6 +3,11 @@ const { query } = require("../_lib/db");
 const { method, send } = require("../_lib/http");
 
 function publicOrder(row, items = [], routes = []) {
+  const businessPayments = row.business_payments || [];
+  const sellerPaymentStatus = businessPayments.reduce((statusMap, payment) => {
+    statusMap[String(payment.storeId || payment.businessId || "")] = payment.status || "pending_payment";
+    return statusMap;
+  }, {});
   return {
     id: row.public_id || String(row.id),
     numericId: row.id,
@@ -28,6 +33,15 @@ function publicOrder(row, items = [], routes = []) {
     createdAt: row.created_at || "",
     items,
     routeBreakdown: routes
+    ,
+    businessPayments,
+    sellerPaymentStatus,
+    deliveryPayment: {
+      tillNumber: "7312380",
+      amount: Number(row.delivery_fee || 0),
+      reference: row.mpesa_reference || "",
+      status: row.mpesa_reference ? (row.payment_status === "paid" ? "paid" : "submitted") : "pending_payment"
+    }
   };
 }
 
@@ -51,6 +65,9 @@ module.exports = async function handler(req, res) {
       : [];
     const routes = ids.length
       ? await query("select * from order_route_breakdown where order_id = any($1::bigint[]) order by id asc", [ids])
+      : [];
+    const payments = ids.length
+      ? await query("select * from payments where order_public_id = any($1::text[]) order by id asc", [orders.map((order) => order.public_id || String(order.id))])
       : [];
     const itemsByOrder = new Map();
     items.forEach((item) => {
@@ -80,7 +97,34 @@ module.exports = async function handler(req, res) {
       });
       routesByOrder.set(route.order_id, list);
     });
-    send(res, 200, { ok: true, orders: orders.map((order) => publicOrder(order, itemsByOrder.get(order.id) || [], routesByOrder.get(order.id) || [])) });
+    const paymentsByPublicOrder = new Map();
+    payments.forEach((payment) => {
+      const list = paymentsByPublicOrder.get(payment.order_public_id) || [];
+      const order = orders.find((entry) => String(entry.public_id || entry.id) === String(payment.order_public_id));
+      const matchingItem = items.find((item) =>
+        Number(item.order_id || 0) === Number(order?.id || 0)
+        && Number(item.business_id || 0) === Number(payment.business_id || 0)
+      );
+      list.push({
+        id: payment.id,
+        storeId: String(payment.business_id || matchingItem?.store_public_id || ""),
+        businessId: String(payment.business_id || matchingItem?.store_public_id || ""),
+        storeName: matchingItem?.store_name || "Business",
+        method: payment.method || "Direct payment",
+        reference: payment.reference || "",
+        amount: Number(payment.amount || 0),
+        status: payment.status === "pending" ? "pending_payment" : payment.status || "pending_payment"
+      });
+      paymentsByPublicOrder.set(payment.order_public_id, list);
+    });
+    send(res, 200, {
+      ok: true,
+      orders: orders.map((order) => publicOrder(
+        { ...order, business_payments: paymentsByPublicOrder.get(order.public_id || String(order.id)) || [] },
+        itemsByOrder.get(order.id) || [],
+        routesByOrder.get(order.id) || []
+      ))
+    });
   } catch {
     send(res, 500, { ok: false, message: "Failed to load orders." });
   }

@@ -1262,6 +1262,10 @@ function buildSellerPayload(formData) {
     return { ok: false, message: "Select your business location." };
   }
 
+  if (!paymentMethods.length) {
+    return { ok: false, message: "Select at least one payment method for customers." };
+  }
+
   if (paymentMethods.includes("M-Pesa Till") && !tillNumber) {
     return { ok: false, message: "Enter your M-Pesa Till Number." };
   }

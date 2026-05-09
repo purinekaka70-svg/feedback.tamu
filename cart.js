@@ -213,7 +213,9 @@ function buyerProfile() {
     location: "",
     latitude: "",
     longitude: "",
-    mpesaReference: ""
+    mpesaReference: "",
+    deliveryPaymentRef: "",
+    businessPayments: []
   });
 }
 
@@ -820,16 +822,20 @@ function fillCheckoutForm() {
   document.getElementById("buyerLocationInput").value = profile.location || "";
   document.getElementById("buyerLatitudeInput").value = profile.latitude || "";
   document.getElementById("buyerLongitudeInput").value = profile.longitude || "";
-  const refInput = document.getElementById("mpesaReferenceInput");
-  if (refInput) {
-    refInput.value = profile.mpesaReference || profile.deliveryPaymentRef || "";
+  const deliveryRefInput = document.getElementById("deliveryReferenceInput");
+  if (deliveryRefInput) {
+    deliveryRefInput.value = profile.deliveryPaymentRef || profile.mpesaReference || "";
   }
 }
 
 function readCheckoutForm() {
-  const mpesaReference = document.getElementById("mpesaReferenceInput")?.value.trim() || "";
+  const deliveryPaymentRef = document.getElementById("deliveryReferenceInput")?.value.trim() || "";
   const businessPayments = [...document.querySelectorAll("[data-business-payment-store]")]
-    .map((entry) => ({ storeId: entry.dataset.businessPaymentStore, method: "M-Pesa", ref: mpesaReference }));
+    .map((entry) => {
+      const ref = entry.querySelector("[data-business-payment-ref]")?.value.trim() || "";
+      const method = entry.querySelector("[data-business-payment-method]")?.value || "M-Pesa";
+      return { storeId: entry.dataset.businessPaymentStore, method, ref };
+    });
 
   return {
     fullName: document.getElementById("buyerNameInput").value.trim(),
@@ -839,8 +845,8 @@ function readCheckoutForm() {
     latitude: document.getElementById("buyerLatitudeInput").value.trim(),
     longitude: document.getElementById("buyerLongitudeInput").value.trim(),
     note: "",
-    mpesaReference,
-    deliveryPaymentRef: mpesaReference,
+    mpesaReference: deliveryPaymentRef,
+    deliveryPaymentRef,
     businessPayments
   };
 }
@@ -854,6 +860,7 @@ function saveBuyerProfileFromForm() {
 function renderPaymentOptions(items) {
   const container = document.getElementById("sellerPaymentMethods");
   const selectedStores = selectedStoreSummaries(items);
+  const profile = buyerProfile();
 
   if (!selectedStores.length) {
     container.innerHTML = '<div class="breakdown-card"><p>No business payment needed until products are in cart.</p></div>';
@@ -863,6 +870,7 @@ function renderPaymentOptions(items) {
   container.innerHTML = selectedStores
     .map(
       ({ store, subtotal }) => {
+        const existingRef = (profile.businessPayments || []).find((payment) => payment.storeId === store.id)?.ref || "";
         return `
           <article class="breakdown-card" data-business-payment-store="${store.id}">
             <strong>${store.storeName}</strong>
@@ -871,7 +879,10 @@ function renderPaymentOptions(items) {
               ${storeTillNumber(store) ? `Till: ${storeTillNumber(store)} | ` : ""}
               ${storePochiNumber(store) ? `Pochi la Biashara: ${storePochiNumber(store)} | ` : ""}
               ${storeCardAccount(store) ? `Bank account: ${storeCardAccount(store)}` : ""}
+              ${!storeTillNumber(store) && !storePochiNumber(store) && !storeCardAccount(store) ? "Payment details pending from seller." : ""}
             </p>
+            <input class="input" data-business-payment-ref name="businessPaymentRef_${escapeAttr(store.id)}" value="${escapeAttr(existingRef)}" placeholder="Reference paid to ${escapeAttr(store.storeName)}" required />
+            <input type="hidden" data-business-payment-method value="${storeTillNumber(store) ? "M-Pesa Till" : storePochiNumber(store) ? "M-Pesa Pochi" : storeCardAccount(store) ? "Bank Account" : "Direct payment"}" />
           </article>
         `;
       }
@@ -885,7 +896,7 @@ function syncPaymentMethodSelect(items) {
     return;
   }
   const delivery = buildDeliverySummary(items);
-  instruction.textContent = `Delivery fee: ${items.length ? delivery.label : currency(0)}. Pay separately to till ${DELIVERY_TILL_NUMBER}.`;
+  instruction.textContent = `Delivery fee: ${items.length ? delivery.label : currency(0)}. Pay separately to delivery till ${DELIVERY_TILL_NUMBER}, then enter that delivery reference above.`;
 }
 
 function renderDeliveryBreakdown(items) {
@@ -1154,6 +1165,17 @@ async function handleCheckout() {
 
   if (!profile.fullName || !profile.mpesaName || !profile.phone || !profile.location) {
     showToast("Fill in checkout details before submitting.", "warn");
+    return;
+  }
+
+  if (!profile.deliveryPaymentRef) {
+    showToast(`Enter the delivery payment reference for till ${DELIVERY_TILL_NUMBER}.`, "warn");
+    return;
+  }
+
+  const missingBusinessPayment = profile.businessPayments.find((payment) => !payment.ref);
+  if (missingBusinessPayment) {
+    showToast("Enter each business payment reference before submitting.", "warn");
     return;
   }
 
