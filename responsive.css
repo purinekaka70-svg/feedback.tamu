@@ -914,6 +914,34 @@ body.admin-auth-only #adminLoginView {
   visibility: visible !important;
 }
 
+/* Employee portal: keep every dashboard element hidden until login succeeds. */
+body.employee-auth-only #employeeDashboardView,
+body.employee-auth-only .employee-app,
+body.employee-auth-only .employee-menu-toggle,
+body.employee-auth-only .employee-sidebar,
+body.employee-auth-only .employee-sidebar-overlay,
+body.employee-auth-only .employee-workspace {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.employee-auth-only #employeeLoginView {
+  display: grid !important;
+  visibility: visible !important;
+}
+
+body.employee-dashboard-active #employeeLoginView {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.employee-dashboard-active #employeeDashboardView {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 @media (min-width: 901px) {
   body.seller-dashboard-active .seller-menu-toggle {
     display: none !important;

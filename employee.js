@@ -52,7 +52,14 @@ function normalizeCounty(value) {
 }
 
 function employeeCounty() {
-  return currentEmployee?.county || currentEmployee?.location || currentEmployee?.assignedCounty || "";
+  return currentEmployee?.county
+    || currentEmployee?.location
+    || currentEmployee?.assignedCounty
+    || currentEmployee?.deliveryCounty
+    || currentEmployee?.workCounty
+    || currentEmployee?.area
+    || currentEmployee?.region
+    || "";
 }
 
 async function firebaseIdToken() {
@@ -150,26 +157,85 @@ async function employeeRecordForFirebaseUser(user) {
     return null;
   }
 
-  const db = window.firebase.firestore();
-  const directDoc = await db.collection("employees").doc(user.uid).get();
-  if (directDoc.exists) {
-    return { id: directDoc.id, ...directDoc.data(), uid: directDoc.data().uid || user.uid, email: directDoc.data().email || user.email };
+  const token = await user.getIdToken().catch(() => "");
+  if (token) {
+    try {
+      const response = await fetch("./api/employee/session.php", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.ok && result.employee) {
+        return {
+          ...result.employee,
+          uid: result.employee.uid || user.uid,
+          email: result.employee.email || user.email
+        };
+      }
+      if (response.status === 403 || response.status === 401) {
+        throw new Error(result.message || "This Firebase account is not allowed as an employee.");
+      }
+    } catch (error) {
+      if (error.message) {
+        throw error;
+      }
+    }
   }
 
-  const uidQuery = await db.collection("employees").where("uid", "==", user.uid).limit(1).get();
-  if (!uidQuery.empty) {
-    const doc = uidQuery.docs[0];
-    return { id: doc.id, ...doc.data(), uid: doc.data().uid || user.uid, email: doc.data().email || user.email };
+  try {
+    const db = window.firebase.firestore();
+    const directDoc = await db.collection("employees").doc(user.uid).get();
+    if (directDoc.exists) {
+      return { id: directDoc.id, ...directDoc.data(), uid: directDoc.data().uid || user.uid, email: directDoc.data().email || user.email };
+    }
+
+    const uidQuery = await db.collection("employees").where("uid", "==", user.uid).limit(1).get();
+    if (!uidQuery.empty) {
+      const doc = uidQuery.docs[0];
+      return { id: doc.id, ...doc.data(), uid: doc.data().uid || user.uid, email: doc.data().email || user.email };
+    }
+  } catch (error) {
+    return null;
   }
 
   return null;
 }
 
 function isEmployeeActive(account) {
-  return account?.approved === true
-    && account?.active === true
-    && String(account?.role || "employee").toLowerCase() === "employee"
-    && Boolean(account?.county || account?.location || account?.assignedCounty);
+  const role = String(account?.role || account?.accountType || account?.userType || "employee").toLowerCase();
+  const status = String(account?.status || "").toLowerCase();
+  const inactive = account?.active === false
+    || account?.disabled === true
+    || account?.blocked === true
+    || ["inactive", "disabled", "rejected", "blocked", "suspended"].includes(status);
+  const explicitlyRejected = account?.approved === false || account?.verified === false;
+  const approved = !explicitlyRejected
+    && (account?.approved === true
+      || account?.verified === true
+      || account?.active === true
+      || ["approved", "active", "verified", "enabled", "accepted"].includes(status)
+      || (!status && account?.approved === undefined && account?.verified === undefined));
+  const employeeRole = ["employee", "delivery", "delivery_employee", "driver", "rider", "courier"].includes(role)
+    || role.includes("employee")
+    || role.includes("delivery");
+  return !inactive && approved && employeeRole && Boolean(account?.county || account?.location || account?.assignedCounty || account?.deliveryCounty || account?.workCounty || account?.area || account?.region);
+}
+
+function employeeLoginErrorMessage(error) {
+  const code = String(error?.code || "");
+  if (code.includes("user-not-found")) {
+    return "No Firebase Auth employee exists for this email. The employee must be registered in the same Firebase project.";
+  }
+  if (code.includes("wrong-password") || code.includes("invalid-credential") || code.includes("invalid-login-credentials")) {
+    return "Wrong employee email or password in Firebase Auth.";
+  }
+  if (code.includes("too-many-requests")) {
+    return "Too many login attempts. Try again later or reset the Firebase password.";
+  }
+  if (code.includes("network-request-failed")) {
+    return "Firebase login network failed. Check internet connection and Firebase config.";
+  }
+  return error?.message || "Invalid employee credentials or Firebase Auth failed.";
 }
 
 async function loadEmployeeOrders() {
@@ -215,21 +281,26 @@ async function signInEmployee(email, password) {
 
     if (!isEmployeeActive(account)) {
       await window.firebase.auth().signOut();
-      return { ok: false, message: "Employee account is not approved, active, or assigned to a county in Firestore." };
+      return { ok: false, message: "Firebase login worked, but this account is not allowed as an employee. Add role employee/delivery, active or approved status, and county/location." };
     }
 
     return { ok: true, account };
   } catch (error) {
-    return { ok: false, message: "Invalid employee credentials or Firebase Auth failed." };
+    return { ok: false, message: employeeLoginErrorMessage(error) };
   }
 }
 
 function showLogin() {
+  closeEmployeeMenu();
+  document.body.classList.add("employee-auth-only");
+  document.body.classList.remove("employee-dashboard-active");
   document.getElementById("employeeLoginView")?.classList.remove("is-hidden");
   document.getElementById("employeeDashboardView")?.classList.add("is-hidden");
 }
 
 function showDashboard() {
+  document.body.classList.remove("employee-auth-only");
+  document.body.classList.add("employee-dashboard-active");
   document.getElementById("employeeLoginView")?.classList.add("is-hidden");
   document.getElementById("employeeDashboardView")?.classList.remove("is-hidden");
 }
