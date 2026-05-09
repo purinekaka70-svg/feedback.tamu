@@ -1563,7 +1563,8 @@ function bindForms() {
       password: String(formData.get("password"))
     });
     if (!response.ok || response.data?.ok === false) {
-      showToast(response.data?.message || "Registration failed.", "warn");
+      const details = response.data?.error ? ` ${response.data.error}` : "";
+      showToast(`${response.data?.message || "Registration failed."}${details}`, "warn");
       return;
     }
     event.currentTarget.reset();
