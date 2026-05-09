@@ -151,6 +151,7 @@ function normalizeOrderStatus(status) {
   if (value === "completed") return "delivered";
   if (value === "dispatch" || value === "sourcing") return "processing";
   if (value === "pending") return "pending_payment";
+  if (value === "confirmed") return "paid";
   return orderStages.includes(value) ? value : "pending_payment";
 }
 
@@ -455,14 +456,30 @@ function saveOrders(nextOrders) {
 
 async function updateOrderBackend(orderId, patch) {
   try {
-    await fetch('./api/orders/update.php', {
+    const response = await fetch('./api/orders/update.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: orderId, ...patch })
     });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      showToast(result.detail || result.message || "Order update failed.", "warn");
+      return false;
+    }
+    return true;
   } catch (error) {
-    return;
+    showToast("Order update service is unavailable.", "warn");
+    return false;
   }
+}
+
+async function refreshAdminOrderViews() {
+  await loadData();
+  renderOverview();
+  renderOrderList();
+  renderOrders();
+  renderNotifications();
+  renderAdminUtilityPanels();
 }
 
 async function deleteOrderBackend(orderId) {
@@ -742,7 +759,7 @@ function moveOrder(orderId) {
   updateOrderBackend(orderId, { status: normalizeOrderStatus(nextOrder?.status) });
 }
 
-function markOrderProcessing(orderId) {
+async function markOrderProcessing(orderId) {
   const nextOrders = orders().map((order) => order.id === orderId
     ? {
         ...order,
@@ -758,11 +775,12 @@ function markOrderProcessing(orderId) {
   renderOrders();
   renderNotifications();
   renderAdminUtilityPanels();
-  showToast("Order marked as processing.");
-  updateOrderBackend(orderId, { status: "processing" });
+  const saved = await updateOrderBackend(orderId, { status: "processing" });
+  await refreshAdminOrderViews();
+  if (saved) showToast("Order marked as processing.");
 }
 
-function markOrderPaid(orderId) {
+async function markOrderPaid(orderId) {
   const nextOrders = orders().map((order) => {
     if (order.id !== orderId) {
       return order;
@@ -799,11 +817,12 @@ function markOrderPaid(orderId) {
   renderOrders();
   renderNotifications();
   renderAdminUtilityPanels();
-  showToast("Order payment marked as paid.");
-  updateOrderBackend(orderId, { status: "paid", paymentStatus: "paid" });
+  const saved = await updateOrderBackend(orderId, { status: "paid", paymentStatus: "paid" });
+  await refreshAdminOrderViews();
+  if (saved) showToast("Order payment marked as paid.");
 }
 
-function markOrderDelivered(orderId) {
+async function markOrderDelivered(orderId) {
   const nextOrders = orders().map((order) => order.id === orderId
     ? {
         ...order,
@@ -820,11 +839,12 @@ function markOrderDelivered(orderId) {
   renderOrders();
   renderNotifications();
   renderAdminUtilityPanels();
-  showToast("Order marked as delivered.");
-  updateOrderBackend(orderId, { status: "delivered" });
+  const saved = await updateOrderBackend(orderId, { status: "delivered" });
+  await refreshAdminOrderViews();
+  if (saved) showToast("Order marked as delivered.");
 }
 
-function cancelOrder(orderId) {
+async function cancelOrder(orderId) {
   const nextOrders = orders().map((order) => order.id === orderId
     ? {
         ...order,
@@ -839,8 +859,9 @@ function cancelOrder(orderId) {
   renderOrders();
   renderNotifications();
   renderAdminUtilityPanels();
-  showToast("Order cancelled.", "warn");
-  updateOrderBackend(orderId, { status: "cancelled" });
+  const saved = await updateOrderBackend(orderId, { status: "cancelled" });
+  await refreshAdminOrderViews();
+  if (saved) showToast("Order cancelled.", "warn");
 }
 
 async function deleteOrder(orderId) {
