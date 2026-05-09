@@ -200,9 +200,10 @@ function bindAdminLogin() {
       try {
         result = raw ? JSON.parse(raw) : {};
       } catch (parseError) {
+        const snippet = raw.replace(/\s+/g, " ").slice(0, 160);
         status.textContent = response.status === 404
           ? "Admin backend endpoint was not found. Check the Vercel API rewrite/deployment."
-          : "Admin backend returned an invalid response. Check Vercel function logs and Supabase settings.";
+          : `Admin backend returned a non-JSON response (${response.status}). ${snippet || "Check Vercel function logs and Supabase settings."}`;
         return;
       }
       if (!response.ok || !result.ok) {
