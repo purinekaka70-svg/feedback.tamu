@@ -317,10 +317,16 @@ function offerCardMessage(offer) {
   return offer?.note || offer?.title || "";
 }
 
+function offerToastDuration(message) {
+  const length = String(message || "").length;
+  return Math.min(12000, Math.max(5200, 2600 + length * 45));
+}
+
 function bindHoldToast(element, messageFactory) {
   if (!element) return;
   let holdTimer = null;
   let hoverTimer = null;
+  let lastShownAt = 0;
   const clearHold = () => {
     if (holdTimer) {
       window.clearTimeout(holdTimer);
@@ -334,9 +340,14 @@ function bindHoldToast(element, messageFactory) {
     }
   };
   const showOfferToast = () => {
-    const message = messageFactory();
+    const message = String(messageFactory() || "").trim();
+    const now = Date.now();
+    if (now - lastShownAt < 900) {
+      return;
+    }
+    lastShownAt = now;
     if (message) {
-      showToast(message, "info", 5200);
+      showToast(message, "info", offerToastDuration(message));
     }
   };
   element.addEventListener("pointerdown", (event) => {
@@ -349,17 +360,23 @@ function bindHoldToast(element, messageFactory) {
   ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
     element.addEventListener(eventName, clearHold);
   });
-  element.addEventListener("mouseenter", () => {
+  element.addEventListener("pointerenter", () => {
     clearHover();
-    hoverTimer = window.setTimeout(showOfferToast, 280);
+    hoverTimer = window.setTimeout(showOfferToast, 120);
   });
-  element.addEventListener("mouseleave", clearHover);
-  element.addEventListener("focus", () => {
+  element.addEventListener("pointerleave", clearHover);
+  element.addEventListener("focusin", () => {
     clearHover();
-    hoverTimer = window.setTimeout(showOfferToast, 280);
+    hoverTimer = window.setTimeout(showOfferToast, 120);
   });
-  element.addEventListener("blur", clearHover);
-  element.addEventListener("click", clearHold);
+  element.addEventListener("focusout", clearHover);
+  element.addEventListener("click", (event) => {
+    clearHold();
+    if (event.target.closest("button, a, input, select, textarea")) {
+      return;
+    }
+    showOfferToast();
+  });
 }
 
 function capitalize(value) {
@@ -1158,6 +1175,7 @@ function sanitizeCart() {
 
 function showToast(message, tone = "success", duration = 2600) {
   const container = document.getElementById("toastContainer");
+  if (!container || !message) return;
   const toast = document.createElement("div");
   toast.className = `toast toast--${tone}`;
   toast.textContent = message;
@@ -1276,7 +1294,7 @@ async function addToCart(productId) {
   await saveCartItemToBackend(productId, nextQuantity);
   savePreviewState();
   renderCartSummary();
-  showToast("Item added to cart.");
+  showToast(product.productOffer || "Item added to cart.", product.productOffer ? "info" : "success", product.productOffer ? offerToastDuration(product.productOffer) : 2600);
 }
 
 function renderTypeFilters() {

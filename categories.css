@@ -1980,6 +1980,12 @@ body.is-image-viewing {
   background: var(--success);
   box-shadow: var(--shadow);
   animation: toast-in 180ms ease;
+  max-height: min(44vh, 360px);
+  overflow: auto;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-weight: 800;
 }
 
 .toast--success,
