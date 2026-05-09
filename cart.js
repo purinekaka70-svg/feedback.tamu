@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
 
 const API_ENDPOINTS = {
   createOrder: "./api/orders/create.php",
+  deleteOrder: "./api/orders/delete.php",
   cart: "./api/cart/index.php",
   adminLogin: "./api/admin/login.php"
 };
@@ -1245,11 +1246,58 @@ function renderPlacedOrders() {
         ? `<p class="tiny">Business refs: ${order.businessPayments.map((payment) => `${payment.storeName}: ${payment.reference || "pending"}`).join(" | ")}</p>`
         : ""}
       <div class="button-row">
-        <a class="button button-outline button-small" href="./seller.html">Business portal confirms</a>
-        <a class="button button-ghost button-small" href="./admin.html">Admin orders</a>
+        <button class="button button-outline button-small" type="button" data-change-order="${escapeAttr(order.id)}">Change order</button>
+        <button class="button button-ghost button-small" type="button" data-delete-order="${escapeAttr(order.id)}">Delete order</button>
       </div>
     </article>
   `).join("");
+}
+
+async function changePlacedOrder(orderId) {
+  const order = cachedOrders.find((entry) => String(entry.id || entry.publicId) === String(orderId));
+  if (!order || !Array.isArray(order.items) || !order.items.length) {
+    showToast("Order items are not available to change.", "warn");
+    return;
+  }
+
+  cart = order.items
+    .map((item) => ({
+      productId: String(item.productId || ""),
+      quantity: Math.max(1, Math.trunc(Number(item.quantity || 1)))
+    }))
+    .filter((item) => item.productId && getProduct(item.productId));
+
+  if (!cart.length) {
+    showToast("Products from this order are no longer available.", "warn");
+    return;
+  }
+
+  writeStorage(STORAGE_KEYS.cartItems, cart);
+  await deleteCartItem();
+  for (const item of cart) {
+    await saveCartItem(item.productId);
+  }
+  document.getElementById("checkoutSection")?.classList.remove("is-hidden");
+  renderCart();
+  document.getElementById("checkoutSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Order loaded into cart. Update it and submit again.", "success");
+}
+
+async function deletePlacedOrder(orderId) {
+  const profile = buyerProfile();
+  const response = await postJson(API_ENDPOINTS.deleteOrder, {
+    id: orderId,
+    phone: profile.phone
+  });
+
+  if (!response.ok || response.data?.ok === false) {
+    showToast(response.data?.message || "Failed to delete order.", "warn");
+    return;
+  }
+
+  await loadOrders();
+  renderPlacedOrders();
+  showToast("Order deleted.", "success");
 }
 
 function buildOrderPayload(profile, delivery) {
@@ -1427,6 +1475,19 @@ function bindEvents() {
 
   document.getElementById("checkoutForm").addEventListener("change", () => {
     saveBuyerProfileFromForm();
+  });
+
+  document.getElementById("placedOrderList")?.addEventListener("click", async (event) => {
+    const changeButton = event.target.closest("[data-change-order]");
+    if (changeButton) {
+      await changePlacedOrder(changeButton.dataset.changeOrder);
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-order]");
+    if (deleteButton) {
+      await deletePlacedOrder(deleteButton.dataset.deleteOrder);
+    }
   });
 
   window.addEventListener("storage", async () => {
