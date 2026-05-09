@@ -2491,3 +2491,37 @@ body.is-image-viewing {
     min-height: 86px !important;
   }
 }
+
+/* Phone fix for the selected seller product board header. */
+@media (max-width: 760px) {
+  #productBrowserSection > .section-head {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+
+  #productBrowserSection > .section-head > div:first-child {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+
+  #productBrowserSection > .section-head .eyebrow,
+  #productBrowserSection > .section-head .section-title {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  #productBrowserSection > .section-head .button-row {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+}

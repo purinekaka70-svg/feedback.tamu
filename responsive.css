@@ -1201,3 +1201,78 @@ body.seller-register-active .seller-auth-card {
     max-height: calc(100vh - 98px) !important;
   }
 }
+
+/* Selected-business marketplace view: keep headings readable on phones. */
+@media (max-width: 760px) {
+  #productBrowserSection {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  #productBrowserSection .section-head {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: start !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+
+  #productBrowserSection .section-head > div:first-child {
+    flex: 0 0 auto !important;
+    width: calc(100vw - 34px) !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #productBrowserSection .eyebrow,
+  #productBrowserSection .section-title,
+  #productBrowserSection .shelf-head h3 {
+    max-width: 100% !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    white-space: normal !important;
+  }
+
+  #productBrowserSection .eyebrow {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  #productBrowserSection .section-title {
+    display: block !important;
+    width: 100% !important;
+    font-size: clamp(1.5rem, 7vw, 2rem) !important;
+    line-height: 1.12 !important;
+  }
+
+  #productBrowserSection .button-row {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+  }
+
+  #productBrowserSection .button-row .button,
+  #productBrowserSection .button-row .summary-chip {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  #productBrowserSection .business-offers-first,
+  #productBrowserSection .category-shelf,
+  #productBrowserSection .standard-products-section,
+  #productBrowserSection .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .content-shell {
+    padding-bottom: 86px;
+  }
+}
