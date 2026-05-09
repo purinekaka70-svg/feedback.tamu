@@ -47,7 +47,13 @@ module.exports = async function handler(req, res) {
       return;
     }
     row.status = sellerStatus;
-    issueAuth(res, { userId: row.account_user_id || row.user_id, businessId: row.id, role: "seller", email: row.email });
+    issueAuth(res, {
+      userId: row.account_user_id || row.user_id,
+      businessId: row.id,
+      role: "seller",
+      status: "approved",
+      email: row.email
+    });
     send(res, 200, { ok: true, seller: sellerFromBusiness(row) });
   } catch {
     send(res, 500, { ok: false, message: "Seller login failed." });
