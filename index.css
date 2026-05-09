@@ -365,6 +365,10 @@ input {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.dashboard-grid > .feature-card:only-child {
+  max-width: 720px;
+}
+
 .deal-grid,
 .store-grid,
 .timeline-grid {
