@@ -5,7 +5,7 @@ module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   try {
     const payload = await body(req);
-    const email = text(payload.email, 180).toLowerCase();
+    const email = text(payload.email || payload.username, 180).toLowerCase();
     const password = String(payload.password || "");
     const admin = await findUserByEmail(email, "admin");
     const active = ["approved", "active"].includes(String(admin?.status || "").toLowerCase());

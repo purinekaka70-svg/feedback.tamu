@@ -193,7 +193,7 @@ function bindAdminLogin() {
       const response = await fetch('./api/admin/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email: username, username, password })
       });
       const raw = await response.text();
       let result = {};
@@ -201,8 +201,8 @@ function bindAdminLogin() {
         result = raw ? JSON.parse(raw) : {};
       } catch (parseError) {
         status.textContent = response.status === 404
-          ? "Admin backend endpoint was not found. PHP/API routing is not running."
-          : "Admin backend returned an invalid response. Check PHP/MySQL server logs.";
+          ? "Admin backend endpoint was not found. Check the Vercel API rewrite/deployment."
+          : "Admin backend returned an invalid response. Check Vercel function logs and Supabase settings.";
         return;
       }
       if (!response.ok || !result.ok) {
@@ -215,8 +215,8 @@ function bindAdminLogin() {
       startDashboard();
     } catch (error) {
       status.textContent = window.location.protocol === "file:"
-        ? "Admin login needs a PHP server. Open the site through localhost/hosting, not as a file."
-        : "Admin login service is unavailable. Check that PHP and MySQL are running.";
+        ? "Admin login needs hosting. Open the Vercel link, not the local file."
+        : "Admin login service is unavailable. Check Vercel environment variables and Supabase database setup.";
     }
   });
 }
