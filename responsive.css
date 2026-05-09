@@ -946,6 +946,46 @@ body.admin-auth-only #adminLoginView {
   }
 }
 
+/* Home page uses visible horizontal nav, not a hamburger drawer. */
+body.home-page .topbar-menu-toggle,
+body.home-page .topbar-menu-overlay {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 900px) {
+  body.home-page .topbar-actions {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 0 4px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    visibility: visible !important;
+    transform: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  body.home-page .topbar-actions .button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    justify-content: center !important;
+  }
+}
+
 @media (max-width: 620px) {
   body.seller-auth-only .site-shell,
   body.admin-auth-only .site-shell {

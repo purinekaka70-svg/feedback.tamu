@@ -7,6 +7,7 @@
       || document.body.classList.contains("seller-dashboard-active")
       || document.body.classList.contains("admin-auth-only")
       || document.body.classList.contains("admin-dashboard-active")
+      || document.body.classList.contains("home-page")
       || document.getElementById("sellerDashboard")
       || document.getElementById("adminDashboardView")
     ) {
