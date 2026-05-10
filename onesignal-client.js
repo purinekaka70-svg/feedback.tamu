@@ -3,7 +3,9 @@
   const CUSTOMER_KEY = "tamu_onesignal_customer_id";
   const DEFAULT_APP_ID = "7c0a3b0d-53b6-4b67-9b42-266f49bfabcc";
   const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
-  const READY_TIMEOUT_MS = 10000;
+  const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+  const READY_TIMEOUT_MS = 20000;
+  let lastInitError = "";
 
   function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -30,6 +32,9 @@
     const payloadPromise = config().catch(() => ({ appId: DEFAULT_APP_ID }));
 
     const setup = async (OneSignal) => {
+      if (OneSignal?.User?.PushSubscription) {
+        return OneSignal;
+      }
       const payload = await payloadPromise;
       if (!payload?.appId) return null;
       await OneSignal.init({
@@ -58,7 +63,9 @@
     if (window.OneSignal?.init) {
       try {
         return await setup(window.OneSignal);
-      } catch {
+      } catch (error) {
+        lastInitError = String(error?.message || error || "OneSignal init failed").slice(0, 180);
+        console.warn("OneSignal init failed:", lastInitError);
         return null;
       }
     }
@@ -74,11 +81,42 @@
       window.OneSignalDeferred.push(async function (OneSignal) {
         try {
           finish(await setup(OneSignal));
-        } catch {
+        } catch (error) {
+          lastInitError = String(error?.message || error || "OneSignal init failed").slice(0, 180);
+          console.warn("OneSignal init failed:", lastInitError);
           finish(null);
         }
       });
     });
+  }
+
+  function loadOneSignalSdk() {
+    if (window.OneSignal?.init) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const existing = document.querySelector(`script[src="${SDK_SRC}"]`);
+      if (existing) {
+        existing.addEventListener("load", () => resolve(true), { once: true });
+        existing.addEventListener("error", () => resolve(false), { once: true });
+        window.setTimeout(() => resolve(Boolean(window.OneSignal?.init)), 5000);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = SDK_SRC;
+      script.defer = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  }
+
+  async function getOneSignal() {
+    let OneSignal = await Promise.race([window.tamuOneSignalReady, sleep(READY_TIMEOUT_MS).then(() => null)]);
+    if (OneSignal) return OneSignal;
+    const loaded = await loadOneSignalSdk();
+    if (!loaded) return null;
+    window.tamuOneSignalReady = initOneSignal();
+    OneSignal = await Promise.race([window.tamuOneSignalReady, sleep(READY_TIMEOUT_MS).then(() => null)]);
+    return OneSignal;
   }
 
   async function identify(externalId, tags = {}) {
@@ -165,7 +203,9 @@
   async function optInNotifications(OneSignal) {
     if (!OneSignal) return;
     if (OneSignal.User?.PushSubscription?.optIn) {
-      await OneSignal.User.PushSubscription.optIn();
+      await OneSignal.User.PushSubscription.optIn().catch((error) => {
+        lastInitError = String(error?.message || error || "OneSignal opt-in failed").slice(0, 180);
+      });
     }
   }
 
@@ -185,17 +225,17 @@
 
   async function requestOneSignalSubscription(OneSignal) {
     if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
+    if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
+      await OneSignal.Notifications.requestPermission().catch(() => {});
+    }
     if (!notificationsGranted(OneSignal) && OneSignal?.Slidedown?.promptPush) {
       await OneSignal.Slidedown.promptPush({ force: true }).catch(() => {});
       await sleep(300);
     }
-    if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
-      await OneSignal.Notifications.requestPermission().catch(() => {});
-    }
     if (notificationsGranted(OneSignal)) {
       await optInNotifications(OneSignal);
     }
-    return waitForSubscription(OneSignal, 10000);
+    return waitForSubscription(OneSignal, 15000);
   }
 
   async function waitForSubscription(OneSignal, timeoutMs = 6000) {
@@ -212,6 +252,29 @@
     if (!customerId) return false;
     window.localStorage.setItem(CUSTOMER_KEY, customerId);
     return identify(customerId, { role: "customer" });
+  }
+
+  async function finishEnabledState(OneSignal, button) {
+    await identifyFromSession();
+    if (notificationsEnabled(OneSignal)) {
+      button.classList.add("is-hidden");
+      button.remove();
+      return true;
+    }
+    if (notificationsGranted(OneSignal)) {
+      button.disabled = true;
+      button.textContent = "Notifications enabled";
+      window.setTimeout(async () => {
+        await requestOneSignalSubscription(OneSignal).catch(() => false);
+        await identifyFromSession();
+        if (button.isConnected) {
+          button.classList.toggle("is-hidden", notificationsEnabled(OneSignal));
+          if (notificationsEnabled(OneSignal)) button.remove();
+        }
+      }, 2500);
+      return true;
+    }
+    return false;
   }
 
   function ensureEnableButton() {
@@ -255,9 +318,9 @@
         button.disabled = true;
         return;
       }
-      const OneSignal = await Promise.race([window.tamuOneSignalReady, sleep(READY_TIMEOUT_MS).then(() => null)]);
+      const OneSignal = await getOneSignal();
       if (!OneSignal) {
-        button.textContent = "Try again";
+        button.textContent = lastInitError ? "Reload page" : "SDK loading failed";
         button.disabled = false;
         return;
       }
@@ -268,11 +331,7 @@
         button.disabled = false;
         return;
       }
-      const enabled = await waitForSubscription(OneSignal);
-      if (enabled) {
-        await identifyFromSession();
-        button.classList.add("is-hidden");
-        button.remove();
+      if (await finishEnabledState(OneSignal, button)) {
         return;
       }
       if (notificationsDenied()) {
@@ -280,7 +339,7 @@
         button.disabled = true;
         return;
       }
-      button.textContent = "Try again";
+      button.textContent = lastInitError ? "Reload page" : "Enable notifications";
       button.disabled = false;
       await updateButton();
     });
