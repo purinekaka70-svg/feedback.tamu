@@ -56,6 +56,30 @@ function decodeFirebaseClientToken(token) {
   }
 }
 
+async function firebaseClientAccount(token) {
+  const apiKey = process.env.FIREBASE_API_KEY || "";
+  if (!apiKey) return null;
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken: token })
+  });
+  const payload = await response.json().catch(() => ({}));
+  const user = Array.isArray(payload.users) ? payload.users[0] : null;
+  if (!response.ok || !user?.localId) return null;
+  return {
+    uid: user.localId,
+    email: user.email || "",
+    name: user.displayName || user.email || "",
+    role: "employee",
+    county: "All",
+    status: "approved",
+    approved: true,
+    active: !user.disabled,
+    firebaseTokenVerifiedByRest: true
+  };
+}
+
 function canUseClientTokenFallback(error) {
   const message = String(error?.message || "");
   const code = String(error?.code || "");
@@ -71,16 +95,20 @@ async function employeeFromRequest(req) {
   if (!token) return null;
   try {
     const decoded = await admin.auth(app()).verifyIdToken(token);
-    return employeeForDecodedUser(decoded);
+    return employeeForDecodedUser(decoded, { allowFirebaseEmployeeFallback: true });
   } catch (error) {
     if (!canUseClientTokenFallback(error)) {
       throw error;
     }
-    const decoded = decodeFirebaseClientToken(token);
+    const decoded = await firebaseClientAccount(token).catch(() => null)
+      || decodeFirebaseClientToken(token);
     if (!decoded?.uid && !decoded?.email) {
       throw error;
     }
-    return employeeForDecodedUser(decoded, { supabaseOnly: true });
+    return employeeForDecodedUser(decoded, {
+      allowFirebaseEmployeeFallback: decoded.firebaseTokenVerifiedByRest === true,
+      supabaseOnly: decoded.firebaseTokenVerifiedByRest !== true
+    });
   }
 }
 
@@ -159,7 +187,20 @@ async function employeeForDecodedUser(decoded, options = {}) {
   const docIds = [decoded.uid, email, email.toLowerCase()].filter(Boolean);
   const supabaseEmployee = await employeeFromSupabase(decoded);
   if (supabaseEmployee) return supabaseEmployee;
-  if (options.supabaseOnly) return null;
+  if (options.supabaseOnly) {
+    return options.allowFirebaseEmployeeFallback ? normalizeEmployee({
+      id: decoded.uid || email,
+      uid: decoded.uid,
+      email: decoded.email,
+      name: decoded.name,
+      role: "employee",
+      county: decoded.county || "All",
+      status: "approved",
+      approved: true,
+      active: decoded.active !== false,
+      sourceCollection: decoded.firebaseTokenVerifiedByRest ? "firebaseAuth.rest" : "firebaseAuth.token"
+    }, decoded) : null;
+  }
 
   const db = admin.firestore(app());
 
@@ -185,7 +226,7 @@ async function employeeForDecodedUser(decoded, options = {}) {
 
   const claimRole = String(decoded.role || decoded.accountType || decoded.userType || "").toLowerCase();
   if (!employeeRoles.includes(claimRole) && !claimRole.includes("employee") && !claimRole.includes("delivery")) {
-    return null;
+    if (!options.allowFirebaseEmployeeFallback) return null;
   }
 
   return normalizeEmployee({
@@ -197,7 +238,8 @@ async function employeeForDecodedUser(decoded, options = {}) {
     county: decoded.county || decoded.assignedCounty || decoded.deliveryCounty || decoded.workCounty || decoded.location || decoded.area || "All",
     status: decoded.status || "approved",
     approved: decoded.approved !== false,
-    active: decoded.active !== false
+    active: decoded.active !== false,
+    sourceCollection: decoded.firebaseTokenVerifiedByRest ? "firebaseAuth.rest" : "firebaseAuth"
   }, decoded);
 }
 
