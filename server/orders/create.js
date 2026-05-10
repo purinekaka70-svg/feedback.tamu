@@ -1,7 +1,7 @@
 const { getPool } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
-const { sendPushToBusinessIds, sendPushToRole, settlePushes } = require("../_lib/notifications");
+const { customerExternalId, sendPushToBusinessIds, sendPushToExternalIds, sendPushToRole, settlePushes } = require("../_lib/notifications");
 const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
@@ -312,10 +312,17 @@ module.exports = async function handler(req, res) {
       message: `${text(payload.customer, 80) || "A customer"} placed order ${id}.`,
       data: { type: "order_created", orderId: id }
     };
+    const customerPhone = text(payload.phone, 40);
     await settlePushes([
       sendPushToRole("admin", { ...orderNotification, url: "/admin.html" }),
       sendPushToRole("employee", { ...orderNotification, url: "/employee.html" }),
-      sendPushToBusinessIds(businessIds, { ...orderNotification, url: "/seller.html" })
+      sendPushToBusinessIds(businessIds, { ...orderNotification, url: "/seller.html" }),
+      sendPushToExternalIds([customerExternalId(customerPhone)], {
+        title: "Order received",
+        message: `Your Tamu Express order ${id} was placed successfully.`,
+        url: `/cart.html?phone=${encodeURIComponent(customerPhone)}`,
+        data: { type: "order_created_customer", orderId: id }
+      })
     ], "Order created notifications");
     send(res, 201, { ok: true, message: "Order saved.", order: { id: orderId, publicId: id } });
   } catch (error) {

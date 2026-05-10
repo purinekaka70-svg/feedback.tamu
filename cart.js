@@ -1476,6 +1476,10 @@ async function handleCheckout() {
   const order = buildOrderPayload(profile, delivery);
   order.sessionId = cartSessionId();
   writeStorage(STORAGE_KEYS.buyerProfile, profile);
+  await Promise.race([
+    Promise.resolve(window.tamuPushRememberCustomer?.(profile.phone)),
+    new Promise((resolve) => window.setTimeout(resolve, 1500))
+  ]).catch(() => {});
 
   const submitButton = document.getElementById("submitOrderButton");
   if (submitButton) {
