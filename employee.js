@@ -2,6 +2,9 @@ const EMPLOYEE_KEYS = {
   adminPhone: "tamu_market_admin_phone"
 };
 
+const DEFAULT_ADMIN_PHONES = ["0115613332", "0116860686", "0759280343"];
+const DEFAULT_ADMIN_PHONE = DEFAULT_ADMIN_PHONES[0];
+
 const employeeViewMeta = {
   dashboard: "Dashboard",
   orders: "Orders",
@@ -522,6 +525,10 @@ function whatsappLink(phone, text) {
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }
 
+function currentAdminPhone() {
+  return window.localStorage.getItem(EMPLOYEE_KEYS.adminPhone) || DEFAULT_ADMIN_PHONE;
+}
+
 function orderLatitude(order) {
   return Number(order.buyerLatitude || order.customerLatitude || order.latitude || order.customer?.latitude);
 }
@@ -643,7 +650,7 @@ function renderStats() {
 function orderCard(order, compact = false) {
   const customerMessage = `Hello ${order.customer || "Customer"}, I am delivering your Tamu Express order ${order.id}.`;
   const adminMessage = `Order ${order.id} update: ${order.customer || "Customer"} at ${order.buyerLocation || "location pending"}.`;
-  const adminPhone = window.localStorage.getItem(EMPLOYEE_KEYS.adminPhone) || "254700000000";
+  const adminPhone = currentAdminPhone();
   const assigned = isAssignedToEmployee(order);
   const customerChat = whatsappLink(order.phone, customerMessage);
   const adminChat = whatsappLink(adminPhone, adminMessage);
@@ -742,7 +749,7 @@ function renderChats() {
   const assigned = assignedOrders().slice().reverse();
   const customerContainer = document.getElementById("employeeCustomerChats");
   const adminContainer = document.getElementById("employeeAdminChats");
-  const adminPhone = window.localStorage.getItem(EMPLOYEE_KEYS.adminPhone) || "254700000000";
+  const selectedAdminPhone = currentAdminPhone();
   customerContainer.innerHTML = assigned.length
     ? assigned.map((order) => `
       <article class="mini-list-card">
@@ -759,10 +766,14 @@ function renderChats() {
     <article class="mini-list-card">
       <div>
         <strong>Admin Dispatch</strong>
-        <p class="tiny">${adminPhone}</p>
+        <p class="tiny">Primary: ${selectedAdminPhone}</p>
+        <p class="tiny">All admin numbers: ${DEFAULT_ADMIN_PHONES.join(" / ")}</p>
       </div>
-      <a class="button button-primary button-small" href="${whatsappLink(adminPhone, "Hello Admin, I need help with a Tamu Express delivery.")}" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="button button-primary button-small" href="${whatsappLink(selectedAdminPhone, "Hello Admin, I need help with a Tamu Express delivery.")}" target="_blank" rel="noopener">WhatsApp</a>
     </article>
+    <div class="button-row">
+      ${DEFAULT_ADMIN_PHONES.map((phone) => `<a class="button button-outline button-small" href="${whatsappLink(phone, "Hello Admin, I need help with a Tamu Express delivery.")}" target="_blank" rel="noopener">${phone}</a>`).join("")}
+    </div>
   `;
 }
 
@@ -833,11 +844,11 @@ function renderSettings() {
   const form = document.getElementById("employeeSettingsForm");
   if (form && form.dataset.bound !== "true") {
     form.dataset.bound = "true";
-    form.elements.adminPhone.value = window.localStorage.getItem(EMPLOYEE_KEYS.adminPhone) || "254700000000";
+    form.elements.adminPhone.value = currentAdminPhone();
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       const value = String(new FormData(form).get("adminPhone") || "").trim();
-      window.localStorage.setItem(EMPLOYEE_KEYS.adminPhone, value || "254700000000");
+      window.localStorage.setItem(EMPLOYEE_KEYS.adminPhone, value || DEFAULT_ADMIN_PHONE);
       showToast("Settings saved.");
       renderChats();
     });
