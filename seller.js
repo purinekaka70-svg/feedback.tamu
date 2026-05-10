@@ -583,14 +583,14 @@ function sellerCategories() {
   const seller = currentSeller();
   return cachedCategories
     .map((category) => ({
-      id: category.id || category.name,
-      businessId: category.businessId || "",
-      sellerId: category.businessId || "",
+      id: String(category.id || category.name || ""),
+      businessId: String(category.businessId || ""),
+      sellerId: String(category.businessId || ""),
       storeName: seller?.storeName || "",
       name: category.name || category,
       image: category.image || ""
     }))
-    .filter((category) => !seller || !category.businessId || category.businessId === seller.id);
+    .filter((category) => !seller || !category.businessId || category.businessId === String(seller.id));
 }
 
 function normalizeCategoryName(value) {
@@ -623,14 +623,24 @@ function uniqueCategoryNames(names) {
 }
 
 function categoriesForSeller(seller = currentSeller()) {
-  const globalCategories = cachedCategories.map((category) => category.name || category).filter(Boolean);
+  const sellerId = String(seller?.id || "");
+  const globalCategories = cachedCategories
+    .filter((category) => !String(category.businessId || ""))
+    .map((category) => category.name || category)
+    .filter(Boolean);
   const storeCategories = sellerCategories()
-    .filter((category) => !seller || category.sellerId === seller.id)
+    .filter((category) => !sellerId || category.sellerId === sellerId)
     .map((category) => category.name);
   const dynamicCategories = uniqueCategoryNames([...globalCategories, ...storeCategories])
     .filter((category) => !DEFAULT_BUSINESS_CATEGORIES.some((defaultCategory) => categoryKey(defaultCategory) === categoryKey(category)))
     .sort((left, right) => left.localeCompare(right));
   return [...DEFAULT_BUSINESS_CATEGORIES, ...dynamicCategories];
+}
+
+function categoryFormValue(selectId, searchId) {
+  const selectValue = document.getElementById(selectId)?.value || "";
+  const searchValue = document.getElementById(searchId)?.value || "";
+  return categoryLabelFromValue(selectValue || searchValue);
 }
 
 function renderSmartCategorySelect(selectId, searchId, selectedValue = "") {
@@ -642,15 +652,20 @@ function renderSmartCategorySelect(selectId, searchId, selectedValue = "") {
   const allCategories = categoriesForSeller();
   const selected = normalizeCategoryName(selectedValue || select.value);
   const visibleCategories = allCategories.filter((category) => !query || categoryKey(category).includes(query));
+  const typedCategory = categoryLabelFromValue(search?.value || "");
+  const typedCategoryIsNew = selectId === "sellerCategorySelect" &&
+    typedCategory &&
+    !allCategories.some((category) => categoryKey(category) === categoryKey(typedCategory));
   const categoriesToRender = visibleCategories.length ? visibleCategories : allCategories;
   const configuredStoreCategories = selectId === "sellerCategorySelect"
     ? new Set(sellerCategories()
-      .filter((category) => category.sellerId === currentSeller()?.id)
+      .filter((category) => category.sellerId === String(currentSeller()?.id || ""))
       .map((category) => categoryKey(category.name)))
     : new Set();
 
   select.innerHTML = [
     '<option value="">Select category</option>',
+    typedCategoryIsNew ? `<option value="${escapeAttribute(typedCategory)}">Add "${escapeHtml(typedCategory)}"</option>` : "",
     ...categoriesToRender.map((category) => {
       const disabled = configuredStoreCategories.has(categoryKey(category)) ? " disabled" : "";
       const label = disabled ? `${category} (already added)` : category;
@@ -658,9 +673,12 @@ function renderSmartCategorySelect(selectId, searchId, selectedValue = "") {
     })
   ].join("");
 
-  const selectedMatch = allCategories.find((category) => categoryKey(category) === categoryKey(selected));
+  const selectedMatch = allCategories.find((category) => categoryKey(category) === categoryKey(selected)) ||
+    (typedCategoryIsNew && categoryKey(typedCategory) === categoryKey(selected || typedCategory) ? typedCategory : "");
   if (selectedMatch && !configuredStoreCategories.has(categoryKey(selectedMatch))) {
     select.value = selectedMatch;
+  } else if (typedCategoryIsNew) {
+    select.value = typedCategory;
   } else if (!select.value && categoriesToRender.length) {
     select.value = categoriesToRender.find((category) => !configuredStoreCategories.has(categoryKey(category))) || "";
   }
@@ -1740,12 +1758,11 @@ function bindForms() {
   document.getElementById("sellerCategoryForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const seller = currentSeller();
-    const formData = new FormData(event.currentTarget);
-    const name = categoryLabelFromValue(formData.get("categoryName"));
+    const name = categoryFormValue("sellerCategorySelect", "sellerCategorySearch");
     if (!seller || !name) return;
 
     const exists = sellerCategories()
-      .filter((category) => category.sellerId === seller.id)
+      .filter((category) => category.sellerId === String(seller.id))
       .some((category) => categoryKey(category.name) === categoryKey(name));
     if (exists) {
       showToast("This category is already enabled for your store.", "warn");
@@ -1760,6 +1777,7 @@ function bindForms() {
     await loadSellerData();
     event.currentTarget.reset();
     renderSellerCategories();
+    renderAllCategorySelects();
     showToast("Category added.", "success");
   });
 

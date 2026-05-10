@@ -2,6 +2,7 @@ let cachedApplications = [];
 let cachedProducts = [];
 let cachedCategories = [];
 let cachedOffers = [];
+let marketLoadError = "";
 const STORAGE_KEYS = {
   cartSession: "tamu_market_cart_session",
   cartItems: "tamu_market_cart_items",
@@ -409,16 +410,22 @@ async function loadMarketData() {
   try {
     const res = await fetch('./api/marketplace/list.php', { cache: 'no-store' });
     if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      marketLoadError = data.message || "Marketplace data could not load.";
       return;
     }
     const data = await res.json();
     if (data.ok) {
+      marketLoadError = "";
       cachedApplications = data.businesses || [];
       cachedProducts = (data.products || []).map(normalizeProductRecord);
       cachedCategories = data.categories || [];
       cachedOffers = data.offers || [];
+    } else {
+      marketLoadError = data.message || "Marketplace data could not load.";
     }
   } catch (error) {
+    marketLoadError = "Marketplace backend is unavailable.";
     cachedApplications = [];
     cachedProducts = [];
     cachedCategories = [];
@@ -568,6 +575,38 @@ function productMatchesSearch(product, store, query) {
   return terms.every((term) => text.includes(term));
 }
 
+function storeSearchText(store, products = []) {
+  return normalizeSearchValue([
+    store?.storeName,
+    store?.name,
+    store?.businessName,
+    store?.businessType,
+    store?.type,
+    store?.location,
+    store?.county,
+    store?.locationName,
+    store?.phone,
+    store?.email,
+    store?.deliveryAvailability,
+    store?.deliveryNotes,
+    products.map((product) => productSearchText(product, store)).join(" ")
+  ].filter((value) => value !== undefined && value !== null).join(" "));
+}
+
+function matchesSearchTerms(text, query) {
+  const terms = searchTerms(query);
+  if (!terms.length) {
+    return true;
+  }
+
+  const searchable = normalizeSearchValue(text);
+  return terms.every((term) => searchable.includes(term));
+}
+
+function storeMatchesSearch(store, products, query) {
+  return matchesSearchTerms(storeSearchText(store, products), query);
+}
+
 function cardImageHtml(src, alt, fallbackSeed = "market image") {
   const image = src || fallbackImageFor(fallbackSeed);
   const safeImage = escapeAttribute(image);
@@ -686,8 +725,8 @@ function currentCategories() {
 }
 
 function visibleStores() {
-  const query = state.search.toLowerCase();
-  const businessQuery = state.businessSearch.trim().toLowerCase();
+  const query = state.search;
+  const businessQuery = state.businessSearch.trim();
   const products = sellerProducts();
 
   return approvedStores().filter((store) => {
@@ -699,31 +738,9 @@ function visibleStores() {
       .map((product) => product.productCategory);
     const matchesCategory =
       state.selectedCategory === "all" || productCategories.includes(state.selectedCategory);
-    const matchesSearch =
-      !query ||
-      String(store.storeName || "").toLowerCase().includes(query) ||
-      storeLocation.toLowerCase().includes(query) ||
-      productCategories.join(" ").toLowerCase().includes(query) ||
-      products.some((product) => {
-        if (product.storeId !== store.id) {
-          return false;
-        }
-
-        return `${product.productName} ${product.productCategory}`.toLowerCase().includes(query);
-      });
-    const matchesBusinessSearch =
-      !businessQuery ||
-      String(store.storeName || "").toLowerCase().includes(businessQuery) ||
-      String(store.businessType || "").toLowerCase().includes(businessQuery) ||
-      String(store.phone || "").toLowerCase().includes(businessQuery) ||
-      productCategories.join(" ").toLowerCase().includes(businessQuery) ||
-      products.some((product) => {
-        if (product.storeId !== store.id) {
-          return false;
-        }
-
-        return `${product.productName} ${product.productCategory}`.toLowerCase().includes(businessQuery);
-      });
+    const storeProducts = products.filter((product) => product.storeId === store.id);
+    const matchesSearch = storeMatchesSearch(store, storeProducts, query);
+    const matchesBusinessSearch = storeMatchesSearch(store, storeProducts, businessQuery);
 
     return matchesType && matchesLocation && matchesCategory && matchesSearch && matchesBusinessSearch;
   });
@@ -1426,13 +1443,14 @@ function renderStores() {
   const container = document.getElementById("storeGrid");
   const summary = document.getElementById("browseSummary");
   const list = visibleStores();
+  const products = sellerProducts();
   const allStores = approvedStores().filter((store) => {
     const matchesType = state.selectedType === "all" || store.businessType === state.selectedType;
-    const query = state.search.toLowerCase();
     const businessQuery = state.businessSearch.trim().toLowerCase();
+    const storeProducts = products.filter((product) => product.storeId === store.id);
     return matchesType &&
-      (!query || String(store.storeName || "").toLowerCase().includes(query) || String(store.location || store.county || "").toLowerCase().includes(query)) &&
-      (!businessQuery || String(store.storeName || "").toLowerCase().includes(businessQuery) || String(store.businessType || "").toLowerCase().includes(businessQuery));
+      storeMatchesSearch(store, storeProducts, state.search) &&
+      storeMatchesSearch(store, storeProducts, businessQuery);
   });
   const locationQuery = state.locationSearch.trim().toLowerCase();
   const profile = buyerProfile();
@@ -1451,6 +1469,15 @@ function renderStores() {
   }
 
   if (state.focusedLocation === "all") {
+    if (!approvedStores().length) {
+      container.innerHTML = `
+        <div class="card location-empty-state">
+          <p>${marketLoadError || "No approved businesses are available yet."}</p>
+        </div>
+      `;
+      return;
+    }
+
     const grouped = allStores.reduce((map, store) => {
       const key = String(store.location || store.county || "Unknown location");
       const current = map.get(key) || [];
@@ -1459,12 +1486,37 @@ function renderStores() {
       return map;
     }, new Map());
 
-    const locationEntries = [...grouped.entries()].filter(([location]) =>
-      !locationQuery || location.toLowerCase().includes(locationQuery)
-    );
+    const locationEntries = [...grouped.entries()].filter(([location, stores]) => {
+      if (!locationQuery) {
+        return true;
+      }
+
+      const storeProducts = products.filter((product) => stores.some((store) => store.id === product.storeId));
+      const locationText = [
+        location,
+        stores.map((store) => storeSearchText(store, storeProducts.filter((product) => product.storeId === store.id))).join(" "),
+        storeProducts.map((product) => productSearchText(product, getStore(product.storeId))).join(" ")
+      ].join(" ");
+      return matchesSearchTerms(locationText, locationQuery);
+    });
 
     if (!locationEntries.length) {
-      container.innerHTML = '<div class="card location-empty-state">No locations match your search.</div>';
+      container.innerHTML = `
+        <div class="card location-empty-state">
+          <p>No locations match your search.</p>
+          <button class="button button-outline button-small" data-clear-location-search type="button">Show all locations</button>
+        </div>
+      `;
+      container.querySelector("[data-clear-location-search]")?.addEventListener("click", () => {
+        state.locationSearch = "";
+        state.search = "";
+        const locationInput = document.getElementById("locationSearchInput");
+        const searchInput = document.getElementById("searchInput");
+        if (locationInput) locationInput.value = "";
+        if (searchInput) searchInput.value = "";
+        savePreviewState();
+        renderMarket();
+      });
       return;
     }
 

@@ -8,11 +8,15 @@ function secret() {
   return process.env.TAMU_APP_KEY || process.env.JWT_SECRET || "change-this-tamu-express-secret";
 }
 
+function secureCookie() {
+  return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+}
+
 function issueAuth(res, claims) {
   const token = jwt.sign(claims, secret(), { expiresIn: "8h" });
   res.setHeader("Set-Cookie", cookie.serialize("TAMU_AUTH", token, {
     httpOnly: true,
-    secure: true,
+    secure: secureCookie(),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 8
@@ -22,7 +26,7 @@ function issueAuth(res, claims) {
 function clearAuth(res) {
   res.setHeader("Set-Cookie", cookie.serialize("TAMU_AUTH", "", {
     httpOnly: true,
-    secure: true,
+    secure: secureCookie(),
     sameSite: "lax",
     path: "/",
     maxAge: 0
