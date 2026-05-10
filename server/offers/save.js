@@ -1,6 +1,7 @@
 const { requireRole } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
   return text(value, 120) || `offer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -15,6 +16,7 @@ async function ensureOfferColumns() {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "offer-save", { limit: 60, windowMs: 10 * 60 * 1000 })) return;
   const session = requireRole(req, res, ["admin", "seller"]);
   if (!session) return;
   try {
@@ -56,6 +58,7 @@ module.exports = async function handler(req, res) {
     );
     send(res, 201, { ok: true, offer: { id } });
   } catch (error) {
-    send(res, 500, { ok: false, message: "Failed to save offer.", detail: error?.message || "" });
+    console.error("Offer save failed:", String(error?.message || error).slice(0, 180));
+    send(res, 500, { ok: false, message: "Failed to save offer." });
   }
 };

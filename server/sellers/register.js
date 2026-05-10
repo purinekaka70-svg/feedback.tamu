@@ -130,10 +130,10 @@ module.exports = async function handler(req, res) {
     if (client) {
       await client.query("rollback").catch(() => {});
     }
+    console.error("Seller registration failed:", String(error?.code || error?.message || error).slice(0, 180));
     send(res, 500, {
       ok: false,
-      message: "Seller registration failed.",
-      error: String(error?.message || error).slice(0, 220)
+      message: "Seller registration failed."
     });
   } finally {
     if (client) {

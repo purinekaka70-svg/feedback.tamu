@@ -141,6 +141,19 @@ function capitalize(value) {
     .join(" ");
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, "&#96;");
+}
+
 function showToast(message, tone = "success") {
   const container = document.getElementById("toastContainer");
   if (!container) return;
@@ -724,29 +737,29 @@ function orderCard(order, compact = false) {
     <article class="list-card order-card">
       <div class="section-head">
         <div>
-          <strong>${order.id}</strong>
-          <p class="tiny">${order.customer || "Customer"} | ${order.phone || "Phone pending"}</p>
+          <strong>${escapeHtml(order.id)}</strong>
+          <p class="tiny">${escapeHtml(order.customer || "Customer")} | ${escapeHtml(order.phone || "Phone pending")}</p>
         </div>
-        <span class="status-pill status-pill--${order.deliveryStatus || order.status}">${capitalize(order.deliveryStatus || order.status)}</span>
+        <span class="status-pill status-pill--${escapeAttribute(order.deliveryStatus || order.status)}">${escapeHtml(capitalize(order.deliveryStatus || order.status))}</span>
       </div>
-      <p class="tiny">${order.buyerLocation || "Customer location pending"}</p>
+      <p class="tiny">${escapeHtml(order.buyerLocation || "Customer location pending")}</p>
       <p class="tiny">Placed: ${formatOrderTime(order.createdAt)}</p>
-      <p class="tiny">${orderItemsText(order)}</p>
+      <p class="tiny">${escapeHtml(orderItemsText(order))}</p>
       ${compact ? "" : `
-        <p class="tiny">Payment ref: ${order.mpesaReference || order.businessPayments?.[0]?.reference || "pending"} | Payment ${capitalize(order.paymentStatus || "pending")}</p>
+        <p class="tiny">Payment ref: ${escapeHtml(order.mpesaReference || order.businessPayments?.[0]?.reference || "pending")} | Payment ${escapeHtml(capitalize(order.paymentStatus || "pending"))}</p>
         <p class="tiny">Delivery: ${currency(order.deliveryFee)} | Total: ${currency(order.total)}</p>
         <p class="tiny">GPS: ${Number.isFinite(orderLatitude(order)) && Number.isFinite(orderLongitude(order)) ? `${orderLatitude(order).toFixed(6)}, ${orderLongitude(order).toFixed(6)}` : "No customer coordinates yet"}</p>
-        <p class="tiny">Assigned to: ${order.assignedEmployeeName || "Not assigned"}</p>
+        <p class="tiny">Assigned to: ${escapeHtml(order.assignedEmployeeName || "Not assigned")}</p>
       `}
       <div class="button-row">
-        ${assigned ? "" : `<button class="button button-primary button-small" type="button" data-accept-order="${order.id}">Accept Delivery</button>`}
-        <button class="button button-outline button-small" type="button" data-status-order="${order.id}" data-delivery-status="picked_up">Picked Up</button>
-        <button class="button button-outline button-small" type="button" data-status-order="${order.id}" data-delivery-status="on_the_way">On The Way</button>
-        <button class="button button-primary button-small" type="button" data-status-order="${order.id}" data-delivery-status="delivered">Delivered</button>
-        <button class="button button-ghost button-small" type="button" data-open-order-map="${order.id}">Open Map</button>
-        <a class="button button-ghost button-small" href="${mapsUrl(order)}" target="_blank" rel="noopener">Google Maps</a>
-        <a class="button button-ghost button-small" href="${customerChat}" target="_blank" rel="noopener">WhatsApp Customer</a>
-        <a class="button button-ghost button-small" href="${adminChat}" target="_blank" rel="noopener">Chat Admin</a>
+        ${assigned ? "" : `<button class="button button-primary button-small" type="button" data-accept-order="${escapeAttribute(order.id)}">Accept Delivery</button>`}
+        <button class="button button-outline button-small" type="button" data-status-order="${escapeAttribute(order.id)}" data-delivery-status="picked_up">Picked Up</button>
+        <button class="button button-outline button-small" type="button" data-status-order="${escapeAttribute(order.id)}" data-delivery-status="on_the_way">On The Way</button>
+        <button class="button button-primary button-small" type="button" data-status-order="${escapeAttribute(order.id)}" data-delivery-status="delivered">Delivered</button>
+        <button class="button button-ghost button-small" type="button" data-open-order-map="${escapeAttribute(order.id)}">Open Map</button>
+        <a class="button button-ghost button-small" href="${escapeAttribute(mapsUrl(order))}" target="_blank" rel="noopener">Google Maps</a>
+        <a class="button button-ghost button-small" href="${escapeAttribute(customerChat)}" target="_blank" rel="noopener">WhatsApp Customer</a>
+        <a class="button button-ghost button-small" href="${escapeAttribute(adminChat)}" target="_blank" rel="noopener">Chat Admin</a>
       </div>
     </article>
   `;
@@ -800,8 +813,8 @@ function renderNotifications() {
       <article class="notification-card">
         <span class="summary-chip">Order</span>
         <div>
-          <strong>${item.title}</strong>
-          <p class="tiny">${item.detail}</p>
+          <strong>${escapeHtml(item.title)}</strong>
+          <p class="tiny">${escapeHtml(item.detail)}</p>
         </div>
       </article>
     `).join("")
@@ -820,10 +833,10 @@ function renderChats() {
     ? assigned.map((order) => `
       <article class="mini-list-card">
         <div>
-          <strong>${order.customer || "Customer"}</strong>
-          <p class="tiny">${order.id} | ${order.phone || "Phone pending"}</p>
+          <strong>${escapeHtml(order.customer || "Customer")}</strong>
+          <p class="tiny">${escapeHtml(order.id)} | ${escapeHtml(order.phone || "Phone pending")}</p>
         </div>
-        <a class="button button-primary button-small" href="${whatsappLink(order.phone, `Hello ${order.customer || "Customer"}, I am delivering your Tamu Express order ${order.id}.`)}" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="button button-primary button-small" href="${escapeAttribute(whatsappLink(order.phone, `Hello ${order.customer || "Customer"}, I am delivering your Tamu Express order ${order.id}.`))}" target="_blank" rel="noopener">WhatsApp</a>
       </article>
     `).join("")
     : '<div class="list-card">Customer chats appear after you accept a delivery.</div>';
@@ -832,7 +845,7 @@ function renderChats() {
     <article class="mini-list-card">
       <div>
         <strong>Admin Dispatch</strong>
-        <p class="tiny">Primary: ${selectedAdminPhone}</p>
+        <p class="tiny">Primary: ${escapeHtml(selectedAdminPhone)}</p>
         <p class="tiny">All admin numbers: ${DEFAULT_ADMIN_PHONES.join(" / ")}</p>
       </div>
       <a class="button button-primary button-small" href="${whatsappLink(selectedAdminPhone, "Hello Admin, I need help with a Tamu Express delivery.")}" target="_blank" rel="noopener">WhatsApp</a>
@@ -879,15 +892,15 @@ function renderMap() {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     document.getElementById("mapOrderDetails").innerHTML = `
       <div class="list-card">
-        <strong>${order.id}</strong>
-        <p class="tiny">Customer location has no GPS coordinates yet. Location text: ${order.buyerLocation || "pending"}</p>
+        <strong>${escapeHtml(order.id)}</strong>
+        <p class="tiny">Customer location has no GPS coordinates yet. Location text: ${escapeHtml(order.buyerLocation || "pending")}</p>
       </div>
     `;
     return;
   }
 
   const store = findStorePoint(order);
-  window.L.marker([lat, lng]).addTo(markerLayer).bindPopup(`${order.customer || "Customer"}<br>${order.buyerLocation || ""}`);
+  window.L.marker([lat, lng]).addTo(markerLayer).bindPopup(`${escapeHtml(order.customer || "Customer")}<br>${escapeHtml(order.buyerLocation || "")}`);
   if (store) {
     window.L.marker([store.lat, store.lng]).addTo(markerLayer).bindPopup(store.label);
     window.L.polyline([[store.lat, store.lng], [lat, lng]], { color: "#15803d", weight: 5, opacity: 0.8 }).addTo(routeLayer);
@@ -898,10 +911,10 @@ function renderMap() {
 
   document.getElementById("mapOrderDetails").innerHTML = `
     <article class="list-card">
-      <strong>${order.id}</strong>
-      <p class="tiny">${order.customer || "Customer"} | ${order.phone || "Phone pending"}</p>
-      <p class="tiny">${order.buyerLocation || "Customer location pending"}</p>
-      <p class="tiny">Distance: ${order.distanceText || order.routeBreakdown?.[0]?.distanceText || "Calculated during checkout"} | Delivery ${currency(order.deliveryFee)}</p>
+      <strong>${escapeHtml(order.id)}</strong>
+      <p class="tiny">${escapeHtml(order.customer || "Customer")} | ${escapeHtml(order.phone || "Phone pending")}</p>
+      <p class="tiny">${escapeHtml(order.buyerLocation || "Customer location pending")}</p>
+      <p class="tiny">Distance: ${escapeHtml(order.distanceText || order.routeBreakdown?.[0]?.distanceText || "Calculated during checkout")} | Delivery ${currency(order.deliveryFee)}</p>
     </article>
   `;
 }
@@ -922,9 +935,9 @@ function renderSettings() {
 
   document.getElementById("employeeProfileDetails").innerHTML = `
     <article class="list-card">
-      <strong>${currentEmployee?.name || currentEmployee?.email || "Employee"}</strong>
-      <p class="tiny">${currentEmployee?.email || "Email pending"} | ${currentEmployee?.phone || "Phone pending"}</p>
-      <p class="tiny">Role: ${capitalize(currentEmployee?.role || "employee")} | Status: ${capitalize(currentEmployee?.status || "active")}</p>
+      <strong>${escapeHtml(currentEmployee?.name || currentEmployee?.email || "Employee")}</strong>
+      <p class="tiny">${escapeHtml(currentEmployee?.email || "Email pending")} | ${escapeHtml(currentEmployee?.phone || "Phone pending")}</p>
+      <p class="tiny">Role: ${escapeHtml(capitalize(currentEmployee?.role || "employee"))} | Status: ${escapeHtml(capitalize(currentEmployee?.status || "active"))}</p>
     </article>
   `;
 }

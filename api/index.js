@@ -1,4 +1,5 @@
 const { send } = require("../server/_lib/http");
+const { logRequest, rateLimit, securityHeaders } = require("../server/_lib/security");
 
 const routes = {
   "admin/applications": () => require("../server/admin/applications"),
@@ -43,6 +44,11 @@ function routeKey(req) {
 }
 
 module.exports = async function handler(req, res) {
+  securityHeaders(res);
+  if (!rateLimit(req, res, "api-global", { limit: 240, windowMs: 60_000 })) return;
+  if (!["GET", "HEAD", "OPTIONS"].includes(String(req.method || "").toUpperCase())) {
+    if (!rateLimit(req, res, "api-write", { limit: 90, windowMs: 60_000 })) return;
+  }
   const key = routeKey(req);
   const loadEndpoint = routes[key] || routes[`${key}/index`];
   if (!loadEndpoint) {
@@ -50,5 +56,13 @@ module.exports = async function handler(req, res) {
     return;
   }
   const endpoint = loadEndpoint();
-  return endpoint(req, res);
+  try {
+    const result = await endpoint(req, res);
+    logRequest(req, res.statusCode || 200);
+    return result;
+  } catch (error) {
+    console.error("Unhandled API route error:", String(error?.message || error).slice(0, 180));
+    send(res, 500, { ok: false, message: "API request failed." });
+    logRequest(req, 500);
+  }
 };

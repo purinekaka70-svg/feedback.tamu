@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { query } = require("./db");
 const { send } = require("./http");
+const { requireSameOrigin } = require("./security");
 
 function secret() {
   const configured = process.env.TAMU_APP_KEY || process.env.JWT_SECRET || "";
@@ -57,6 +58,9 @@ function claims(req) {
 }
 
 function requireRole(req, res, roles) {
+  if (!requireSameOrigin(req, res)) {
+    return null;
+  }
   const session = claims(req);
   const allowed = Array.isArray(roles) ? roles : [roles];
   if (!session?.role || !allowed.includes(session.role)) {

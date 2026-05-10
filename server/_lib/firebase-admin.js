@@ -15,7 +15,11 @@ function serviceAccount() {
     return JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
   }
   if (raw) {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed.private_key) {
+      parsed.private_key = String(parsed.private_key).replace(/\\n/g, "\n");
+    }
+    return parsed;
   }
   return null;
 }
@@ -64,7 +68,7 @@ async function employeeFromRequest(req) {
     const decoded = await admin.auth(app()).verifyIdToken(token);
     return employeeForDecodedUser(decoded, { syncSupabase: true });
   } catch (error) {
-    console.error("Firebase employee token verification failed:", error?.message || error);
+    console.error("Firebase employee token verification failed:", String(error?.code || error?.message || error).slice(0, 180));
     throw error;
   }
 }

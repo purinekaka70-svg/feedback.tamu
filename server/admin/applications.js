@@ -2,6 +2,7 @@ const { requireRole } = require("../_lib/auth");
 const { query, tableColumns } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { normalizeStatus, sellerFromBusiness } = require("../_lib/market");
+const { rateLimit } = require("../_lib/security");
 
 async function ensureBusinessSubscriptionColumns() {
   await query("alter table businesses add column if not exists subscription_started_at timestamptz").catch(() => {});
@@ -38,6 +39,7 @@ function businessSelect(columns) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, ["GET", "POST"])) return;
+  if (req.method === "POST" && !rateLimit(req, res, "admin-applications-write", { limit: 80, windowMs: 10 * 60 * 1000 })) return;
   const session = requireRole(req, res, "admin");
   if (!session) return;
   try {

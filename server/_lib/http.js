@@ -18,6 +18,11 @@ function method(req, res, allowed) {
 
 function body(req) {
   return new Promise((resolve, reject) => {
+    const contentType = String(req.headers["content-type"] || "");
+    if (contentType && !contentType.toLowerCase().includes("application/json")) {
+      reject(new Error("Unsupported content type."));
+      return;
+    }
     let raw = "";
     req.on("data", (chunk) => {
       raw += chunk;

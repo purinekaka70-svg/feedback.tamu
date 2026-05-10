@@ -1,6 +1,7 @@
 const { query, tableExists } = require("../_lib/db");
 const { employeeAccessMessage, employeeFromRequest } = require("../_lib/firebase-admin");
 const { body, method, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 const KENYA_COUNTIES = [
   "mombasa", "kwale", "kilifi", "tana river", "lamu", "taita taveta",
@@ -181,6 +182,7 @@ function normalizeDeliveryStatus(value, fallback) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, ["GET", "POST"])) return;
+  if (!rateLimit(req, res, req.method === "GET" ? "employee-orders-read" : "employee-orders-write", { limit: req.method === "GET" ? 120 : 60, windowMs: 10 * 60 * 1000 })) return;
   try {
     const employee = await employeeFromRequest(req);
     const accessMessage = employeeAccessMessage(employee);

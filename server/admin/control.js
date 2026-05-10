@@ -1,6 +1,7 @@
 const { requireRole } = require("../_lib/auth");
 const { query, tableExists } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 const TABLES = {
   business: "businesses",
@@ -69,6 +70,7 @@ async function deleteLocation(id) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "admin-control", { limit: 80, windowMs: 10 * 60 * 1000 })) return;
   if (!requireRole(req, res, "admin")) return;
   try {
     const payload = await body(req);

@@ -1,9 +1,11 @@
 const { requireRole } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "category-save", { limit: 80, windowMs: 10 * 60 * 1000 })) return;
   const session = requireRole(req, res, ["admin", "seller"]);
   if (!session) return;
   try {

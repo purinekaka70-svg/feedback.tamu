@@ -1,8 +1,10 @@
 const { query } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, ["GET", "POST", "DELETE"])) return;
+  if (req.method !== "GET" && !rateLimit(req, res, "cart-write", { limit: 120, windowMs: 10 * 60 * 1000 })) return;
   try {
     if (req.method === "GET") {
       const sessionId = text(new URL(req.url, "http://local").searchParams.get("sessionId"), 120);

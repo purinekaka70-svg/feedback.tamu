@@ -2,6 +2,7 @@ const { claims } = require("../_lib/auth");
 const { getPool, query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
+const { rateLimit, requireSameOrigin } = require("../_lib/security");
 
 function compactError(error) {
   return [error?.code, error?.constraint, error?.column, error?.table, error?.message]
@@ -20,13 +21,19 @@ async function columnType(table, column) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "order-update", { limit: 60, windowMs: 10 * 60 * 1000 })) return;
+  if (!requireSameOrigin(req, res)) return;
   const session = claims(req);
   try {
     const payload = await body(req);
     const id = text(payload.id || payload.publicId, 120);
     const status = normalizeStatus(payload.status, ["pending_payment", "paid", "confirmed", "processing", "delivering", "delivered", "cancelled"], "processing");
     const paymentStatus = text(payload.paymentStatus || (status === "paid" ? "paid" : ""), 40);
-    const actorBusinessId = Number(session?.businessId || payload.businessId || payload.storeId || 0) || 0;
+    if (!["admin", "seller"].includes(String(session?.role || ""))) {
+      send(res, 403, { ok: false, message: "Seller or admin access is required to update this order." });
+      return;
+    }
+    const actorBusinessId = Number(session?.businessId || 0) || 0;
     const isAdmin = session?.role === "admin";
     if (!isAdmin && !actorBusinessId) {
       send(res, 403, { ok: false, message: "Seller or admin access is required to update this order." });
@@ -95,7 +102,7 @@ module.exports = async function handler(req, res) {
       }
     }
     send(res, 200, { ok: true });
-  } catch (error) {
-    send(res, 500, { ok: false, message: "Failed to update order.", detail: compactError(error) });
+  } catch {
+    send(res, 500, { ok: false, message: "Failed to update order." });
   }
 };

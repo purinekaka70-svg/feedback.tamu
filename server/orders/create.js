@@ -308,8 +308,8 @@ module.exports = async function handler(req, res) {
     send(res, 201, { ok: true, message: "Order saved.", order: { id: orderId, publicId: id } });
   } catch (error) {
     await client.query("rollback").catch(() => {});
-    console.error("Order create failed:", error);
-    send(res, 500, { ok: false, message: "Failed to save order.", detail: compactError(error) });
+    console.error("Order create failed:", compactError(error));
+    send(res, 500, { ok: false, message: "Failed to save order." });
   } finally {
     client.release();
   }

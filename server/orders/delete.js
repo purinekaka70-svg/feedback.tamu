@@ -81,7 +81,8 @@ module.exports = async function handler(req, res) {
     send(res, 200, { ok: true });
   } catch (error) {
     await client?.query("rollback").catch(() => {});
-    send(res, 500, { ok: false, message: "Failed to delete order.", detail: compactError(error) });
+    console.error("Order delete failed:", compactError(error));
+    send(res, 500, { ok: false, message: "Failed to delete order." });
   } finally {
     client?.release();
   }

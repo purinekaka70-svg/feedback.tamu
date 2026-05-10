@@ -125,21 +125,37 @@ function normalizeBusinessRecord(record = {}) {
 
   return {
     ...record,
-    name,
-    storeName: record.storeName || name,
-    locationId: record.locationId || slugify(location),
-    location,
-    county: record.county || location,
+    name: escapeHtml(name),
+    storeName: escapeHtml(record.storeName || name),
+    locationId: escapeAttribute(record.locationId || slugify(location)),
+    location: escapeHtml(location),
+    county: escapeHtml(record.county || location),
     type,
-    businessType: record.businessType || type,
-    logo,
-    logoImage: record.logoImage || logo,
+    businessType: escapeHtml(record.businessType || type),
+    logo: escapeAttribute(logo),
+    logoImage: escapeAttribute(record.logoImage || logo),
+    ownerName: escapeHtml(record.ownerName || record.owner_name || ""),
+    phone: escapeHtml(record.phone || ""),
+    email: escapeHtml(record.email || ""),
     rating: Number(record.rating) || 4.5,
     subscriptionStatus: record.subscriptionStatus || record.subscription_status || "",
     subscriptionStartedAt: record.subscriptionStartedAt || record.subscription_started_at || "",
     subscriptionExpiresAt: record.subscriptionExpiresAt || record.subscription_expires_at || record.expiresAt || "",
     expiresAt: record.expiresAt || record.subscriptionExpiresAt || record.subscription_expires_at || ""
   };
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, "&#96;");
 }
 
 function capitalize(value) {
@@ -421,14 +437,14 @@ function normalizeOrder(order) {
 
   return {
     ...order,
-    id: order.id || order.publicId || `order-${order.createdAt || Date.now()}`,
-    userId: order.userId || order.customerId || order.phone || "guest",
-    customer: order.customer || order.customerName || order.buyerName || "Customer",
-    phone: order.phone || order.customerPhone || "",
-    buyerLocation: order.buyerLocation || order.location || "Buyer location pending",
-    paymentMethod: order.paymentMethod || "Payment pending",
-    paymentRef,
-    mpesaReference: order.mpesaReference || paymentRef,
+    id: escapeHtml(order.id || order.publicId || `order-${order.createdAt || Date.now()}`),
+    userId: escapeHtml(order.userId || order.customerId || order.phone || "guest"),
+    customer: escapeHtml(order.customer || order.customerName || order.buyerName || "Customer"),
+    phone: escapeHtml(order.phone || order.customerPhone || ""),
+    buyerLocation: escapeHtml(order.buyerLocation || order.location || "Buyer location pending"),
+    paymentMethod: escapeHtml(order.paymentMethod || "Payment pending"),
+    paymentRef: escapeHtml(paymentRef),
+    mpesaReference: escapeHtml(order.mpesaReference || paymentRef),
     paymentStatus: order.paymentStatus || "pending_payment",
     businessPayments: asArray(order.businessPayments),
     deliveryPayment: order.deliveryPayment || {
@@ -437,8 +453,8 @@ function normalizeOrder(order) {
       reference: "",
       status: "pending_payment"
     },
-    storeName: order.storeName || order.storeNames?.join(", ") || product?.sellerName || product?.storeName || "Store pending",
-    stores: asArray(order.stores).length ? order.stores : asArray(order.storeNames),
+    storeName: escapeHtml(order.storeName || order.storeNames?.join(", ") || product?.sellerName || product?.storeName || "Store pending"),
+    stores: (asArray(order.stores).length ? order.stores : asArray(order.storeNames)).map(escapeHtml),
     subtotal,
     deliveryFee,
     total,

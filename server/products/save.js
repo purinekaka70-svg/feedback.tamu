@@ -1,6 +1,7 @@
 const { requireRole } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 async function resolveCategoryId(businessId, payload) {
   const rawId = text(payload.categoryId, 100);
@@ -33,6 +34,7 @@ async function ensureOfferTextColumn() {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "product-save", { limit: 80, windowMs: 10 * 60 * 1000 })) return;
   const session = requireRole(req, res, ["admin", "seller"]);
   if (!session) return;
   try {

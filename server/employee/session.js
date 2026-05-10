@@ -1,9 +1,11 @@
 const { issueAuth } = require("../_lib/auth");
 const { employeeAccessMessage, employeeFromRequest } = require("../_lib/firebase-admin");
 const { method, send } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, ["GET"])) return;
+  if (!rateLimit(req, res, "employee-session", { limit: 60, windowMs: 10 * 60 * 1000 })) return;
 
   try {
     const header = String(req.headers.authorization || "");
