@@ -6,11 +6,12 @@
 const DEFAULT_BUSINESS_CATEGORIES = ["Supermarket", "Retail", "Wholesale"];
 const IMAGE_PRESETS = {
   product: { maxWidth: 300, maxHeight: 300, quality: 0.74, maxBytes: 120 * 1024 },
-  business: { maxWidth: 400, maxHeight: 400, quality: 0.76, maxBytes: 160 * 1024 },
-  offer: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 180 * 1024 },
-  location: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 180 * 1024 }
+  business: { maxWidth: 400, maxHeight: 400, quality: 0.76, maxBytes: 140 * 1024 },
+  offer: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 150 * 1024 },
+  location: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 150 * 1024 }
 };
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp", "image/avif"];
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".avif"];
 const MAX_SOURCE_IMAGE_BYTES = 8 * 1024 * 1024;
 
 let map;
@@ -1514,6 +1515,15 @@ function dataUrlBytes(dataUrl) {
   return Math.ceil(base64.length * 0.75);
 }
 
+function isAllowedImageFile(file) {
+  const type = String(file?.type || "").toLowerCase();
+  if (ALLOWED_IMAGE_TYPES.includes(type)) {
+    return true;
+  }
+  const name = String(file?.name || "").toLowerCase();
+  return ALLOWED_IMAGE_EXTENSIONS.some((extension) => name.endsWith(extension));
+}
+
 function canvasToDataUrl(canvas, quality) {
   const webp = canvas.toDataURL("image/webp", quality);
   if (webp.startsWith("data:image/webp;base64,")) {
@@ -1522,19 +1532,45 @@ function canvasToDataUrl(canvas, quality) {
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-function loadImageElement(file) {
+async function loadImageSource(file) {
+  if (window.createImageBitmap) {
+    try {
+      return await window.createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      // Fall back to HTMLImageElement decoding below.
+    }
+  }
+
+  try {
+    return await loadImageElement(URL.createObjectURL(file), true);
+  } catch {
+    const dataUrl = await readFileAsDataUrl(file);
+    return loadImageElement(dataUrl, false);
+  }
+}
+
+function loadImageElement(source, shouldRevoke) {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
     const image = new Image();
+    image.decoding = "async";
     image.onload = () => {
-      URL.revokeObjectURL(url);
+      if (shouldRevoke) URL.revokeObjectURL(source);
       resolve(image);
     };
     image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Image could not be read."));
+      if (shouldRevoke) URL.revokeObjectURL(source);
+      reject(new Error("Image could not be read. Use a standard JPG, PNG, WebP, or AVIF image."));
     };
-    image.src = url;
+    image.src = source;
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Image file could not be opened."));
+    reader.readAsDataURL(file);
   });
 }
 
@@ -1542,23 +1578,30 @@ async function optimizeImageFile(file, presetName = "product") {
   if (!file || !file.size) {
     return "";
   }
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    throw new Error("Use JPG, PNG, or WebP images only.");
+  if (!isAllowedImageFile(file)) {
+    throw new Error("Use JPG, PNG, WebP, or AVIF images only.");
   }
   if (file.size > MAX_SOURCE_IMAGE_BYTES) {
     throw new Error("Image is too large. Use a file under 8 MB.");
   }
 
   const preset = IMAGE_PRESETS[presetName] || IMAGE_PRESETS.product;
-  const image = await loadImageElement(file);
-  const scale = Math.min(1, preset.maxWidth / image.naturalWidth, preset.maxHeight / image.naturalHeight);
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const image = await loadImageSource(file);
+  const sourceWidth = image.naturalWidth || image.width || 0;
+  const sourceHeight = image.naturalHeight || image.height || 0;
+  if (!sourceWidth || !sourceHeight) {
+    image.close?.();
+    throw new Error("Image could not be read. Use a standard JPG, PNG, WebP, or AVIF image.");
+  }
+  const scale = Math.min(1, preset.maxWidth / sourceWidth, preset.maxHeight / sourceHeight);
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d", { alpha: false });
   if (!context) {
+    image.close?.();
     throw new Error("Image compression is not supported on this browser.");
   }
   context.fillStyle = "#ffffff";
@@ -1566,6 +1609,7 @@ async function optimizeImageFile(file, presetName = "product") {
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
   context.drawImage(image, 0, 0, width, height);
+  image.close?.();
 
   let quality = preset.quality;
   let dataUrl = canvasToDataUrl(canvas, quality);
