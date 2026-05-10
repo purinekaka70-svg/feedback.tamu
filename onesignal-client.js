@@ -1,6 +1,7 @@
 (function () {
   const STORAGE_KEY = "tamu_onesignal_external_id";
   const CUSTOMER_KEY = "tamu_onesignal_customer_id";
+  const NOTIFICATIONS_ALLOWED_KEY = "tamu_notifications_allowed";
   const DEFAULT_APP_ID = "7c0a3b0d-53b6-4b67-9b42-266f49bfabcc";
   const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
@@ -22,6 +23,30 @@
 
   function cleanExternalId(value) {
     return String(value || "").trim().toLowerCase().slice(0, 128);
+  }
+
+  function rememberNotificationsAllowed() {
+    try {
+      window.localStorage.setItem(NOTIFICATIONS_ALLOWED_KEY, "1");
+    } catch {
+      // Storage can be unavailable in private modes; browser permission still controls visibility.
+    }
+  }
+
+  function clearNotificationsAllowed() {
+    try {
+      window.localStorage.removeItem(NOTIFICATIONS_ALLOWED_KEY);
+    } catch {
+      return;
+    }
+  }
+
+  function notificationsAllowedRemembered() {
+    try {
+      return window.localStorage.getItem(NOTIFICATIONS_ALLOWED_KEY) === "1";
+    } catch {
+      return false;
+    }
   }
 
   function appToast(title, message, type = "info") {
@@ -170,6 +195,9 @@
       if (notificationsGranted(OneSignal) && !notificationsEnabled(OneSignal)) {
         await optInNotifications(OneSignal);
       }
+      if (notificationsGranted(OneSignal)) {
+        rememberNotificationsAllowed();
+      }
       if (OneSignal.User?.addTags) {
         const safeTags = Object.fromEntries(
           Object.entries(tags || {})
@@ -239,6 +267,34 @@
   function notificationsEnabled(OneSignal) {
     const subscription = OneSignal?.User?.PushSubscription;
     return subscription?.optedIn === true && Boolean(subscription.id || subscription.token);
+  }
+
+  function shouldHideEnableButton(OneSignal) {
+    if (notificationsDenied()) {
+      clearNotificationsAllowed();
+      return false;
+    }
+    if (notificationsEnabled(OneSignal) || notificationsGranted(OneSignal)) {
+      rememberNotificationsAllowed();
+      return true;
+    }
+    return notificationsAllowedRemembered() && window.Notification?.permission === "granted";
+  }
+
+  function removeEnableButton(button) {
+    if (!button) return;
+    button.classList.add("is-hidden");
+    button.remove();
+  }
+
+  async function syncAllowedNotifications(OneSignal) {
+    if (!OneSignal || !notificationsGranted(OneSignal)) return false;
+    rememberNotificationsAllowed();
+    if (!notificationsEnabled(OneSignal)) {
+      await requestOneSignalSubscription(OneSignal).catch(() => false);
+    }
+    await identifyFromSession().catch(() => {});
+    return true;
   }
 
   async function optInNotifications(OneSignal) {
@@ -334,22 +390,18 @@
   async function finishEnabledState(OneSignal, button) {
     await identifyFromSession();
     if (notificationsEnabled(OneSignal)) {
+      rememberNotificationsAllowed();
       await showTestNotification();
-      button.classList.add("is-hidden");
-      button.remove();
+      removeEnableButton(button);
       return true;
     }
     if (notificationsGranted(OneSignal)) {
+      rememberNotificationsAllowed();
       await showTestNotification(true);
-      button.disabled = true;
-      button.textContent = "Notifications enabled";
+      removeEnableButton(button);
       window.setTimeout(async () => {
         await requestOneSignalSubscription(OneSignal).catch(() => false);
         await identifyFromSession();
-        if (button.isConnected) {
-          button.classList.toggle("is-hidden", notificationsEnabled(OneSignal));
-          if (notificationsEnabled(OneSignal)) button.remove();
-        }
       }, 2500);
       return true;
     }
@@ -359,10 +411,10 @@
   async function finishNativePermission(button) {
     const permission = await requestBrowserPermissionImmediately();
     if (permission === "granted") {
+      rememberNotificationsAllowed();
       await showTestNotification(true);
       appToast("Notifications enabled", "You will now receive Tamu Express order and payment alerts.", "success");
-      button.classList.add("is-hidden");
-      button.remove();
+      removeEnableButton(button);
       getOneSignal().then(async (OneSignal) => {
         if (!OneSignal) return;
         await requestOneSignalSubscription(OneSignal).catch(() => false);
@@ -371,6 +423,7 @@
       return true;
     }
     if (permission === "denied") {
+      clearNotificationsAllowed();
       appToast("Notifications blocked", "Allow notifications in your browser site settings, then try again.", "warn");
       button.textContent = "Notifications blocked";
       button.disabled = true;
@@ -381,6 +434,10 @@
 
   function ensureEnableButton() {
     if (document.getElementById("enableNotificationsButton")) return;
+    if (shouldHideEnableButton(null)) {
+      window.tamuOneSignalReady.then((OneSignal) => syncAllowedNotifications(OneSignal));
+      return;
+    }
     const button = document.createElement("button");
     button.id = "enableNotificationsButton";
     button.type = "button";
@@ -392,10 +449,9 @@
         window.tamuOneSignalReady,
         new Promise((resolve) => window.setTimeout(() => resolve(null), 3500))
       ]);
-      const enabled = notificationsEnabled(OneSignal);
-      button.classList.toggle("is-hidden", enabled);
-      if (enabled) {
-        button.remove();
+      if (shouldHideEnableButton(OneSignal)) {
+        removeEnableButton(button);
+        syncAllowedNotifications(OneSignal);
         return;
       }
       if (OneSignal && !notificationsSupported(OneSignal)) {
@@ -405,6 +461,7 @@
         return;
       }
       if (notificationsDenied()) {
+        clearNotificationsAllowed();
         button.disabled = true;
         button.textContent = "Notifications blocked";
         appToast("Notifications blocked", "Allow notifications in browser settings to receive alerts.", "warn");
@@ -427,6 +484,7 @@
         return;
       }
       if (notificationsDenied()) {
+        clearNotificationsAllowed();
         button.textContent = "Notifications blocked";
         button.disabled = true;
         return;
@@ -443,6 +501,7 @@
         return;
       }
       if (notificationsDenied()) {
+        clearNotificationsAllowed();
         button.textContent = "Notifications blocked";
         button.disabled = true;
         return;
@@ -455,14 +514,20 @@
     window.tamuOneSignalReady.then((OneSignal) => {
       OneSignal?.Notifications?.addEventListener?.("permissionChange", async () => {
         if (notificationsGranted(OneSignal)) {
+          rememberNotificationsAllowed();
+          removeEnableButton(button);
           await requestOneSignalSubscription(OneSignal);
           await identifyFromSession();
           await showTestNotification();
+        } else if (notificationsDenied()) {
+          clearNotificationsAllowed();
         }
         updateButton();
       });
       OneSignal?.User?.PushSubscription?.addEventListener?.("change", async () => {
         if (notificationsEnabled(OneSignal)) {
+          rememberNotificationsAllowed();
+          removeEnableButton(button);
           await identifyFromSession();
         }
         updateButton();
@@ -490,6 +555,7 @@
       supported: notificationsSupported(OneSignal),
       permission: window.Notification?.permission || "unsupported",
       sdkPermission: OneSignal?.Notifications?.permission,
+      rememberedAllowed: notificationsAllowedRemembered(),
       optedIn: subscription.optedIn,
       subscriptionId: subscription.id || "",
       token: subscription.token ? "present" : "",
@@ -502,5 +568,10 @@
   } else {
     ensureEnableButton();
   }
-  window.tamuOneSignalReady.then(() => identifyFromSession());
+  window.tamuOneSignalReady.then(async (OneSignal) => {
+    await identifyFromSession();
+    if (shouldHideEnableButton(OneSignal)) {
+      await syncAllowedNotifications(OneSignal);
+    }
+  });
 })();
