@@ -555,7 +555,7 @@ function haversineDistanceKm(from, to) {
       Math.sin(longitudeDelta / 2) *
       Math.sin(longitudeDelta / 2);
 
-  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.25;
 }
 
 const COUNTY_REGIONS = {
@@ -644,8 +644,8 @@ function productWeightKg(product) {
 function groupBulkSummary(group) {
   const quantity = Math.max(1, Number(group.quantity) || 1);
   const weightKg = Math.max(0.5, Number(group.weightKg) || quantity * 0.7);
-  const quantityFee = Math.min(120, Math.max(0, quantity - 2) * 8);
-  const weightFee = weightKg > 5 ? Math.min(350, (weightKg - 5) * 18) : 0;
+  const quantityFee = Math.min(80, Math.max(0, quantity - 2) * 6);
+  const weightFee = weightKg > 5 ? Math.min(250, (weightKg - 5) * 12) : 0;
   return {
     quantity,
     weightKg,
@@ -661,22 +661,22 @@ function calculateMarketplaceDeliveryFee(distanceKm, store, group, profile = buy
   let cap;
 
   if (route.key === "local") {
-    baseFee = 40 + distance * 8;
-    cap = 100;
+    baseFee = distance <= 2 ? 25 + distance * 5 : 35 + distance * 6;
+    cap = 70;
   } else if (route.key === "same-county") {
-    baseFee = 90 + distance * 2;
-    cap = 250;
+    baseFee = distance <= 25 ? 55 + distance * 5 : 95 + distance * 4;
+    cap = 220;
   } else if (route.key === "nearby-county") {
-    baseFee = 220 + distance * 1.35;
-    cap = 500;
+    baseFee = 160 + distance * 2;
+    cap = 350;
   } else {
-    baseFee = 450 + distance * 1.15;
-    cap = bulk.weightKg > 25 || bulk.quantity > 15 ? 2000 : 1500;
+    baseFee = 280 + distance * 1.4;
+    cap = bulk.weightKg > 25 || bulk.quantity > 15 ? 1200 : 900;
   }
 
   const fee = Math.round(Math.min(cap, baseFee + bulk.fee) / 10) * 10;
   return {
-    fee: Math.max(40, fee),
+    fee: Math.max(30, fee),
     routeKey: route.key,
     routeLabel: route.label,
     sameCounty: route.sameCounty,
@@ -701,9 +701,9 @@ function estimateFallbackDeliveryFee(storeCount = 1, sameCountyCount = 0, quanti
   const count = Math.max(1, Number(storeCount) || 1);
   const sameCounty = Math.max(0, Number(sameCountyCount) || 0);
   const qty = Math.max(1, Number(quantity) || 1);
-  const base = 70 + (count - 1) * 30 + Math.min(80, Math.max(0, qty - 2) * 8);
-  const discount = Math.min(30, sameCounty * 10);
-  return Math.min(350, Math.max(50, base - discount));
+  const base = 50 + (count - 1) * 20 + Math.min(60, Math.max(0, qty - 2) * 6);
+  const discount = Math.min(20, sameCounty * 10);
+  return Math.min(250, Math.max(40, base - discount));
 }
 
 function buildDeliverySummary(items, profile = buyerProfile()) {
@@ -780,7 +780,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
       }
       const storeLatitude = Number(store.latitude);
       const storeLongitude = Number(store.longitude);
-      const hasStoreCoordinates = Number.isFinite(storeLatitude) && Number.isFinite(storeLongitude);
+      const hasStoreCoordinates = Number.isFinite(storeLatitude) && Number.isFinite(storeLongitude) && storeLatitude !== 0 && storeLongitude !== 0;
       const distanceKm = hasStoreCoordinates
         ? haversineDistanceKm(buyerPoint, {
             latitude: storeLatitude,
@@ -816,7 +816,7 @@ function buildDeliverySummary(items, profile = buyerProfile()) {
     })
     .filter(Boolean);
 
-  const consolidationFee = breakdown.length > 1 ? Math.min(80, (breakdown.length - 1) * 20) : 0;
+  const consolidationFee = breakdown.length > 1 ? Math.min(50, (breakdown.length - 1) * 10) : 0;
   const fee = breakdown.reduce((sum, entry) => sum + entry.fee, 0) + consolidationFee;
 
   return {

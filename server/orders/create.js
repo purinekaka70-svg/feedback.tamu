@@ -21,6 +21,123 @@ async function existingBusinessId(client, value) {
   return result.rows.length ? id : null;
 }
 
+function validCoordinate(latitude, longitude) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0
+    ? { latitude: lat, longitude: lng }
+    : null;
+}
+
+function haversineDistanceKm(from, to) {
+  const toRadians = (value) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const latitudeDelta = toRadians(to.latitude - from.latitude);
+  const longitudeDelta = toRadians(to.longitude - from.longitude);
+  const fromLatitude = toRadians(from.latitude);
+  const toLatitude = toRadians(to.latitude);
+  const a =
+    Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2) +
+    Math.cos(fromLatitude) *
+      Math.cos(toLatitude) *
+      Math.sin(longitudeDelta / 2) *
+      Math.sin(longitudeDelta / 2);
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.25;
+}
+
+function affordableDeliveryFee(distanceKm, quantity = 1) {
+  const distance = Math.max(0, Number(distanceKm) || 0);
+  const qty = Math.max(1, Math.trunc(Number(quantity) || 1));
+  const bulkFee = Math.min(80, Math.max(0, qty - 2) * 6);
+  let fee;
+
+  if (distance <= 2) {
+    fee = 25 + distance * 5;
+  } else if (distance <= 5) {
+    fee = 35 + distance * 6;
+  } else if (distance <= 12) {
+    fee = 55 + distance * 5;
+  } else if (distance <= 25) {
+    fee = 95 + distance * 4;
+  } else if (distance <= 80) {
+    fee = 160 + distance * 2;
+  } else {
+    fee = 280 + distance * 1.4;
+  }
+
+  return Math.max(30, Math.round((fee + bulkFee) / 10) * 10);
+}
+
+function fallbackDeliveryFee(storeCount = 1, quantity = 1) {
+  const stores = Math.max(1, Number(storeCount) || 1);
+  const qty = Math.max(1, Number(quantity) || 1);
+  return Math.min(250, Math.max(40, 50 + (stores - 1) * 20 + Math.max(0, qty - 2) * 6));
+}
+
+async function deliveryFromBusinessCoordinates(client, items, payload, businessIdFor) {
+  const subtotal = items.reduce((sum, item) => sum + number(item.lineTotal), 0);
+  const buyerPoint = validCoordinate(payload.buyerLatitude, payload.buyerLongitude);
+  const groups = new Map();
+
+  for (const item of items) {
+    const businessId = await businessIdFor(item.businessId || item.storeId);
+    const key = businessId ? String(businessId) : text(item.storeId, 120);
+    if (!key) continue;
+    const current = groups.get(key) || {
+      businessId,
+      storeId: text(item.storeId || businessId, 120),
+      storeName: text(item.storeName, 150),
+      quantity: 0,
+      subtotal: 0
+    };
+    current.quantity += Math.max(1, Math.trunc(number(item.quantity)));
+    current.subtotal += number(item.lineTotal);
+    groups.set(key, current);
+  }
+
+  const numericBusinessIds = [...groups.values()].map((group) => group.businessId).filter(Boolean);
+  const businesses = numericBusinessIds.length
+    ? await client.query(
+        "select id, name, latitude, longitude from businesses where id = any($1::bigint[])",
+        [numericBusinessIds]
+      )
+    : { rows: [] };
+  const businessById = new Map(businesses.rows.map((row) => [String(row.id), row]));
+
+  const breakdown = [...groups.values()].map((group) => {
+    const business = businessById.get(String(group.businessId || ""));
+    const storePoint = business ? validCoordinate(business.latitude, business.longitude) : null;
+    const distanceKm = buyerPoint && storePoint ? haversineDistanceKm(storePoint, buyerPoint) : 0;
+    const estimated = !buyerPoint || !storePoint;
+    const fee = estimated
+      ? fallbackDeliveryFee(1, group.quantity)
+      : affordableDeliveryFee(distanceKm, group.quantity);
+
+    return {
+      storeId: group.storeId || String(group.businessId || ""),
+      storeName: business?.name || group.storeName || "Business",
+      distanceKm,
+      fee,
+      quantity: group.quantity,
+      subtotal: group.subtotal,
+      estimated
+    };
+  });
+
+  const consolidationFee = breakdown.length > 1 ? Math.min(50, (breakdown.length - 1) * 10) : 0;
+  const deliveryFee = breakdown.length
+    ? breakdown.reduce((sum, route) => sum + route.fee, 0) + consolidationFee
+    : fallbackDeliveryFee(1, items.reduce((sum, item) => sum + Number(item.quantity || 1), 0));
+
+  return {
+    subtotal,
+    deliveryFee,
+    total: subtotal + deliveryFee,
+    distanceKm: breakdown.reduce((sum, route) => sum + Number(route.distanceKm || 0), 0),
+    breakdown
+  };
+}
+
 async function tableExists(client, table) {
   const result = await client.query(
     "select 1 from information_schema.tables where table_schema = 'public' and table_name = $1 limit 1",
@@ -85,6 +202,7 @@ module.exports = async function handler(req, res) {
       }
       return businessIdCache.get(key);
     };
+    const delivery = await deliveryFromBusinessCoordinates(client, items, payload, businessIdFor);
     const orderFields = [
       ["public_id", id],
       ["marketplace_id", text(payload.marketplaceId || payload.marketplace_id || "tamu-express", 120)],
@@ -100,9 +218,9 @@ module.exports = async function handler(req, res) {
       ["mpesa_reference", text(payload.mpesaReference, 120)],
       ["notes", text(payload.note, 500)],
       ["store_summary", text(payload.storeName, 220)],
-      ["subtotal", number(payload.subtotal)],
-      ["delivery_fee", number(payload.deliveryFee)],
-      ["total", number(payload.total)]
+      ["subtotal", delivery.subtotal || number(payload.subtotal)],
+      ["delivery_fee", delivery.deliveryFee],
+      ["total", delivery.total || number(payload.total)]
     ].filter(([column]) => schema.orders.has(column));
     if (schema.orders.has("status")) {
       orderFields.push(["status", normalizeStatus(payload.status || "pending_payment", ["pending_payment", "paid", "confirmed", "processing", "delivering", "delivered", "cancelled"], "pending_payment")]);
@@ -148,7 +266,7 @@ module.exports = async function handler(req, res) {
       }
     }
     if (schema.routeBreakdown) {
-      for (const route of Array.isArray(payload.routeBreakdown) ? payload.routeBreakdown : []) {
+      for (const route of delivery.breakdown.length ? delivery.breakdown : Array.isArray(payload.routeBreakdown) ? payload.routeBreakdown : []) {
         await client.query(
           `insert into order_route_breakdown (order_id, store_public_id, store_name, distance_km, route_fee, quantity, subtotal)
            values ($1,$2,$3,$4,$5,$6,$7)`,
@@ -178,7 +296,7 @@ module.exports = async function handler(req, res) {
     if (schema.deliveries) {
       await client.query(
         "insert into deliveries (order_public_id, status, distance_km, delivery_fee) values ($1,$2,$3,$4)",
-        [id, normalizeStatus(payload.deliveryStatus || "pending", ["pending", "assigned", "picked_up", "delivered", "cancelled"], "pending"), 0, number(payload.deliveryFee)]
+        [id, normalizeStatus(payload.deliveryStatus || "pending", ["pending", "assigned", "picked_up", "delivered", "cancelled"], "pending"), delivery.distanceKm, delivery.deliveryFee]
       );
     }
     if (payload.sessionId && schema.cart) {
