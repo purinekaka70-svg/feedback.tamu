@@ -1,6 +1,6 @@
 const admin = require("firebase-admin");
 
-const employeeCollections = ["employees", "users", "staff", "deliveryEmployees", "delivery_employees"];
+const employeeCollections = ["employees", "marketEmployees", "market_employees", "users", "staff", "deliveryEmployees", "delivery_employees"];
 const uidFields = ["uid", "authUid", "firebaseUid", "firebaseId", "userId"];
 const emailFields = ["email", "employeeEmail"];
 const employeeRoles = ["employee", "delivery", "delivery_employee", "driver", "rider", "courier"];

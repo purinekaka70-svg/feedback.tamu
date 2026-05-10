@@ -13,6 +13,8 @@ const employeeViewMeta = {
   settings: "Settings"
 };
 
+const EMPLOYEE_PROFILE_COLLECTIONS = ["employees", "marketEmployees", "market_employees", "deliveryEmployees", "delivery_employees", "staff", "users"];
+
 let currentEmployee = null;
 let activeEmployeeView = "dashboard";
 let employeeMap = null;
@@ -182,21 +184,40 @@ async function employeeRecordForFirebaseUser(user) {
     }
   }
 
+  const normalizeEmployeeRecord = (id, data = {}, collection = "employees") => ({
+    id,
+    sourceCollection: collection,
+    ...data,
+    uid: data.uid || data.authUid || data.firebaseUid || data.firebaseId || data.userId || user.uid,
+    email: data.email || data.employeeEmail || user.email,
+    name: data.name || data.displayName || data.employeeName || data.fullName || user.displayName || user.email,
+    role: String(data.role || data.accountType || data.userType || "employee").toLowerCase(),
+    county: data.county
+      || data.assignedCounty
+      || data.locationCounty
+      || data.deliveryCounty
+      || data.workCounty
+      || data.countyName
+      || data.assignedLocation
+      || data.location
+      || data.area
+      || data.region
+      || "All",
+    assignedCounty: data.assignedCounty || data.county || data.location || "All",
+    location: data.location || data.county || data.assignedCounty || "All",
+    status: data.status || "approved",
+    active: data.active !== false,
+    approved: data.approved !== false
+  });
+
   try {
     const db = window.firebase.firestore();
-    const employeeCollection = db.collection("employees");
     const docIds = [user.uid, user.email, String(user.email || "").toLowerCase()].filter(Boolean);
-    for (const docId of docIds) {
-      const directDoc = await employeeCollection.doc(docId).get();
-      if (directDoc.exists) {
-        return { id: directDoc.id, ...directDoc.data(), uid: directDoc.data().uid || user.uid, email: directDoc.data().email || user.email };
-      }
-    }
-
     const lookupQueries = [
       ["uid", user.uid],
       ["authUid", user.uid],
       ["firebaseUid", user.uid],
+      ["firebaseId", user.uid],
       ["userId", user.uid],
       ["email", user.email],
       ["email", String(user.email || "").toLowerCase()],
@@ -204,19 +225,28 @@ async function employeeRecordForFirebaseUser(user) {
       ["employeeEmail", String(user.email || "").toLowerCase()]
     ].filter(([, value]) => value);
 
-    for (const [field, value] of lookupQueries) {
-      const snapshot = await employeeCollection.where(field, "==", value).limit(1).get();
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-        return { id: doc.id, ...doc.data(), uid: doc.data().uid || user.uid, email: doc.data().email || user.email };
+    for (const collectionName of EMPLOYEE_PROFILE_COLLECTIONS) {
+      const employeeCollection = db.collection(collectionName);
+      for (const docId of docIds) {
+        const directDoc = await employeeCollection.doc(docId).get();
+        if (directDoc.exists) {
+          return normalizeEmployeeRecord(directDoc.id, directDoc.data(), collectionName);
+        }
+      }
+
+      for (const [field, value] of lookupQueries) {
+        const snapshot = await employeeCollection.where(field, "==", value).limit(1).get();
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0];
+          return normalizeEmployeeRecord(doc.id, doc.data(), collectionName);
+        }
       }
     }
   } catch (error) {
-    return null;
+    // Fall back to the authenticated Firebase user below.
   }
 
-  return {
-    id: user.uid || user.email,
+  return normalizeEmployeeRecord(user.uid || user.email, {
     uid: user.uid,
     email: user.email,
     name: user.displayName || user.email || "Employee",
@@ -224,10 +254,8 @@ async function employeeRecordForFirebaseUser(user) {
     status: "approved",
     active: true,
     approved: true,
-    county: "All",
-    assignedCounty: "All",
-    location: "All"
-  };
+    county: "All"
+  }, "firebaseAuth");
 }
 
 function isEmployeeActive(account) {
