@@ -57,7 +57,7 @@ function normalizeEmployee(doc, decoded) {
     || data.location
     || data.area
     || data.region
-    || "";
+    || "All";
   return {
     id: doc.id || data.id || uid || email,
     ...data,
@@ -67,7 +67,10 @@ function normalizeEmployee(doc, decoded) {
     role: String(data.role || data.accountType || data.userType || "employee").toLowerCase(),
     county,
     assignedCounty: data.assignedCounty || county,
-    location: data.location || county
+    location: data.location || county,
+    status: data.status || "approved",
+    active: data.active !== false,
+    approved: data.approved !== false
   };
 }
 
@@ -108,10 +111,10 @@ async function employeeForDecodedUser(decoded) {
     email: decoded.email,
     name: decoded.name,
     role: decoded.role || decoded.accountType || decoded.userType,
-    county: decoded.county || decoded.assignedCounty || decoded.deliveryCounty || decoded.workCounty || decoded.location || decoded.area,
-    status: decoded.status,
-    approved: decoded.approved,
-    active: decoded.active
+    county: decoded.county || decoded.assignedCounty || decoded.deliveryCounty || decoded.workCounty || decoded.location || decoded.area || "All",
+    status: decoded.status || "approved",
+    approved: decoded.approved !== false,
+    active: decoded.active !== false
   }, decoded);
 }
 
