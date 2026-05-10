@@ -6,10 +6,18 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const READY_TIMEOUT_MS = 20000;
+  const CLICK_READY_TIMEOUT_MS = 1800;
   let lastInitError = "";
 
   function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function withTimeout(promise, ms, fallback = false) {
+    return Promise.race([
+      Promise.resolve(promise),
+      sleep(ms).then(() => fallback)
+    ]);
   }
 
   function cleanExternalId(value) {
@@ -125,6 +133,13 @@
     return OneSignal;
   }
 
+  async function getOneSignalFast() {
+    return Promise.race([
+      getOneSignal(),
+      sleep(CLICK_READY_TIMEOUT_MS).then(() => null)
+    ]);
+  }
+
   async function identify(externalId, tags = {}) {
     const id = cleanExternalId(externalId);
     if (!id) return false;
@@ -232,11 +247,10 @@
   async function requestOneSignalSubscription(OneSignal) {
     if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
     if (!notificationsGranted(OneSignal) && OneSignal?.Slidedown?.promptPush) {
-      await OneSignal.Slidedown.promptPush({ force: true }).catch(() => {});
-      await sleep(700);
+      await withTimeout(OneSignal.Slidedown.promptPush({ force: true }).catch(() => false), 2500, false);
     }
     if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
-      await OneSignal.Notifications.requestPermission().catch(() => {});
+      await withTimeout(OneSignal.Notifications.requestPermission().catch(() => false), 6000, false);
     }
     if (notificationsGranted(OneSignal)) {
       await optInNotifications(OneSignal);
@@ -278,7 +292,10 @@
       renotify: true
     };
     try {
-      const registration = await navigator.serviceWorker?.ready;
+      const registration = await Promise.race([
+        navigator.serviceWorker?.ready,
+        sleep(1500).then(() => null)
+      ]);
       if (registration?.showNotification) {
         await registration.showNotification(title, options);
         return true;
@@ -319,6 +336,31 @@
     return false;
   }
 
+  async function finishNativePermission(button) {
+    const permission = await requestBrowserPermissionImmediately();
+    if (permission === "granted") {
+      await showTestNotification(true);
+      button.textContent = "Notifications enabled";
+      button.disabled = true;
+      getOneSignal().then(async (OneSignal) => {
+        if (!OneSignal) return;
+        await requestOneSignalSubscription(OneSignal).catch(() => false);
+        await identifyFromSession();
+        if (button.isConnected && notificationsEnabled(OneSignal)) {
+          button.classList.add("is-hidden");
+          button.remove();
+        }
+      });
+      return true;
+    }
+    if (permission === "denied") {
+      button.textContent = "Notifications blocked";
+      button.disabled = true;
+      return true;
+    }
+    return false;
+  }
+
   function ensureEnableButton() {
     if (document.getElementById("enableNotificationsButton")) return;
     const button = document.createElement("button");
@@ -353,18 +395,13 @@
     };
     button.addEventListener("click", async () => {
       button.disabled = true;
-      button.textContent = "Opening banner...";
-      const OneSignal = await getOneSignal();
+      button.textContent = "Enabling...";
+      const OneSignal = await getOneSignalFast();
       if (!OneSignal) {
-        button.textContent = "Enabling...";
-        await requestBrowserPermissionImmediately();
-        if (notificationsGranted(null)) {
-          await showTestNotification(true);
-          button.textContent = "Notifications enabled";
-          button.disabled = true;
+        if (await finishNativePermission(button)) {
           return;
         }
-        button.textContent = lastInitError ? "Reload page" : "SDK loading failed";
+        button.textContent = lastInitError ? "Reload page" : "Enable notifications";
         button.disabled = false;
         return;
       }
@@ -374,13 +411,20 @@
         return;
       }
       try {
+        button.textContent = OneSignal?.Slidedown?.promptPush ? "Opening banner..." : "Enabling...";
         await requestOneSignalSubscription(OneSignal);
       } catch {
+        if (await finishNativePermission(button)) {
+          return;
+        }
         button.textContent = "Enable notifications";
         button.disabled = false;
         return;
       }
       if (await finishEnabledState(OneSignal, button)) {
+        return;
+      }
+      if (await finishNativePermission(button)) {
         return;
       }
       if (notificationsDenied()) {
