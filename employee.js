@@ -285,11 +285,12 @@ function isEmployeeActive(account) {
 
 function employeeLoginErrorMessage(error) {
   const code = String(error?.code || "");
+  const project = firebaseConfig()?.projectId || "configured Firebase project";
   if (code.includes("user-not-found")) {
-    return "No Firebase Auth employee exists for this email. The employee must be registered in the same Firebase project.";
+    return `No Firebase Auth employee exists for this email in ${project}.`;
   }
   if (code.includes("wrong-password") || code.includes("invalid-credential") || code.includes("invalid-login-credentials")) {
-    return "Wrong employee email or password in Firebase Auth.";
+    return `Firebase rejected this email/password in ${project}. Confirm the user is in Firebase Authentication for this same project and has an Email/Password sign-in method.`;
   }
   if (code.includes("too-many-requests")) {
     return "Firebase temporarily blocked this email after too many failed attempts. Wait a few minutes or use Reset Firebase password.";
@@ -980,7 +981,7 @@ function bindLogin() {
     event.preventDefault();
     const formData = new FormData(form);
     const email = String(formData.get("email") || "").trim();
-    const password = String(formData.get("password") || "").trim();
+    const password = String(formData.get("password") || "");
     const result = await signInEmployee(email, password);
 
     if (!result.ok) {
