@@ -1506,3 +1506,64 @@ body.seller-register-active .seller-auth-card {
     font-size: 0.78rem !important;
   }
 }
+
+/* Keep search controls from moving when users tap, hover, type, or refresh results. */
+input[type="search"],
+.input[type="search"],
+.shop-here-input,
+.location-search-input,
+.business-search-input,
+.smart-select-search {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  transform: none !important;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease !important;
+}
+
+input[type="search"]:focus,
+.input[type="search"]:focus,
+.shop-here-input:focus,
+.location-search-input:focus,
+.business-search-input:focus,
+.smart-select-search:focus {
+  transform: none !important;
+  outline: 2px solid rgba(21, 128, 61, 0.32);
+  outline-offset: 2px;
+}
+
+.card:has(input[type="search"]),
+.panel:has(input[type="search"]),
+.field:has(input[type="search"]),
+.shop-mode-panel,
+.shop-mode-search,
+.shop-search-row {
+  transform: none !important;
+}
+
+.card:has(input[type="search"]):hover,
+.panel:has(input[type="search"]):hover,
+.shop-mode-panel:hover,
+.shop-mode-search:hover,
+.shop-search-row:hover {
+  transform: none !important;
+}
+
+.shop-mode-panel {
+  contain: layout;
+}
+
+.shop-search-row {
+  align-items: stretch;
+}
+
+.shop-search-row .button {
+  min-height: 40px;
+  align-self: stretch;
+}

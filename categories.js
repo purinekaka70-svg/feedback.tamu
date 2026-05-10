@@ -122,6 +122,7 @@ const state = {
   cart: []
 };
 let shopSearchRenderTimer = null;
+let shouldFocusShopSearch = false;
 
 function cartSessionId() {
   let id = window.localStorage.getItem(STORAGE_KEYS.cartSession);
@@ -1692,6 +1693,7 @@ function renderStores() {
       state.focusedStoreId = button.dataset.shopStore;
       state.focusedBusinessCategory = "all";
       state.shopQuery = "";
+      shouldFocusShopSearch = true;
       savePreviewState();
       renderMarket();
       document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1718,17 +1720,9 @@ function renderProducts() {
   const selectedStore = getStore(state.focusedStoreId);
   const isShopMode = state.activeShopStoreId === state.focusedStoreId;
   if (isShopMode && selectedStore) {
-    const query = normalizeSearchValue(state.shopQuery);
-    const matches = sellerProducts().filter((product) => {
-      if (product.storeId !== selectedStore.id) {
-        return false;
-      }
-      return productMatchesSearch(product, selectedStore, state.shopQuery);
-    });
-    const offerMatches = matches.filter((product) => product.productOffer);
-    const regularMatches = matches.filter((product) => !product.productOffer);
+    const groups = shopModeProductGroups(selectedStore);
 
-    summary.textContent = `${matches.length} item${matches.length === 1 ? "" : "s"} in ${selectedStore.storeName}`;
+    summary.textContent = shopModeSummaryText(selectedStore, groups.matches);
     container.innerHTML = `
       <section class="shop-mode-panel">
         <div class="shop-mode-head">
@@ -1745,52 +1739,23 @@ function renderProducts() {
             <input class="input shop-here-input" data-shop-search="${selectedStore.id}" type="search" value="${escapeAttribute(state.shopQuery)}" placeholder="Search rice, sugar, phone, drinks..." />
             <button class="button button-outline button-small" data-shop-search-clear="${selectedStore.id}" type="button">Clear</button>
           </span>
-          <span class="tiny">${query ? `${matches.length} result${matches.length === 1 ? "" : "s"} for "${escapeHtml(state.shopQuery)}"` : "Type a product name to filter this store."}</span>
+          <span class="tiny" data-shop-result-label>${shopModeResultsLabel(groups)}</span>
         </label>
       </section>
-      ${offerMatches.length ? `
-        <section class="business-offers-first">
-          <div class="section-head shelf-head">
-            <div>
-              <p class="eyebrow">Offers</p>
-              <h3>Promotions</h3>
-            </div>
-            <span class="summary-chip">${offerMatches.length} deal${offerMatches.length === 1 ? "" : "s"}</span>
-          </div>
-          <div class="product-grid product-grid--shelf">
-            ${offerMatches.map((product) => productCardHtml(product)).join("")}
-          </div>
-        </section>
-      ` : ""}
-      ${regularMatches.length ? `
-        <section class="standard-products-section">
-          <div class="section-head shelf-head">
-            <div>
-              <p class="eyebrow">Products</p>
-              <h3>Regular items</h3>
-            </div>
-            <span class="summary-chip">${regularMatches.length} item${regularMatches.length === 1 ? "" : "s"}</span>
-          </div>
-          <div class="product-grid product-grid--shelf shop-mode-grid">
-            ${regularMatches.map((product) => productCardHtml(product)).join("")}
-          </div>
-        </section>
-      ` : ""}
-      ${!matches.length ? `
-        <div class="card empty-shop-result">
-          <strong>No matching products in this business.</strong>
-          <p class="tiny">Try another word or clear the search to see everything from this seller.</p>
-          <button class="button button-outline button-small" data-shop-search-clear="${selectedStore.id}" type="button">View all products</button>
-        </div>
-      ` : ""}
+      <div data-shop-results="${escapeAttribute(selectedStore.id)}">
+        ${shopModeResultsHtml(selectedStore, groups)}
+      </div>
     `;
     bindProductCardActions(container);
     bindShopModeActions(container);
-    window.setTimeout(() => {
-      const input = container.querySelector(`[data-shop-search="${state.activeShopStoreId}"]`);
-      input?.focus();
-      input?.setSelectionRange(input.value.length, input.value.length);
-    }, 0);
+    if (shouldFocusShopSearch) {
+      shouldFocusShopSearch = false;
+      window.setTimeout(() => {
+        const input = container.querySelector(`[data-shop-search="${state.activeShopStoreId}"]`);
+        input?.focus();
+        input?.setSelectionRange(input.value.length, input.value.length);
+      }, 0);
+    }
     return;
   }
   const list = visibleProducts();
@@ -1935,19 +1900,29 @@ function bindShopModeActions(container) {
     state.shopQuery = String(value || "");
     savePreviewState();
 
+    const updateResults = () => {
+      const selectedStore = getStore(storeId);
+      if (!selectedStore || state.activeShopStoreId !== storeId) {
+        renderMarket();
+        return;
+      }
+      renderShopModeResults(container, selectedStore);
+      renderCartSummary();
+    };
+
     if (shopSearchRenderTimer) {
       window.clearTimeout(shopSearchRenderTimer);
       shopSearchRenderTimer = null;
     }
 
     if (shouldRenderNow) {
-      renderMarket();
+      updateResults();
       return;
     }
 
     shopSearchRenderTimer = window.setTimeout(() => {
       shopSearchRenderTimer = null;
-      renderMarket();
+      updateResults();
     }, 120);
   };
 
@@ -1963,17 +1938,28 @@ function bindShopModeActions(container) {
     });
   });
 
-  container.querySelectorAll("[data-shop-search-clear]").forEach((button) => {
-    button.addEventListener("click", () => {
-      runShopSearch(button.dataset.shopSearchClear, "", true);
-    });
-  });
+  if (!container.dataset.shopModeDelegated) {
+    container.dataset.shopModeDelegated = "true";
+    container.addEventListener("click", async (event) => {
+      const clearButton = event.target.closest("[data-shop-search-clear]");
+      if (clearButton) {
+        event.preventDefault();
+        const storeId = clearButton.dataset.shopSearchClear;
+        const input = container.querySelector(`[data-shop-search="${storeId}"]`);
+        if (input) {
+          input.value = "";
+          input.focus({ preventScroll: true });
+        }
+        runShopSearch(storeId, "", true);
+        return;
+      }
 
-  container.querySelectorAll("[data-shop-place-order]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      await createLocalOrderFromStore(button.dataset.shopPlaceOrder);
+      const orderButton = event.target.closest("[data-shop-place-order]");
+      if (orderButton) {
+        await createLocalOrderFromStore(orderButton.dataset.shopPlaceOrder);
+      }
     });
-  });
+  }
 }
 
 function openImageViewer(src, title) {
@@ -2077,6 +2063,89 @@ function productCardHtml(product) {
       </div>
     </article>
   `;
+}
+
+function shopModeProductGroups(selectedStore) {
+  const query = normalizeSearchValue(state.shopQuery);
+  const matches = sellerProducts().filter((product) => {
+    if (product.storeId !== selectedStore.id) {
+      return false;
+    }
+    return productMatchesSearch(product, selectedStore, state.shopQuery);
+  });
+  return {
+    query,
+    matches,
+    offerMatches: matches.filter((product) => product.productOffer),
+    regularMatches: matches.filter((product) => !product.productOffer)
+  };
+}
+
+function shopModeSummaryText(selectedStore, matches) {
+  return `${matches.length} item${matches.length === 1 ? "" : "s"} in ${selectedStore.storeName}`;
+}
+
+function shopModeResultsLabel(groups) {
+  return groups.query
+    ? `${groups.matches.length} result${groups.matches.length === 1 ? "" : "s"} for "${escapeHtml(state.shopQuery)}"`
+    : "Type a product name to filter this store.";
+}
+
+function shopModeResultsHtml(selectedStore, groups = shopModeProductGroups(selectedStore)) {
+  return `
+    ${groups.offerMatches.length ? `
+      <section class="business-offers-first">
+        <div class="section-head shelf-head">
+          <div>
+            <p class="eyebrow">Offers</p>
+            <h3>Promotions</h3>
+          </div>
+          <span class="summary-chip">${groups.offerMatches.length} deal${groups.offerMatches.length === 1 ? "" : "s"}</span>
+        </div>
+        <div class="product-grid product-grid--shelf">
+          ${groups.offerMatches.map((product) => productCardHtml(product)).join("")}
+        </div>
+      </section>
+    ` : ""}
+    ${groups.regularMatches.length ? `
+      <section class="standard-products-section">
+        <div class="section-head shelf-head">
+          <div>
+            <p class="eyebrow">Products</p>
+            <h3>Regular items</h3>
+          </div>
+          <span class="summary-chip">${groups.regularMatches.length} item${groups.regularMatches.length === 1 ? "" : "s"}</span>
+        </div>
+        <div class="product-grid product-grid--shelf shop-mode-grid">
+          ${groups.regularMatches.map((product) => productCardHtml(product)).join("")}
+        </div>
+      </section>
+    ` : ""}
+    ${!groups.matches.length ? `
+      <div class="card empty-shop-result">
+        <strong>No matching products in this business.</strong>
+        <p class="tiny">Try another word or clear the search to see everything from this seller.</p>
+        <button class="button button-outline button-small" data-shop-search-clear="${selectedStore.id}" type="button">View all products</button>
+      </div>
+    ` : ""}
+  `;
+}
+
+function renderShopModeResults(container, selectedStore) {
+  const groups = shopModeProductGroups(selectedStore);
+  const summary = document.getElementById("productCountSummary");
+  if (summary) {
+    summary.textContent = shopModeSummaryText(selectedStore, groups.matches);
+  }
+  const label = container.querySelector("[data-shop-result-label]");
+  if (label) {
+    label.innerHTML = shopModeResultsLabel(groups);
+  }
+  const results = container.querySelector("[data-shop-results]");
+  if (results) {
+    results.innerHTML = shopModeResultsHtml(selectedStore, groups);
+    bindProductCardActions(results);
+  }
 }
 
 function renderCartSummary() {
