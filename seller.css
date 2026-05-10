@@ -865,8 +865,26 @@ button {
   max-width: 620px;
 }
 
-.seller-auth-card .section-head {
-  margin-bottom: 14px;
+.portal-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.portal-login-brand img {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 12px 30px rgba(21, 128, 61, 0.18);
+}
+
+.portal-login-brand h1 {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 0.95;
 }
 
 .auth-switch-text {
