@@ -431,9 +431,14 @@ async function loadEmployeeOrders() {
 }
 
 async function signInEmployee(email, password) {
+  const restLogin = await signInEmployeeWithFirebaseRest(email, password);
+  if (restLogin.ok) {
+    return restLogin;
+  }
+
   const firebase = await ensureFirebaseApp();
   if (!firebase.ok) {
-    return signInEmployeeWithFirebaseRest(email, password);
+    return restLogin;
   }
 
   try {
@@ -450,8 +455,7 @@ async function signInEmployee(email, password) {
 
     return { ok: true, account };
   } catch (error) {
-    const fallback = await signInEmployeeWithFirebaseRest(email, password);
-    return fallback.ok ? fallback : { ok: false, message: employeeLoginErrorMessage(error) };
+    return { ok: false, message: restLogin.message || employeeLoginErrorMessage(error) };
   }
 }
 
