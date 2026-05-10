@@ -301,7 +301,7 @@ function employeeLoginErrorMessage(error) {
     return `No Firebase Auth employee exists for this email in ${project}.`;
   }
   if (code.includes("wrong-password") || code.includes("invalid-credential") || code.includes("invalid-login-credentials")) {
-    return `Firebase rejected this email/password in ${project} (${code || "no-code"}). Confirm the user is in Authentication > Users for this same project and the sign-in provider is Email/Password.`;
+    return `Firebase rejected this email/password in ${project} (${code || "no-code"}). Use Reset Password below for this email, set a new password, then login again.`;
   }
   if (code.includes("too-many-requests")) {
     return "Firebase temporarily blocked this email after too many failed attempts. Wait a few minutes or use Reset Firebase password.";
