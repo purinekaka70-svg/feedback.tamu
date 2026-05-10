@@ -1,5 +1,7 @@
 (function () {
   const STORAGE_KEY = "tamu_onesignal_external_id";
+  const DEFAULT_APP_ID = "7c0a3b0d-53b6-4b67-9b42-266f49bfabcc";
+  const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
 
   function cleanExternalId(value) {
     return String(value || "").trim().toLowerCase().slice(0, 128);
@@ -8,7 +10,9 @@
   async function config() {
     const response = await fetch("./api/onesignal/config.php", { cache: "no-store" });
     const payload = await response.json().catch(() => ({}));
-    return response.ok && payload.ok && payload.appId ? payload : null;
+    return {
+      appId: response.ok && payload.ok && payload.appId ? payload.appId : DEFAULT_APP_ID
+    };
   }
 
   async function initOneSignal() {
@@ -20,7 +24,11 @@
         try {
           await OneSignal.init({
             appId: payload.appId,
-            serviceWorkerPath: "OneSignalSDKWorker.js"
+            safari_web_id: SAFARI_WEB_ID,
+            serviceWorkerPath: "OneSignalSDKWorker.js",
+            notifyButton: {
+              enable: true
+            }
           });
           const prompted = window.localStorage.getItem("tamu_onesignal_prompted") === "true";
           if (!prompted && OneSignal.Slidedown?.promptPush) {
