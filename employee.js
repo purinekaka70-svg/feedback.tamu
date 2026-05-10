@@ -163,6 +163,28 @@ async function employeeRecordForFirebaseUser(user) {
     return null;
   }
 
+  const normalizeFirebaseEmployee = (id, data = {}) => ({
+    id,
+    ...data,
+    uid: data.uid || data.authUid || data.firebaseUid || data.firebaseId || data.userId || user.uid,
+    email: data.email || data.employeeEmail || user.email,
+    name: data.name || data.displayName || data.employeeName || data.fullName || user.displayName || user.email,
+    role: String(data.role || data.accountType || data.userType || "employee").toLowerCase(),
+    county: data.county
+      || data.assignedCounty
+      || data.locationCounty
+      || data.deliveryCounty
+      || data.workCounty
+      || data.countyName
+      || data.assignedLocation
+      || data.location
+      || data.area
+      || data.region
+      || "",
+    assignedCounty: data.assignedCounty || data.county || data.location || "",
+    location: data.location || data.county || data.assignedCounty || ""
+  });
+
   const token = await user.getIdToken().catch(() => "");
   if (token) {
     try {
@@ -190,15 +212,32 @@ async function employeeRecordForFirebaseUser(user) {
 
   try {
     const db = window.firebase.firestore();
-    const directDoc = await db.collection("employees").doc(user.uid).get();
-    if (directDoc.exists) {
-      return { id: directDoc.id, ...directDoc.data(), uid: directDoc.data().uid || user.uid, email: directDoc.data().email || user.email };
+    const employeeCollection = db.collection("employees");
+    const docIds = [user.uid, user.email, String(user.email || "").toLowerCase()].filter(Boolean);
+    for (const docId of docIds) {
+      const directDoc = await employeeCollection.doc(docId).get();
+      if (directDoc.exists) {
+        return normalizeFirebaseEmployee(directDoc.id, directDoc.data());
+      }
     }
 
-    const uidQuery = await db.collection("employees").where("uid", "==", user.uid).limit(1).get();
-    if (!uidQuery.empty) {
-      const doc = uidQuery.docs[0];
-      return { id: doc.id, ...doc.data(), uid: doc.data().uid || user.uid, email: doc.data().email || user.email };
+    const lookupQueries = [
+      ["uid", user.uid],
+      ["authUid", user.uid],
+      ["firebaseUid", user.uid],
+      ["userId", user.uid],
+      ["email", user.email],
+      ["email", String(user.email || "").toLowerCase()],
+      ["employeeEmail", user.email],
+      ["employeeEmail", String(user.email || "").toLowerCase()]
+    ].filter(([, value]) => value);
+
+    for (const [field, value] of lookupQueries) {
+      const snapshot = await employeeCollection.where(field, "==", value).limit(1).get();
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return normalizeFirebaseEmployee(doc.id, doc.data());
+      }
     }
   } catch (error) {
     return null;
@@ -324,33 +363,27 @@ async function loadEmployeeOrders() {
 }
 
 async function signInEmployee(email, password) {
-  const databaseLogin = await signInEmployeeWithDatabase(email, password);
-  if (databaseLogin.ok) {
-    return databaseLogin;
-  }
-
   const firebase = await ensureFirebaseApp();
-  if (!firebase.ok) {
-    return databaseLogin.status === 401
-      ? databaseLogin
-      : { ok: false, message: databaseLogin.message || firebase.message };
-  }
+  if (firebase.ok) {
+    try {
+      await window.firebase.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+      const credential = await window.firebase.auth().signInWithEmailAndPassword(email, password);
+      const user = credential.user;
+      const account = await employeeRecordForFirebaseUser(user);
 
-  try {
-    await window.firebase.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
-    const credential = await window.firebase.auth().signInWithEmailAndPassword(email, password);
-    const user = credential.user;
-    const account = await employeeRecordForFirebaseUser(user);
+      if (!isEmployeeActive(account)) {
+        await window.firebase.auth().signOut();
+        return { ok: false, message: "Firebase login worked, but this account is not allowed as an employee. Add role employee/delivery, active or approved status, and county/location in the employees collection." };
+      }
 
-    if (!isEmployeeActive(account)) {
-      await window.firebase.auth().signOut();
-      return { ok: false, message: "Firebase login worked, but this account is not allowed as an employee. Add role employee/delivery, active or approved status, and county/location." };
+      return { ok: true, account };
+    } catch (error) {
+      const databaseLogin = await signInEmployeeWithDatabase(email, password);
+      return databaseLogin.ok ? databaseLogin : { ok: false, message: employeeLoginErrorMessage(error) };
     }
-
-    return { ok: true, account };
-  } catch (error) {
-    return { ok: false, message: employeeLoginErrorMessage(error) };
   }
+
+  return signInEmployeeWithDatabase(email, password);
 }
 
 function showLogin() {
@@ -927,6 +960,29 @@ function bindNavigation() {
 }
 
 async function restoreSession() {
+  const firebase = await ensureFirebaseApp();
+  if (firebase.ok) {
+    const user = await new Promise((resolve) => {
+      const unsubscribe = window.firebase.auth().onAuthStateChanged((nextUser) => {
+        unsubscribe();
+        resolve(nextUser);
+      });
+    });
+
+    if (user) {
+      const account = await employeeRecordForFirebaseUser(user);
+      if (!isEmployeeActive(account)) {
+        await window.firebase.auth().signOut().catch(() => {});
+        return false;
+      }
+
+      currentEmployee = account;
+      subscribeEmployeeOrders();
+      await loadEmployeeOrders();
+      return true;
+    }
+  }
+
   const backendAccount = await employeeRecordFromBackendSession();
   if (isEmployeeActive(backendAccount)) {
     currentEmployee = backendAccount;
@@ -935,32 +991,7 @@ async function restoreSession() {
     return true;
   }
 
-  const firebase = await ensureFirebaseApp();
-  if (!firebase.ok) {
-    return false;
-  }
-
-  const user = await new Promise((resolve) => {
-    const unsubscribe = window.firebase.auth().onAuthStateChanged((nextUser) => {
-      unsubscribe();
-      resolve(nextUser);
-    });
-  });
-
-  if (!user) {
-    return false;
-  }
-
-  const account = await employeeRecordForFirebaseUser(user);
-  if (!isEmployeeActive(account)) {
-    await window.firebase.auth().signOut().catch(() => {});
-    return false;
-  }
-
-  currentEmployee = account;
-  subscribeEmployeeOrders();
-  await loadEmployeeOrders();
-  return true;
+  return false;
 }
 
 function bindLogin() {
