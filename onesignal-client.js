@@ -24,6 +24,26 @@
     return String(value || "").trim().toLowerCase().slice(0, 128);
   }
 
+  function appToast(title, message, type = "info") {
+    if (typeof window.showToast === "function") {
+      window.showToast({ title, message, type });
+      return;
+    }
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+    const toast = document.createElement("div");
+    const toastTitle = document.createElement("strong");
+    const toastMessage = document.createElement("span");
+    toast.className = `toast toast--${type} toast-${type}`;
+    toastTitle.className = "toast-title";
+    toastTitle.textContent = title;
+    toastMessage.className = "toast-message";
+    toastMessage.textContent = message;
+    toast.append(toastTitle, toastMessage);
+    container.appendChild(toast);
+    window.setTimeout(() => toast.remove(), 4200);
+  }
+
   async function config() {
     try {
       const response = await fetch("./api/onesignal/config.php", { cache: "no-store" });
@@ -340,6 +360,7 @@
     const permission = await requestBrowserPermissionImmediately();
     if (permission === "granted") {
       await showTestNotification(true);
+      appToast("Notifications enabled", "You will now receive Tamu Express order and payment alerts.", "success");
       button.textContent = "Notifications enabled";
       button.disabled = true;
       getOneSignal().then(async (OneSignal) => {
@@ -354,6 +375,7 @@
       return true;
     }
     if (permission === "denied") {
+      appToast("Notifications blocked", "Allow notifications in your browser site settings, then try again.", "warn");
       button.textContent = "Notifications blocked";
       button.disabled = true;
       return true;
@@ -383,11 +405,13 @@
       if (OneSignal && !notificationsSupported(OneSignal)) {
         button.disabled = true;
         button.textContent = window.isSecureContext ? "Notifications unsupported" : "HTTPS required";
+        appToast("Notifications unavailable", button.textContent, "warn");
         return;
       }
       if (notificationsDenied()) {
         button.disabled = true;
         button.textContent = "Notifications blocked";
+        appToast("Notifications blocked", "Allow notifications in browser settings to receive alerts.", "warn");
         return;
       }
       button.disabled = false;

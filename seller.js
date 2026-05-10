@@ -19,6 +19,8 @@ let cachedProducts = [];
 let cachedOrders = [];
 let cachedCategories = [];
 let cachedOffers = [];
+let sellerNotificationsPrimed = false;
+let sellerNotificationIds = new Set();
 const sellerOrderFilters = {
   search: "",
   status: "all",
@@ -204,13 +206,33 @@ function sameId(left, right) {
   return String(left || "") === String(right || "");
 }
 
+function toastTitleFor(type) {
+  return {
+    success: "Success",
+    warn: "Needs attention",
+    error: "Error",
+    info: "Update"
+  }[type] || "Update";
+}
+
 function showToast(message, variant = "info") {
   const container = document.getElementById("toastContainer");
   if (!container) return;
+  const payload = typeof message === "object" && message
+    ? message
+    : { title: toastTitleFor(variant), message: String(message || ""), type: variant };
+  const type = ["success", "warn", "error", "info"].includes(String(payload.type || payload.variant || variant))
+    ? String(payload.type || payload.variant || variant)
+    : "info";
+  const title = payload.title || toastTitleFor(type);
+  const detail = payload.message || payload.detail || "";
 
   const toast = document.createElement("div");
-  toast.className = `toast toast-${variant}`;
-  toast.textContent = message;
+  toast.className = `toast toast--${type} toast-${type}`;
+  toast.innerHTML = `
+    <strong class="toast-title">${escapeHtml(title)}</strong>
+    <span class="toast-message">${escapeHtml(detail)}</span>
+  `;
   container.appendChild(toast);
 
   window.setTimeout(() => {
@@ -420,6 +442,7 @@ function showDashboard() {
   renderSellerHomeSummary();
   renderSellerAnalytics();
   fillSellerSettingsForms();
+  primeSellerNotifications();
   setSellerView("overview");
 }
 
@@ -1140,22 +1163,114 @@ async function updateSellerOrderStatus(orderId, status) {
   renderSellerAnalytics();
 }
 
+function eventTime(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
+}
+
+function sellerNotificationEvents(seller = currentSeller()) {
+  if (!seller) return [];
+  const events = [];
+  sellerOrders(seller).forEach((order) => {
+    const normalizedStatus = normalizeOrderStatus(order.status);
+    const { payment, status: paymentStatus } = sellerPaymentForOrder(order, seller.id);
+    const orderId = order.id || order.publicId || "pending";
+    const orderTime = eventTime(order.updatedAt || order.createdAt);
+    const paymentRef = payment?.reference || order.mpesaReference || order.paymentRef || "";
+    const active = !["delivered", "cancelled"].includes(normalizedStatus);
+    events.push({
+      id: `order:${orderId}:${normalizedStatus}`,
+      type: active ? "warn" : normalizedStatus === "delivered" ? "success" : "info",
+      title: active ? "Order needs action" : "Order update",
+      message: `${order.customer || "Customer"} | ${currency(order.total || order.subtotal || 0)} | ${labelize(normalizedStatus)}`,
+      time: orderTime,
+      urgent: active
+    });
+    if (paymentRef || ["paid", "submitted"].includes(paymentStatus)) {
+      events.push({
+        id: `payment:${orderId}:${paymentStatus}:${paymentRef || "no-ref"}`,
+        type: paymentStatus === "paid" ? "success" : "info",
+        title: paymentStatus === "paid" ? "Payment confirmed" : "Payment submitted",
+        message: `Order ${orderId} | ${paymentRef || "Reference pending"} | ${currency(payment?.amount || order.subtotal || 0)}`,
+        time: orderTime + 1,
+        urgent: paymentStatus !== "paid"
+      });
+    }
+  });
+
+  products()
+    .filter((product) => sameId(product.sellerId, seller.id) || sameId(product.businessId, seller.id) || sameId(product.storeId, seller.id))
+    .forEach((product) => {
+      const stock = String(product.productStock || product.stock || "In stock");
+      const lowStock = !/in stock/i.test(stock);
+      events.push({
+        id: `product:${product.id}:${stock}`,
+        type: lowStock ? "warn" : "info",
+        title: lowStock ? "Product stock update" : "Product active",
+        message: `${product.productName || product.name || "Product"} | ${stock} | ${currency(product.productPrice || product.price || 0)}`,
+        time: eventTime(product.updatedAt || product.createdAt),
+        urgent: lowStock
+      });
+    });
+
+  offers()
+    .filter((offer) => sameId(offer.sellerId, seller.id) || sameId(offer.storeId, seller.id))
+    .forEach((offer) => {
+      events.push({
+        id: `offer:${offer.id}:${offer.offerExpiry || ""}`,
+        type: "success",
+        title: "Offer active",
+        message: `${offer.offerTitle || "Offer"} | ${offer.offerExpiry || "Active offer"}`,
+        time: eventTime(offer.updatedAt || offer.createdAt),
+        urgent: false
+      });
+    });
+
+  return events
+    .filter((event, index, list) => event.id && list.findIndex((item) => item.id === event.id) === index)
+    .sort((left, right) => right.time - left.time || left.title.localeCompare(right.title));
+}
+
+function primeSellerNotifications() {
+  sellerNotificationIds = new Set(sellerNotificationEvents().map((event) => event.id));
+  sellerNotificationsPrimed = true;
+}
+
+function showRealtimeSellerNotifications() {
+  const events = sellerNotificationEvents();
+  const nextIds = new Set(events.map((event) => event.id));
+  if (!sellerNotificationsPrimed) {
+    sellerNotificationIds = nextIds;
+    sellerNotificationsPrimed = true;
+    return;
+  }
+  events
+    .filter((event) => !sellerNotificationIds.has(event.id))
+    .slice(0, 4)
+    .forEach((event) => showToast({
+      title: event.title,
+      message: event.message,
+      type: event.type
+    }));
+  sellerNotificationIds = nextIds;
+}
+
 function renderSellerNotifications() {
   const seller = currentSeller();
   const container = document.getElementById("sellerNotificationList");
   if (!seller || !container) return;
 
-  const list = sellerOrders(seller).slice().reverse().map((order) => {
-    const { payment } = sellerPaymentForOrder(order, seller.id);
-    return {
-      title: `Order ${order.id}`,
-      detail: `${order.customer || "Customer"} | ${payment?.reference || "Payment ref pending"} | ${order.deliveryStatus || order.status || "pending"}`
-    };
-  });
+  const list = sellerNotificationEvents(seller);
 
   container.innerHTML = list.length
-    ? list.map((item) => `<article class="list-card"><strong>${item.title}</strong><p class="tiny">${item.detail}</p></article>`).join("")
-    : '<div class="list-card">No notifications yet. New orders and payment refs will appear here.</div>';
+    ? list.map((item) => `
+        <article class="list-card notification-card">
+          <span class="summary-chip">${escapeHtml(item.type === "warn" ? "Action" : labelize(item.type))}</span>
+          <strong>${escapeHtml(item.title)}</strong>
+          <p class="tiny">${escapeHtml(item.message)}</p>
+        </article>
+      `).join("")
+    : '<div class="list-card">No notifications yet. New orders, payment refs, products, and offers will appear here.</div>';
 }
 
 function renderSellerPaymentOrders() {
@@ -1235,10 +1350,8 @@ function renderSellerHomeSummary() {
   const activeOrders = sellerOrderList.filter((order) => !["delivered", "cancelled"].includes(normalizeOrderStatus(order.status)));
   const latestOrder = sellerOrderList[0];
   const lowStockProducts = sellerProductList.filter((product) => String(product.productStock || product.stock || "").toLowerCase() !== "in stock");
-  const notifications = [
-    ...activeOrders.slice(0, 2).map((order) => `Order ${order.id || "pending"} needs attention`),
-    ...lowStockProducts.slice(0, 2).map((product) => `${product.productName || "Product"} is ${product.productStock || product.stock}`)
-  ];
+  const notifications = sellerNotificationEvents(seller);
+  const urgentCount = notifications.filter((event) => event.urgent).length;
 
   container.innerHTML = `
     <article class="seller-summary-card">
@@ -1254,7 +1367,7 @@ function renderSellerHomeSummary() {
     <article class="seller-summary-card">
       <span class="summary-chip">Notifications</span>
       <strong>${notifications.length} update${notifications.length === 1 ? "" : "s"}</strong>
-      <p class="tiny">${notifications[0] || "No urgent notifications."}</p>
+      <p class="tiny">${notifications[0]?.message || (urgentCount ? `${urgentCount} urgent update${urgentCount === 1 ? "" : "s"}.` : "No urgent notifications.")}</p>
     </article>
   `;
 }
@@ -1961,6 +2074,7 @@ function refreshSellerOrderViews() {
   renderSellerCustomers();
   renderSellerHomeSummary();
   renderSellerAnalytics();
+  showRealtimeSellerNotifications();
 }
 
 function bindLiveOrderUpdates() {
