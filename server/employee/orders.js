@@ -263,7 +263,17 @@ module.exports = async function handler(req, res) {
     }
     await query("update deliveries set status = $2::delivery_status where order_public_id = $1", [updated[0].public_id || id, deliveryStatus]).catch(() => {});
     send(res, 200, { ok: true });
-  } catch {
-    send(res, 500, { ok: false, message: "Failed to load employee orders." });
+  } catch (error) {
+    const message = String(error?.message || "");
+    const isFirebaseConfig = message.includes("Firebase Admin is not configured");
+    const isDatabaseConfig = message.includes("connect") || message.includes("ENOTFOUND") || message.includes("ECONNREFUSED");
+    send(res, isFirebaseConfig ? 401 : 500, {
+      ok: false,
+      message: isFirebaseConfig
+        ? "Firebase Admin is not configured on the server, so employee tokens cannot be verified."
+        : isDatabaseConfig
+          ? "Supabase database connection is not configured or cannot be reached."
+          : "Failed to load employee orders."
+    });
   }
 };

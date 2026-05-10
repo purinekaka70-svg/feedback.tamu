@@ -361,14 +361,14 @@ async function sendEmployeePasswordReset(email) {
 async function loadEmployeeOrders() {
   if (!currentEmployee) {
     cachedEmployeeOrders = [];
-    return;
+    return { ok: false, message: "No employee session is active." };
   }
 
   try {
     const token = await firebaseIdToken();
     if (!token) {
       cachedEmployeeOrders = [];
-      return;
+      return { ok: false, message: "Firebase employee session expired. Login again." };
     }
     const [orderRes, marketRes] = await Promise.all([
       fetch(`./api/employee/orders.php?county=${encodeURIComponent(employeeCounty())}`, {
@@ -377,13 +377,25 @@ async function loadEmployeeOrders() {
       }),
       fetch('./api/marketplace/list.php', { cache: 'no-store' })
     ]);
-    const orderData = await orderRes.json();
-    const marketData = await marketRes.json();
-    cachedEmployeeOrders = orderRes.ok && orderData.ok ? mergeOrders(cachedEmployeeOrders, orderData.orders || []) : [];
+    const orderData = await orderRes.json().catch(() => ({}));
+    const marketData = await marketRes.json().catch(() => ({}));
+    if (!orderRes.ok || !orderData.ok) {
+      cachedEmployeeOrders = [];
+      return {
+        ok: false,
+        message: orderData.message || `Employee orders request failed (${orderRes.status}).`
+      };
+    }
+    cachedEmployeeOrders = mergeOrders(cachedEmployeeOrders, orderData.orders || []);
     cachedBusinesses = marketRes.ok && marketData.ok ? (marketData.businesses || []) : [];
+    return { ok: true };
   } catch (error) {
     cachedEmployeeOrders = orders();
     cachedBusinesses = [];
+    return {
+      ok: false,
+      message: error?.message || "Employee orders could not be loaded."
+    };
   }
 }
 
@@ -1010,9 +1022,10 @@ function bindNavigation() {
   document.querySelectorAll("[data-employee-view]").forEach((button) => {
     button.addEventListener("click", () => setEmployeeView(button.dataset.employeeView));
   });
-  document.getElementById("employeeRefreshButton")?.addEventListener("click", () => {
+  document.getElementById("employeeRefreshButton")?.addEventListener("click", async () => {
+    const result = await loadEmployeeOrders();
     renderEmployee();
-    showToast("Orders refreshed.");
+    showToast(result?.ok ? "Orders refreshed." : result?.message || "Orders could not be refreshed.", result?.ok ? "success" : "warn");
   });
   document.getElementById("employeeLogoutButton")?.addEventListener("click", async () => {
     if (employeeOrderUnsubscribe) {

@@ -20,6 +20,12 @@ module.exports = async function handler(req, res) {
 
     send(res, 200, { ok: true, employee });
   } catch (error) {
-    send(res, 401, { ok: false, message: "Firebase employee session could not be verified." });
+    const message = String(error?.message || "");
+    send(res, 401, {
+      ok: false,
+      message: message.includes("Firebase Admin is not configured")
+        ? "Firebase Admin is not configured on the server, so employee tokens cannot be verified."
+        : "Firebase employee session could not be verified."
+    });
   }
 };
