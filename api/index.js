@@ -11,6 +11,7 @@ const routes = {
   "categories/index": () => require("../server/categories"),
   "categories/save": () => require("../server/categories/save"),
   "employee/orders": () => require("../server/employee/orders"),
+  "employee/login": () => require("../server/employee/login"),
   "employee/session": () => require("../server/employee/session"),
   "firebase/config": () => require("../server/firebase/config"),
   "health": () => require("../server/health"),
