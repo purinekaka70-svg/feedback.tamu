@@ -475,6 +475,10 @@ function saveOrders(nextOrders) {
   cachedOrders = nextOrders.map(normalizeOrder);
 }
 
+function notifyRealtime(channel, reason) {
+  window.TamuRealtime?.notify(channel, { reason, source: "admin" });
+}
+
 async function updateOrderBackend(orderId, patch) {
   try {
     const response = await fetch('./api/orders/update.php', {
@@ -487,6 +491,7 @@ async function updateOrderBackend(orderId, patch) {
       showToast(result.detail || result.message || "Order update failed.", "warn");
       return false;
     }
+    notifyRealtime("orders", "order-updated");
     return true;
   } catch (error) {
     showToast("Order update service is unavailable.", "warn");
@@ -497,6 +502,8 @@ async function updateOrderBackend(orderId, patch) {
 async function refreshAdminOrderViews() {
   await loadData();
   renderOverview();
+  renderApprovals();
+  renderCategories();
   renderOrderList();
   renderOrders();
   renderNotifications();
@@ -530,6 +537,8 @@ async function adminDeleteRecord(entity, id, label = "record", options = {}) {
     if (!options.silent) {
       showToast(`${capitalize(label)} deleted.`, "warn");
     }
+    const realtimeChannel = ["order", "payment"].includes(entity) ? "orders" : "marketplace";
+    notifyRealtime(realtimeChannel, `${entity}-deleted`);
     await loadData();
     renderOverview();
     renderApprovals();
@@ -614,6 +623,7 @@ async function updateApplicationStatus(applicationId, status) {
       };
     }
     if (response.ok && result.ok) {
+      notifyRealtime("marketplace", "business-status-updated");
       await loadData();
     } else {
       const message = response.status === 403
@@ -1320,6 +1330,7 @@ function bindCategoryForm() {
     await loadData();
     event.currentTarget.reset();
     renderCategories();
+    notifyRealtime("marketplace", "category-added");
     showToast("Category added.");
   });
 }
@@ -1451,14 +1462,16 @@ function bindLiveOrderUpdates() {
     return;
   }
   window.__tamuAdminLiveOrdersBound = true;
-  window.setInterval(async () => {
+  const refresh = async () => {
     if (!(await ensureAdminSession())) return;
-    await loadData();
-    renderOverview();
-    renderOrderList();
-    renderNotifications();
-    renderAdminUtilityPanels();
-  }, 12000);
+    await refreshAdminOrderViews();
+  };
+  if (window.TamuRealtime?.subscribe) {
+    window.TamuRealtime.subscribe("orders", refresh, { visibleMs: 5000, hiddenMs: 20000 });
+    window.TamuRealtime.subscribe("marketplace", refresh, { poll: false });
+    return;
+  }
+  window.setInterval(refresh, 12000);
 }
 
 async function startDashboard() {

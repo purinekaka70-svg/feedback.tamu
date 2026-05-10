@@ -163,6 +163,10 @@ async function postJson(url, payload) {
   }
 }
 
+function notifyRealtime(channel, reason) {
+  window.TamuRealtime?.notify(channel, { reason, source: "categories" });
+}
+
 async function loadCartFromBackend() {
   try {
     const response = await fetch(`./api/cart/index.php?sessionId=${encodeURIComponent(cartSessionId())}`, { cache: "no-store" });
@@ -194,6 +198,7 @@ async function saveCartItemToBackend(productId, quantity) {
     image: product.productImage,
     quantity
   });
+  notifyRealtime("cart", "cart-updated");
 }
 
 async function clearCartBackend() {
@@ -207,6 +212,7 @@ async function clearCartBackend() {
     // Backend errors are surfaced when cart reloads.
   }
   writeStorage(STORAGE_KEYS.cartItems, []);
+  notifyRealtime("cart", "cart-cleared");
 }
 
 function createId(prefix) {
@@ -1167,6 +1173,7 @@ async function createLocalOrderFromStore(storeId) {
   }
   state.cart = [];
   await clearCartBackend();
+  notifyRealtime("orders", "order-created");
   renderCartSummary();
   showToast("Order placed. Admin and seller can see it now.", "success");
 }
@@ -2309,6 +2316,22 @@ function bindEvents() {
   });
 }
 
+function bindRealtimeUpdates() {
+  if (window.__tamuCategoriesRealtimeBound) return;
+  window.__tamuCategoriesRealtimeBound = true;
+  const refreshMarket = async () => {
+    await loadMarketData();
+    await loadCartFromBackend();
+    renderMarket();
+  };
+  if (window.TamuRealtime?.subscribe) {
+    window.TamuRealtime.subscribe("marketplace", refreshMarket, { visibleMs: 6000, hiddenMs: 25000 });
+    window.TamuRealtime.subscribe("cart", refreshMarket, { poll: false });
+    return;
+  }
+  window.setInterval(refreshMarket, 12000);
+}
+
 async function boot() {
   await loadMarketData();
   await loadCartFromBackend();
@@ -2316,6 +2339,7 @@ async function boot() {
   initAdminTrigger();
   initImageViewer();
   bindEvents();
+  bindRealtimeUpdates();
   renderMarket();
 }
 

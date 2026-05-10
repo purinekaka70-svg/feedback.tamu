@@ -537,6 +537,10 @@ function saveOrders(nextOrders) {
   cachedEmployeeOrders = nextOrders.map(normalizeOrder);
 }
 
+function notifyRealtime(channel, reason) {
+  window.TamuRealtime?.notify(channel, { reason, source: "employee" });
+}
+
 function mergeOrders(current, incoming) {
   const byId = new Map();
   [...current, ...incoming].map(normalizeOrder).forEach((order) => {
@@ -685,7 +689,11 @@ async function updateOrder(orderId, patch) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ id: orderId, county: employeeCounty(), status: patch.status, deliveryStatus: patch.deliveryStatus })
-  }).catch(() => {});
+  })
+    .then((response) => {
+      if (response.ok) notifyRealtime("orders", "employee-order-updated");
+    })
+    .catch(() => {});
 }
 
 function acceptDelivery(orderId) {
@@ -977,6 +985,23 @@ function subscribeEmployeeOrders() {
   }
 }
 
+function bindRealtimeUpdates() {
+  if (window.__tamuEmployeeRealtimeBound) return;
+  window.__tamuEmployeeRealtimeBound = true;
+  const refresh = async () => {
+    if (!currentEmployee) return;
+    await loadEmployeeOrders();
+    cachedEmployeeOrders.forEach(syncOrderToFirestore);
+    renderEmployee();
+  };
+  if (window.TamuRealtime?.subscribe) {
+    window.TamuRealtime.subscribe("orders", refresh, { visibleMs: 5000, hiddenMs: 20000 });
+    window.TamuRealtime.subscribe("marketplace", refresh, { poll: false });
+    return;
+  }
+  window.setInterval(refresh, 12000);
+}
+
 function closeEmployeeMenu() {
   const sidebar = document.getElementById("employeeSidebar");
   const overlay = document.getElementById("employeeSidebarOverlay");
@@ -1070,12 +1095,7 @@ function bindNavigation() {
     currentEmployee = null;
     showLogin();
   });
-  window.setInterval(async () => {
-    if (!currentEmployee) return;
-    await loadEmployeeOrders();
-    cachedEmployeeOrders.forEach(syncOrderToFirestore);
-    renderEmployee();
-  }, 12000);
+  bindRealtimeUpdates();
 }
 
 async function restoreSession() {

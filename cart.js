@@ -193,6 +193,7 @@ async function saveCartItem(productId, quantity) {
     image: product.productImage,
     quantity
   });
+  notifyRealtime("cart", "cart-updated");
 }
 
 async function deleteCartItem(productId = "") {
@@ -206,6 +207,7 @@ async function deleteCartItem(productId = "") {
   } catch (error) {
     // Backend errors are handled by the next cart reload.
   }
+  notifyRealtime("cart", productId ? "cart-item-deleted" : "cart-cleared");
 }
 
 function approvedStores() {
@@ -890,6 +892,10 @@ async function postJson(url, payload) {
   }
 }
 
+function notifyRealtime(channel, reason) {
+  window.TamuRealtime?.notify(channel, { reason, source: "cart" });
+}
+
 function showToast(message, tone = "success") {
   const container = document.getElementById("toastContainer");
   const toast = document.createElement("div");
@@ -1358,6 +1364,7 @@ async function deletePlacedOrder(orderId) {
 
   await loadOrders();
   renderPlacedOrders();
+  notifyRealtime("orders", "order-deleted");
   showToast("Order deleted.", "success");
 }
 
@@ -1497,6 +1504,8 @@ async function handleCheckout() {
   writeStorage(STORAGE_KEYS.cartItems, cart);
   window.tamuPushRememberCustomer?.(profile.phone);
   await deleteCartItem();
+  notifyRealtime("orders", "order-created");
+  notifyRealtime("cart", "cart-cleared");
   document.getElementById("checkoutSection")?.classList.add("is-hidden");
   renderCart();
   await loadOrders();
@@ -1506,6 +1515,26 @@ async function handleCheckout() {
     submitButton.disabled = false;
     submitButton.textContent = "Submit order";
   }
+}
+
+function bindRealtimeUpdates() {
+  if (window.__tamuCartRealtimeBound) return;
+  window.__tamuCartRealtimeBound = true;
+  const refreshCartPage = async () => {
+    await loadMarketData();
+    await loadCartFromBackend();
+    await loadOrders();
+    fillCheckoutForm();
+    renderCart();
+    renderPlacedOrders();
+  };
+  if (window.TamuRealtime?.subscribe) {
+    window.TamuRealtime.subscribe("orders", refreshCartPage, { visibleMs: 6000, hiddenMs: 22000 });
+    window.TamuRealtime.subscribe("marketplace", refreshCartPage, { poll: false });
+    window.TamuRealtime.subscribe("cart", refreshCartPage, { poll: false });
+    return;
+  }
+  window.setInterval(refreshCartPage, 12000);
 }
 
 function bindEvents() {
@@ -1577,6 +1606,7 @@ async function boot() {
   fillCheckoutForm();
   initBuyerMap();
   bindEvents();
+  bindRealtimeUpdates();
   renderCart();
   renderPlacedOrders();
 }

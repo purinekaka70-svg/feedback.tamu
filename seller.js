@@ -157,6 +157,10 @@ async function postJson(url, payload) {
   }
 }
 
+function notifyRealtime(channel, reason) {
+  window.TamuRealtime?.notify(channel, { reason, source: "seller" });
+}
+
 async function verifySellerSession(seller = currentSeller()) {
   if (!seller) {
     return false;
@@ -818,6 +822,7 @@ function renderProducts() {
       renderCounts();
       renderProducts();
       renderSellerAnalytics();
+      notifyRealtime("marketplace", "product-deleted");
       showToast("Product deleted.", "warn");
     });
   });
@@ -851,6 +856,7 @@ function renderSellerCategories() {
       }
       await loadSellerData();
       renderSellerCategories();
+      notifyRealtime("marketplace", "category-deleted");
       showToast("Category deleted.", "warn");
     });
   });
@@ -917,6 +923,7 @@ function renderOffers() {
       renderCounts();
       renderOffers();
       renderSellerAnalytics();
+      notifyRealtime("marketplace", "offer-deleted");
       showToast("Offer deleted.", "warn");
     });
   });
@@ -1024,6 +1031,7 @@ function renderOrders() {
         showToast(response.data?.detail || response.data?.message || "Payment update failed.", "warn");
       } else {
         await loadSellerData();
+        notifyRealtime("orders", "payment-marked-paid");
         showToast("Business payment confirmed.", "success");
       }
       renderCounts();
@@ -1121,6 +1129,7 @@ async function updateSellerOrderStatus(orderId, status) {
     showToast(response.data?.detail || response.data?.message || "Order update failed.", "warn");
   } else {
     await loadSellerData();
+    notifyRealtime("orders", "order-status-updated");
     showToast(`Order marked as ${labelize(status)}.`, status === "cancelled" ? "warn" : "success");
   }
   renderCounts();
@@ -1650,6 +1659,7 @@ function bindForms() {
     }
     clearSellerRegistrationForm(event.currentTarget);
     toggleForms(false);
+    notifyRealtime("marketplace", "seller-registered");
     const successMessage = response.data?.message || "Successfully registered. Please wait for admin approval.";
     document.getElementById("loginStatus").textContent = successMessage;
     showToast(successMessage, "success");
@@ -1714,6 +1724,7 @@ function bindForms() {
     renderProducts();
     renderSellerAnalytics();
     resetProductForm();
+    notifyRealtime("marketplace", existing ? "product-updated" : "product-created");
     showToast(existing ? "Product updated." : "Product added.", "success");
   });
 
@@ -1738,6 +1749,7 @@ function bindForms() {
     renderOffers();
     renderSellerAnalytics();
     resetOfferForm();
+    notifyRealtime("marketplace", existing ? "offer-updated" : "offer-created");
     showToast(existing ? "Offer updated." : "Offer created.", "success");
   });
 
@@ -1764,6 +1776,7 @@ function bindForms() {
     event.currentTarget.reset();
     renderSellerCategories();
     renderAllCategorySelects();
+    notifyRealtime("marketplace", "category-created");
     showToast("Category added.", "success");
   });
 
@@ -1825,6 +1838,7 @@ async function updateCurrentSellerRecord(patch) {
   setCurrentSeller(updatedSeller);
   await loadSellerData();
   fillSellerSettingsForms();
+  notifyRealtime("marketplace", "seller-updated");
   return true;
 }
 
@@ -1954,12 +1968,18 @@ function bindLiveOrderUpdates() {
     return;
   }
   window.__tamuSellerLiveOrdersBound = true;
-  window.setInterval(async () => {
+  const refresh = async () => {
     if (currentSeller()) {
       await loadSellerData();
       refreshSellerOrderViews();
     }
-  }, 12000);
+  };
+  if (window.TamuRealtime?.subscribe) {
+    window.TamuRealtime.subscribe("orders", refresh, { visibleMs: 5000, hiddenMs: 20000 });
+    window.TamuRealtime.subscribe("marketplace", refresh, { poll: false });
+    return;
+  }
+  window.setInterval(refresh, 12000);
 }
 
 async function boot() {
