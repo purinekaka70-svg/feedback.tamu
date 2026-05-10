@@ -23,6 +23,7 @@ let markerLayer = null;
 let cachedEmployeeOrders = [];
 let cachedBusinesses = [];
 let employeeOrderUnsubscribe = null;
+let activeMapOrderId = "";
 const EMPLOYEE_PORTAL_URL = "https://ummeats.vercel.app/employee.html";
 
 function readStorage(key, fallback) {
@@ -423,9 +424,15 @@ function normalizeOrder(order) {
     customer: order.customer || order.customerName || "Customer",
     phone: order.phone || order.customerPhone || order.mpesaNumber || "",
     buyerLocation: order.buyerLocation || order.location || "Customer location pending",
+    buyerLatitude: Number(order.buyerLatitude || order.buyer_latitude || 0),
+    buyerLongitude: Number(order.buyerLongitude || order.buyer_longitude || 0),
     county: order.county || order.buyerCounty || order.locationCounty || "",
     paymentRef,
     mpesaReference: order.mpesaReference || paymentRef,
+    paymentStatus: order.paymentStatus || order.payment_status || "pending",
+    paymentMethod: order.paymentMethod || order.payment_method || "",
+    routeBreakdown: asArray(order.routeBreakdown || order.route_breakdown),
+    notes: order.notes || "",
     status: String(order.status || "pending_payment").toLowerCase(),
     deliveryStatus: String(order.deliveryStatus || order.status || "pending").toLowerCase(),
     assignedEmployeeId: order.assignedEmployeeId || "",
@@ -435,7 +442,8 @@ function normalizeOrder(order) {
     businessPayments: asArray(order.businessPayments),
     subtotal,
     deliveryFee,
-    total
+    total,
+    createdAt: order.createdAt || order.created_at || ""
   };
 }
 
@@ -547,6 +555,20 @@ function mapsUrl(order) {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
 
+function formatOrderTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return "Time pending";
+  }
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 async function syncOrderToFirestore(order) {
   if (!currentEmployee || !window.firebase?.firestore || !order?.id) return;
   try {
@@ -623,6 +645,8 @@ function orderCard(order, compact = false) {
   const adminMessage = `Order ${order.id} update: ${order.customer || "Customer"} at ${order.buyerLocation || "location pending"}.`;
   const adminPhone = window.localStorage.getItem(EMPLOYEE_KEYS.adminPhone) || "254700000000";
   const assigned = isAssignedToEmployee(order);
+  const customerChat = whatsappLink(order.phone, customerMessage);
+  const adminChat = whatsappLink(adminPhone, adminMessage);
   return `
     <article class="list-card order-card">
       <div class="section-head">
@@ -633,10 +657,12 @@ function orderCard(order, compact = false) {
         <span class="status-pill status-pill--${order.deliveryStatus || order.status}">${capitalize(order.deliveryStatus || order.status)}</span>
       </div>
       <p class="tiny">${order.buyerLocation || "Customer location pending"}</p>
+      <p class="tiny">Placed: ${formatOrderTime(order.createdAt)}</p>
       <p class="tiny">${orderItemsText(order)}</p>
       ${compact ? "" : `
         <p class="tiny">Payment ref: ${order.mpesaReference || order.businessPayments?.[0]?.reference || "pending"} | Payment ${capitalize(order.paymentStatus || "pending")}</p>
         <p class="tiny">Delivery: ${currency(order.deliveryFee)} | Total: ${currency(order.total)}</p>
+        <p class="tiny">GPS: ${Number.isFinite(orderLatitude(order)) && Number.isFinite(orderLongitude(order)) ? `${orderLatitude(order).toFixed(6)}, ${orderLongitude(order).toFixed(6)}` : "No customer coordinates yet"}</p>
         <p class="tiny">Assigned to: ${order.assignedEmployeeName || "Not assigned"}</p>
       `}
       <div class="button-row">
@@ -644,9 +670,10 @@ function orderCard(order, compact = false) {
         <button class="button button-outline button-small" type="button" data-status-order="${order.id}" data-delivery-status="picked_up">Picked Up</button>
         <button class="button button-outline button-small" type="button" data-status-order="${order.id}" data-delivery-status="on_the_way">On The Way</button>
         <button class="button button-primary button-small" type="button" data-status-order="${order.id}" data-delivery-status="delivered">Delivered</button>
-        <a class="button button-ghost button-small" href="${mapsUrl(order)}" target="_blank" rel="noopener">Maps</a>
-        <a class="button button-ghost button-small" href="${whatsappLink(order.phone, customerMessage)}" target="_blank" rel="noopener">Customer</a>
-        <a class="button button-ghost button-small" href="${whatsappLink(adminPhone, adminMessage)}" target="_blank" rel="noopener">Admin</a>
+        <button class="button button-ghost button-small" type="button" data-open-order-map="${order.id}">Open Map</button>
+        <a class="button button-ghost button-small" href="${mapsUrl(order)}" target="_blank" rel="noopener">Google Maps</a>
+        <a class="button button-ghost button-small" href="${customerChat}" target="_blank" rel="noopener">WhatsApp Customer</a>
+        <a class="button button-ghost button-small" href="${adminChat}" target="_blank" rel="noopener">Chat Admin</a>
       </div>
     </article>
   `;
@@ -658,6 +685,14 @@ function bindOrderActions(container) {
   });
   container.querySelectorAll("[data-status-order]").forEach((button) => {
     button.addEventListener("click", () => setDeliveryStatus(button.dataset.statusOrder, button.dataset.deliveryStatus));
+  });
+  container.querySelectorAll("[data-open-order-map]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeMapOrderId = button.dataset.openOrderMap;
+      setEmployeeView("maps");
+      renderMap();
+      document.getElementById("employeeMap")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   });
 }
 
@@ -738,7 +773,8 @@ function renderMap() {
     return;
   }
 
-  const order = assignedOrders().find((item) => item.status !== "delivered") || activeDeliveryOrders()[0] || orders()[0];
+  const selectedOrder = activeMapOrderId ? orders().find((item) => String(item.id) === String(activeMapOrderId)) : null;
+  const order = selectedOrder || assignedOrders().find((item) => item.status !== "delivered") || activeDeliveryOrders()[0] || orders()[0];
   if (!employeeMap) {
     employeeMap = window.L.map(mapElement, { scrollWheelZoom: false }).setView([-1.2921, 36.8219], 12);
     window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
