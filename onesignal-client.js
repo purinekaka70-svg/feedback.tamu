@@ -1,5 +1,6 @@
 (function () {
   const STORAGE_KEY = "tamu_onesignal_external_id";
+  const CUSTOMER_KEY = "tamu_onesignal_customer_id";
   const DEFAULT_APP_ID = "7c0a3b0d-53b6-4b67-9b42-266f49bfabcc";
   const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
 
@@ -46,7 +47,14 @@
     try {
       await OneSignal.login(id);
       if (OneSignal.User?.addTags) {
-        OneSignal.User.addTags(tags);
+        const safeTags = Object.fromEntries(
+          Object.entries(tags || {})
+            .filter(([, value]) => value !== undefined && value !== null && value !== "")
+            .map(([key, value]) => [key, String(value).slice(0, 128)])
+        );
+        if (Object.keys(safeTags).length) {
+          await OneSignal.User.addTags(safeTags);
+        }
       }
       window.localStorage.setItem(STORAGE_KEY, id);
       return true;
@@ -75,8 +83,25 @@
     } else if (session.role === "seller" && session.businessId) {
       await identify(`business:${session.businessId}`, { role: "seller", business_id: String(session.businessId) });
     } else if (session.role === "employee") {
-      await identify("employees", { role: "employee" });
+      const employeeKey = session.firebaseUid || session.userId || session.employeeId || session.email || "current";
+      await identify(`employee:${employeeKey}`, { role: "employee", employee_id: String(employeeKey) });
+    } else {
+      const customerId = window.localStorage.getItem(CUSTOMER_KEY);
+      if (customerId) {
+        await identify(customerId, { role: "customer" });
+      }
     }
+  }
+
+  function notificationsGranted(OneSignal) {
+    return window.Notification?.permission === "granted" || OneSignal?.Notifications?.permission === true;
+  }
+
+  async function rememberCustomer(phone) {
+    const customerId = window.tamuPushCustomerId(phone);
+    if (!customerId) return false;
+    window.localStorage.setItem(CUSTOMER_KEY, customerId);
+    return identify(customerId, { role: "customer" });
   }
 
   function ensureEnableButton() {
@@ -91,7 +116,7 @@
         window.tamuOneSignalReady,
         new Promise((resolve) => window.setTimeout(() => resolve(null), 3500))
       ]);
-      const granted = window.Notification?.permission === "granted" || OneSignal?.Notifications?.permission === true;
+      const granted = notificationsGranted(OneSignal);
       button.classList.toggle("is-hidden", granted);
       button.disabled = false;
       button.textContent = "Enable notifications";
@@ -113,6 +138,10 @@
         button.disabled = false;
         return;
       }
+      const granted = notificationsGranted(OneSignal);
+      if (granted) {
+        await identifyFromSession();
+      }
       await updateButton();
     });
     document.body.appendChild(button);
@@ -123,6 +152,7 @@
   window.tamuPushLogin = identify;
   window.tamuPushLogout = logout;
   window.tamuPushIdentifySession = identifyFromSession;
+  window.tamuPushRememberCustomer = rememberCustomer;
   window.tamuPushCustomerId = function (phone) {
     const normalized = String(phone || "").replace(/[^\d+]/g, "").trim();
     return normalized ? `customer:${normalized}` : "";

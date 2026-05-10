@@ -1495,7 +1495,7 @@ async function handleCheckout() {
 
   cart = [];
   writeStorage(STORAGE_KEYS.cartItems, cart);
-  window.tamuPushLogin?.(window.tamuPushCustomerId?.(profile.phone), { role: "customer" });
+  window.tamuPushRememberCustomer?.(profile.phone);
   await deleteCartItem();
   document.getElementById("checkoutSection")?.classList.add("is-hidden");
   renderCart();

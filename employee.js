@@ -1102,7 +1102,8 @@ async function restoreSession() {
   }
 
   currentEmployee = account;
-  window.tamuPushLogin?.("employees", { role: "employee", employee_id: String(account.id || account.uid || account.email || "") });
+  const pushEmployeeId = String(account.firebase_uid || account.firebaseUid || account.uid || account.id || account.email || "current");
+  window.tamuPushLogin?.(`employee:${pushEmployeeId}`, { role: "employee", employee_id: pushEmployeeId });
   subscribeEmployeeOrders();
   await loadEmployeeOrders();
   return true;
@@ -1126,7 +1127,8 @@ function bindLogin() {
 
     const account = result.account;
     currentEmployee = account;
-    window.tamuPushLogin?.("employees", { role: "employee", employee_id: String(account.id || account.uid || account.email || "") });
+    const pushEmployeeId = String(account.firebase_uid || account.firebaseUid || account.uid || account.id || account.email || "current");
+    window.tamuPushLogin?.(`employee:${pushEmployeeId}`, { role: "employee", employee_id: pushEmployeeId });
     status.textContent = "";
     form.reset();
     showDashboard();
