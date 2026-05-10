@@ -246,36 +246,6 @@ async function employeeRecordForFirebaseUser(user) {
   return null;
 }
 
-async function employeeRecordFromBackendSession() {
-  try {
-    const response = await fetch("./api/employee/session.php", { cache: "no-store" });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok && result.ok && result.employee) {
-      return result.employee;
-    }
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-
-async function signInEmployeeWithDatabase(email, password) {
-  try {
-    const response = await fetch("./api/employee/login.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok && result.ok && result.employee) {
-      return { ok: true, account: result.employee };
-    }
-    return { ok: false, message: result.message || "Employee database login failed.", status: response.status };
-  } catch (error) {
-    return { ok: false, message: "Employee login service is unavailable.", status: 0 };
-  }
-}
-
 function isEmployeeActive(account) {
   const role = String(account?.role || account?.accountType || account?.userType || "employee").toLowerCase();
   const status = String(account?.status || "").toLowerCase();
@@ -364,26 +334,25 @@ async function loadEmployeeOrders() {
 
 async function signInEmployee(email, password) {
   const firebase = await ensureFirebaseApp();
-  if (firebase.ok) {
-    try {
-      await window.firebase.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
-      const credential = await window.firebase.auth().signInWithEmailAndPassword(email, password);
-      const user = credential.user;
-      const account = await employeeRecordForFirebaseUser(user);
-
-      if (!isEmployeeActive(account)) {
-        await window.firebase.auth().signOut();
-        return { ok: false, message: "Firebase login worked, but this account is not allowed as an employee. Add role employee/delivery, active or approved status, and county/location in the employees collection." };
-      }
-
-      return { ok: true, account };
-    } catch (error) {
-      const databaseLogin = await signInEmployeeWithDatabase(email, password);
-      return databaseLogin.ok ? databaseLogin : { ok: false, message: employeeLoginErrorMessage(error) };
-    }
+  if (!firebase.ok) {
+    return firebase;
   }
 
-  return signInEmployeeWithDatabase(email, password);
+  try {
+    await window.firebase.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+    const credential = await window.firebase.auth().signInWithEmailAndPassword(email, password);
+    const user = credential.user;
+    const account = await employeeRecordForFirebaseUser(user);
+
+    if (!isEmployeeActive(account)) {
+      await window.firebase.auth().signOut();
+      return { ok: false, message: "Firebase login worked, but this account is not allowed as an employee. Add role employee/delivery, active or approved status, and county/location in the employees collection." };
+    }
+
+    return { ok: true, account };
+  } catch (error) {
+    return { ok: false, message: employeeLoginErrorMessage(error) };
+  }
 }
 
 function showLogin() {
@@ -981,14 +950,6 @@ async function restoreSession() {
       await loadEmployeeOrders();
       return true;
     }
-  }
-
-  const backendAccount = await employeeRecordFromBackendSession();
-  if (isEmployeeActive(backendAccount)) {
-    currentEmployee = backendAccount;
-    subscribeEmployeeOrders();
-    await loadEmployeeOrders();
-    return true;
   }
 
   return false;
