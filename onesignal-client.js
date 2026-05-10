@@ -30,11 +30,6 @@
               enable: true
             }
           });
-          const prompted = window.localStorage.getItem("tamu_onesignal_prompted") === "true";
-          if (!prompted && OneSignal.Slidedown?.promptPush) {
-            window.localStorage.setItem("tamu_onesignal_prompted", "true");
-            OneSignal.Slidedown.promptPush().catch(() => {});
-          }
           resolve(OneSignal);
         } catch {
           resolve(null);
@@ -91,20 +86,37 @@
     button.type = "button";
     button.textContent = "Enable notifications";
     button.setAttribute("aria-label", "Enable push notifications");
+    const updateButton = async () => {
+      const OneSignal = await Promise.race([
+        window.tamuOneSignalReady,
+        new Promise((resolve) => window.setTimeout(() => resolve(null), 3500))
+      ]);
+      const granted = window.Notification?.permission === "granted" || OneSignal?.Notifications?.permission === true;
+      button.classList.toggle("is-hidden", granted);
+      button.disabled = false;
+      button.textContent = "Enable notifications";
+    };
     button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "Enabling...";
       const OneSignal = await window.tamuOneSignalReady;
       try {
         if (OneSignal?.Notifications?.requestPermission) {
           await OneSignal.Notifications.requestPermission();
         } else if (OneSignal?.Slidedown?.promptPush) {
           await OneSignal.Slidedown.promptPush();
+        } else if (window.Notification?.requestPermission) {
+          await window.Notification.requestPermission();
         }
       } catch {
+        button.textContent = "Try again";
+        button.disabled = false;
         return;
       }
-      button.classList.add("is-hidden");
+      await updateButton();
     });
     document.body.appendChild(button);
+    updateButton();
   }
 
   window.tamuOneSignalReady = initOneSignal();
@@ -116,12 +128,10 @@
     return normalized ? `customer:${normalized}` : "";
   };
 
-  window.tamuOneSignalReady.then(() => {
-    identifyFromSession();
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", ensureEnableButton, { once: true });
-    } else {
-      ensureEnableButton();
-    }
-  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ensureEnableButton, { once: true });
+  } else {
+    ensureEnableButton();
+  }
+  window.tamuOneSignalReady.then(() => identifyFromSession());
 })();

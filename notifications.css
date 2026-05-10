@@ -17,6 +17,11 @@
   background: #0f6b32;
 }
 
+#enableNotificationsButton:disabled {
+  cursor: wait;
+  opacity: 0.82;
+}
+
 #enableNotificationsButton.is-hidden {
   display: none;
 }
