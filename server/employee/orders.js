@@ -1,4 +1,4 @@
-const { query } = require("../_lib/db");
+const { query, tableExists } = require("../_lib/db");
 const { employeeFromRequest, employeeIsAllowed } = require("../_lib/firebase-admin");
 const { body, method, send, text } = require("../_lib/http");
 
@@ -73,57 +73,88 @@ function orderMatchesCounty(row, county) {
 }
 
 async function loadOrders() {
-  let sql = `
-    select o.*,
-           string_agg(distinct coalesce(b.location_name, ''), ' ') as business_locations,
-           coalesce(
-             json_agg(
-               distinct jsonb_build_object(
-                 'productId', oi.product_public_id,
-                 'productName', oi.product_name,
-                 'storeId', oi.store_public_id,
-                 'businessId', oi.business_id,
-                 'storeName', oi.store_name,
-                 'storeCounty', b.location_name,
-                  'quantity', oi.quantity,
-                  'unitPrice', oi.unit_price,
-                  'lineTotal', oi.line_total
-               )
-             ) filter (where oi.id is not null),
-             '[]'
-           ) as items,
-           coalesce(
-             json_agg(
-               distinct jsonb_build_object(
-                 'storeId', rb.store_public_id,
-                 'storeName', rb.store_name,
-                 'distanceKm', rb.distance_km,
-                 'routeFee', rb.route_fee,
-                 'quantity', rb.quantity,
-                 'subtotal', rb.subtotal
-               )
-             ) filter (where rb.id is not null),
-             '[]'
-           ) as route_breakdown,
-           coalesce(
-             json_agg(
-               distinct jsonb_build_object(
-                 'businessId', p.business_id,
-                 'method', p.method,
-                 'reference', p.reference,
-                 'amount', p.amount,
-                 'status', p.status
-               )
-             ) filter (where p.id is not null),
-             '[]'
-           ) as business_payments
-      from orders o
-      left join order_items oi on oi.order_id = o.id
-      left join businesses b on b.id = oi.business_id or b.id::text = oi.store_public_id
-      left join order_route_breakdown rb on rb.order_id = o.id
-      left join payments p on p.order_public_id = o.public_id`;
-  sql += " group by o.id order by o.created_at desc limit 300";
-  return query(sql);
+  const orders = await query("select * from orders order by created_at desc limit 300");
+  const ids = orders.map((order) => order.id);
+  const publicIds = orders.map((order) => order.public_id || String(order.id));
+  if (!ids.length) return [];
+
+  const [hasItems, hasRoutes, hasPayments, hasBusinesses] = await Promise.all([
+    tableExists("order_items").catch(() => false),
+    tableExists("order_route_breakdown").catch(() => false),
+    tableExists("payments").catch(() => false),
+    tableExists("businesses").catch(() => false)
+  ]);
+
+  const items = hasItems
+    ? await query("select * from order_items where order_id = any($1::bigint[]) order by id asc", [ids]).catch(() => [])
+    : [];
+  const routes = hasRoutes
+    ? await query("select * from order_route_breakdown where order_id = any($1::bigint[]) order by id asc", [ids]).catch(() => [])
+    : [];
+  const payments = hasPayments
+    ? await query("select * from payments where order_public_id = any($1::text[]) order by id asc", [publicIds]).catch(() => [])
+    : [];
+  const businessIds = [...new Set(items.map((item) => Number(item.business_id || 0)).filter(Boolean))];
+  const businesses = hasBusinesses && businessIds.length
+    ? await query("select id, name, location_name from businesses where id = any($1::bigint[])", [businessIds]).catch(() => [])
+    : [];
+  const businessById = new Map(businesses.map((business) => [Number(business.id), business]));
+
+  const itemsByOrder = new Map();
+  items.forEach((item) => {
+    const business = businessById.get(Number(item.business_id || 0));
+    const list = itemsByOrder.get(item.order_id) || [];
+    list.push({
+      productId: item.product_public_id || "",
+      productName: item.product_name || "",
+      storeId: item.store_public_id || String(item.business_id || ""),
+      businessId: String(item.business_id || item.store_public_id || ""),
+      storeName: item.store_name || business?.name || "",
+      storeCounty: business?.location_name || "",
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unit_price || 0),
+      lineTotal: Number(item.line_total || 0)
+    });
+    itemsByOrder.set(item.order_id, list);
+  });
+
+  const routesByOrder = new Map();
+  routes.forEach((route) => {
+    const list = routesByOrder.get(route.order_id) || [];
+    list.push({
+      storeId: route.store_public_id || "",
+      storeName: route.store_name || "",
+      distanceKm: Number(route.distance_km || 0),
+      routeFee: Number(route.route_fee || 0),
+      quantity: Number(route.quantity || 0),
+      subtotal: Number(route.subtotal || 0)
+    });
+    routesByOrder.set(route.order_id, list);
+  });
+
+  const paymentsByOrder = new Map();
+  payments.forEach((payment) => {
+    const list = paymentsByOrder.get(payment.order_public_id) || [];
+    list.push({
+      businessId: String(payment.business_id || ""),
+      method: payment.method || "",
+      reference: payment.reference || "",
+      amount: Number(payment.amount || 0),
+      status: payment.status || "pending"
+    });
+    paymentsByOrder.set(payment.order_public_id, list);
+  });
+
+  return orders.map((order) => {
+    const orderItems = itemsByOrder.get(order.id) || [];
+    return {
+      ...order,
+      business_locations: orderItems.map((item) => item.storeCounty).filter(Boolean).join(" "),
+      items: orderItems,
+      route_breakdown: routesByOrder.get(order.id) || [],
+      business_payments: paymentsByOrder.get(order.public_id || String(order.id)) || []
+    };
+  });
 }
 
 function normalizeOrderStatus(value) {
