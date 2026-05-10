@@ -23,6 +23,23 @@ async function safeColumns(table, columns) {
   return Object.fromEntries(checks);
 }
 
+async function ensureBusinessSubscriptionColumns() {
+  await query("alter table businesses add column if not exists subscription_started_at timestamptz").catch(() => {});
+  await query("alter table businesses add column if not exists subscription_expires_at timestamptz").catch(() => {});
+  await query("alter table businesses add column if not exists subscription_status text not null default 'inactive'").catch(() => {});
+  await query(
+    `update businesses
+        set subscription_started_at = coalesce(subscription_started_at, now()),
+            subscription_expires_at = coalesce(subscription_expires_at, now() + interval '1 month'),
+            subscription_status = case
+              when subscription_expires_at is not null and subscription_expires_at <= now() then 'expired'
+              else 'active'
+            end
+      where status = 'approved'
+        and (subscription_expires_at is null or coalesce(subscription_status, '') = '')`
+  ).catch(() => {});
+}
+
 function selectColumn(columns, name, fallback = "''") {
   return columns[name] ? name : `${fallback} as ${name}`;
 }
@@ -68,6 +85,7 @@ module.exports = async function handler(req, res) {
       });
       return;
     }
+    await ensureBusinessSubscriptionColumns();
 
     const businessColumns = await safeColumns("businesses", [
       "id",
@@ -94,9 +112,20 @@ module.exports = async function handler(req, res) {
       "logo_image",
       "rating",
       "status",
+      "subscription_started_at",
+      "subscription_expires_at",
+      "subscription_status",
       "created_at"
     ]);
-    const statusFilter = businessColumns.status ? "where status = 'approved'" : "";
+    const filters = [];
+    if (businessColumns.status) filters.push("status = 'approved'");
+    if (businessColumns.subscription_expires_at) {
+      filters.push("(subscription_expires_at is null or subscription_expires_at > now())");
+    }
+    if (businessColumns.subscription_status) {
+      filters.push("(subscription_status is null or subscription_status <> 'expired')");
+    }
+    const statusFilter = filters.length ? `where ${filters.join(" and ")}` : "";
     const businessRows = await query(
       `select ${selectColumn(businessColumns, "id", "0")},
               ${selectColumn(businessColumns, "user_id")},
@@ -118,6 +147,9 @@ module.exports = async function handler(req, res) {
               ${selectColumn(businessColumns, "logo_image")},
               ${selectColumn(businessColumns, "rating", "4.5")},
               ${selectColumn(businessColumns, "status", "'approved'")},
+              ${selectColumn(businessColumns, "subscription_started_at", "null")},
+              ${selectColumn(businessColumns, "subscription_expires_at", "null")},
+              ${selectColumn(businessColumns, "subscription_status", "''")},
               ${selectColumn(businessColumns, "created_at", "now()")}
          from businesses
         ${statusFilter}

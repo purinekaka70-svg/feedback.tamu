@@ -238,7 +238,11 @@ function normalizeBusinessRecord(record = {}) {
     businessType: record.businessType || type,
     logo,
     logoImage: record.logoImage || logo,
-    rating: Number(record.rating) || 4.5
+    rating: Number(record.rating) || 4.5,
+    subscriptionStatus: record.subscriptionStatus || record.subscription_status || "",
+    subscriptionStartedAt: record.subscriptionStartedAt || record.subscription_started_at || "",
+    subscriptionExpiresAt: record.subscriptionExpiresAt || record.subscription_expires_at || record.expiresAt || "",
+    expiresAt: record.expiresAt || record.subscriptionExpiresAt || record.subscription_expires_at || ""
   };
 }
 
@@ -462,6 +466,9 @@ function buyerProfile() {
 function approvedStores() {
   return applications().filter((application) => {
     if (application.status !== "approved") {
+      return false;
+    }
+    if (String(application.subscriptionStatus || "").toLowerCase() === "expired") {
       return false;
     }
     if (!application.expiresAt) {

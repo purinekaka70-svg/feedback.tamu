@@ -1,5 +1,5 @@
 const { findUserByEmail, issueAuth, verifyPassword } = require("../_lib/auth");
-const { query } = require("../_lib/db");
+const { query, tableColumns } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { sellerFromBusiness } = require("../_lib/market");
 const { rateLimit } = require("../_lib/security");
@@ -11,6 +11,23 @@ async function verifySupabasePassword(password, hash) {
   return rows[0]?.ok === true;
 }
 
+async function ensureBusinessSubscriptionColumns() {
+  await query("alter table businesses add column if not exists subscription_started_at timestamptz").catch(() => {});
+  await query("alter table businesses add column if not exists subscription_expires_at timestamptz").catch(() => {});
+  await query("alter table businesses add column if not exists subscription_status text not null default 'inactive'").catch(() => {});
+  await query(
+    `update businesses
+        set subscription_started_at = coalesce(subscription_started_at, now()),
+            subscription_expires_at = coalesce(subscription_expires_at, now() + interval '1 month'),
+            subscription_status = case
+              when subscription_expires_at is not null and subscription_expires_at <= now() then 'expired'
+              else 'active'
+            end
+      where status = 'approved'
+        and (subscription_expires_at is null or coalesce(subscription_status, '') = '')`
+  ).catch(() => {});
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   if (!rateLimit(req, res, "seller-login", { limit: 12, windowMs: 10 * 60 * 1000 })) return;
@@ -18,11 +35,17 @@ module.exports = async function handler(req, res) {
     const payload = await body(req);
     const email = text(payload.email, 180).toLowerCase();
     const password = String(payload.password || "");
+    await ensureBusinessSubscriptionColumns();
+    const businessColumns = await tableColumns("businesses").catch(() => new Set());
+    const subscriptionSelect = [
+      businessColumns.has("subscription_expires_at") ? "b.subscription_expires_at" : "null as subscription_expires_at",
+      businessColumns.has("subscription_status") ? "b.subscription_status" : "'' as subscription_status"
+    ].join(", ");
     const sellerRows = await query(
       `select b.id, b.user_id, b.name, b.owner_name, b.phone, b.email, b.type, b.location_name,
               b.latitude, b.longitude, b.payment_methods, b.till_number, b.pochi_number,
               b.bank_account, b.delivery_availability, b.delivery_notes, b.logo, b.logo_image,
-              b.rating, b.status as business_status, b.created_at,
+              b.rating, b.status as business_status, ${subscriptionSelect}, b.created_at,
               u.password as account_password, u.status as user_status, u.id as account_user_id
          from businesses b
          left join users u on u.id = b.user_id or lower(u.email) = lower(b.email)
@@ -46,6 +69,15 @@ module.exports = async function handler(req, res) {
           ? "Your business account is blocked. Contact admin for help."
           : "Your account is not approved by admin yet.";
       send(res, 403, { ok: false, message, status: sellerStatus });
+      return;
+    }
+    const expiry = row.subscription_expires_at ? new Date(row.subscription_expires_at).getTime() : 0;
+    if (String(row.subscription_status || "").toLowerCase() === "expired" || (expiry && expiry <= Date.now())) {
+      send(res, 403, {
+        ok: false,
+        message: "Your business subscription has expired. Contact admin to activate it.",
+        status: "expired"
+      });
       return;
     }
     row.status = sellerStatus;

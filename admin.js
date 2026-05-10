@@ -134,7 +134,11 @@ function normalizeBusinessRecord(record = {}) {
     businessType: record.businessType || type,
     logo,
     logoImage: record.logoImage || logo,
-    rating: Number(record.rating) || 4.5
+    rating: Number(record.rating) || 4.5,
+    subscriptionStatus: record.subscriptionStatus || record.subscription_status || "",
+    subscriptionStartedAt: record.subscriptionStartedAt || record.subscription_started_at || "",
+    subscriptionExpiresAt: record.subscriptionExpiresAt || record.subscription_expires_at || record.expiresAt || "",
+    expiresAt: record.expiresAt || record.subscriptionExpiresAt || record.subscription_expires_at || ""
   };
 }
 
@@ -573,6 +577,9 @@ async function updateApplicationStatus(applicationId, status) {
   if (status === "blocked") {
     patch.blockedAt = new Date().toISOString();
   }
+  if (status === "expired" || status === "expire") {
+    patch.expiresAt = new Date().toISOString();
+  }
   try {
     const response = await fetch('./api/admin/applications.php', {
       method: 'POST',
@@ -607,7 +614,7 @@ async function updateApplicationStatus(applicationId, status) {
   renderApprovals();
   renderNotifications();
   renderAdminUtilityPanels();
-  showToast(`Business ${status}.`, status === "approved" ? "success" : "warn");
+  showToast(status === "expired" || status === "expire" ? "Business subscription expired." : `Business ${status}.`, status === "approved" ? "success" : "warn");
 }
 
 function renderApprovals() {
@@ -647,6 +654,7 @@ function renderApprovals() {
           <p class="tiny">Active until: ${formatDate(application.expiresAt)}</p>
           <div class="button-row">
             <button class="button button-primary button-small" data-application-action="approved" data-application-id="${application.id}" type="button">Approve / Activate</button>
+            <button class="button button-outline button-small" data-application-action="expired" data-application-id="${application.id}" type="button">Expire subscription</button>
             <button class="button button-outline button-small" data-application-action="blocked" data-application-id="${application.id}" type="button">Block</button>
             <button class="button button-ghost button-small" data-application-action="rejected" data-application-id="${application.id}" type="button">Reject</button>
             <button class="button button-ghost button-small" data-admin-delete="business" data-admin-delete-id="${application.id}" data-admin-delete-label="business" type="button">Delete</button>

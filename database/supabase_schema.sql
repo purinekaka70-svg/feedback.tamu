@@ -61,8 +61,17 @@ create table if not exists businesses (
   logo_image text not null default '',
   rating numeric(3, 2) not null default 4.50,
   status business_status not null default 'pending',
+  subscription_started_at timestamptz,
+  subscription_expires_at timestamptz,
+  subscription_status text not null default 'inactive',
   created_at timestamptz not null default now()
 );
+
+alter table businesses add column if not exists subscription_started_at timestamptz;
+alter table businesses add column if not exists subscription_expires_at timestamptz;
+alter table businesses add column if not exists subscription_status text not null default 'inactive';
+create index if not exists businesses_subscription_active_idx
+  on businesses (status, subscription_expires_at);
 
 create table if not exists categories (
   id bigserial primary key,
@@ -205,6 +214,13 @@ alter table employees add column if not exists display_name text not null defaul
 create unique index if not exists employees_firebase_uid_unique
   on employees (firebase_uid)
   where firebase_uid is not null and firebase_uid <> '';
+
+update businesses
+set subscription_started_at = coalesce(subscription_started_at, now()),
+    subscription_expires_at = coalesce(subscription_expires_at, now() + interval '1 month'),
+    subscription_status = 'active'
+where status = 'approved'
+  and subscription_expires_at is null;
 
 insert into users (name, email, password, role, status)
 values (

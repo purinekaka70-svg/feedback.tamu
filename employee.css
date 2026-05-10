@@ -440,9 +440,9 @@ h2 {
 .toast {
   border-radius: 14px;
   padding: 12px 14px;
-  background: var(--success);
+  background: var(--green);
   color: #fff;
-  box-shadow: 0 16px 40px rgba(17, 24, 39, 0.22);
+  box-shadow: 0 16px 40px rgba(15, 107, 50, 0.24);
 }
 
 .toast--success,
@@ -453,7 +453,7 @@ h2 {
 .toast-info,
 .toast-warn,
 .toast-error {
-  background: var(--success);
+  background: var(--green);
   color: #fff;
 }
 

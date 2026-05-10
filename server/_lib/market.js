@@ -50,6 +50,10 @@ function sellerFromBusiness(row) {
     deliveryAvailability: row.delivery_availability || "",
     deliveryNotes: row.delivery_notes || "",
     status: row.status || "pending",
+    subscriptionStatus: row.subscription_status || "",
+    subscriptionStartedAt: row.subscription_started_at || "",
+    subscriptionExpiresAt: row.subscription_expires_at || "",
+    expiresAt: row.subscription_expires_at || row.expires_at || "",
     createdAt: row.created_at || ""
   };
 }
