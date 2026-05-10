@@ -7,6 +7,7 @@ const DEFAULT_BUSINESS_CATEGORIES = ["Supermarket", "Retail", "Wholesale"];
 const IMAGE_PRESETS = {
   product: { maxWidth: 300, maxHeight: 300, quality: 0.74, maxBytes: 120 * 1024 },
   business: { maxWidth: 400, maxHeight: 400, quality: 0.76, maxBytes: 140 * 1024 },
+  category: { maxWidth: 420, maxHeight: 260, quality: 0.72, maxBytes: 95 * 1024 },
   offer: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 150 * 1024 },
   location: { maxWidth: 600, maxHeight: 300, quality: 0.72, maxBytes: 150 * 1024 }
 };
@@ -66,7 +67,8 @@ function normalizeProductRecord(product = {}) {
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
-  const rawOffer = product.offerText || product.productOffer || product.offer || product.description || "";
+  const description = String(product.description || product.productDescription || product.details || "").trim();
+  const rawOffer = product.offerText || product.productOffer || product.offer || "";
   const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
   const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer);
 
@@ -90,7 +92,9 @@ function normalizeProductRecord(product = {}) {
     stock,
     productStock: stock,
     offerFlag,
-    productOffer
+    productOffer,
+    description,
+    productDescription: description
   };
 }
 
@@ -807,6 +811,7 @@ function renderProducts() {
         <div class="seller-catalog-copy">
           <strong>${product.productName}</strong>
           <p class="tiny">${product.productCategory} | ${product.productStock}</p>
+          ${product.description ? `<p class="tiny">${escapeHtml(product.description)}</p>` : ""}
           <span class="seller-catalog-price">${currency(product.productPrice)}</span>
           ${product.productOffer ? `<p class="tiny seller-catalog-tag">${product.productOffer}</p>` : '<p class="tiny seller-catalog-tag">Everyday item</p>'}
         </div>
@@ -829,6 +834,7 @@ function renderProducts() {
       document.querySelector('[name="productPrice"]').value = product.productPrice;
       document.querySelector('[name="productStock"]').value = product.productStock;
       document.querySelector('[name="productDeal"]').value = product.productOffer || "";
+      document.querySelector('[name="productDescription"]').value = product.description || product.productDescription || "";
       document.querySelector('[name="productImageUrl"]').value = product.productImage || "";
       document.getElementById("saveProductBtn").textContent = "Update Product";
       showToast("Product loaded for editing.", "info");
@@ -864,7 +870,10 @@ function renderSellerCategories() {
     ? list.map((category) => `
         <article class="list-card">
           <div class="section-head">
-            <strong>${category.name}</strong>
+            <div class="seller-category-summary">
+              ${category.image ? `<img src="${category.image}" alt="${escapeAttribute(category.name)}" loading="lazy" decoding="async">` : ""}
+              <strong>${escapeHtml(category.name)}</strong>
+            </div>
             <button class="button button-ghost button-small" data-delete-category="${category.id}" type="button">Delete</button>
           </div>
         </article>
@@ -1651,6 +1660,7 @@ async function buildProductPayload(formData) {
   const productCategory = categoryLabelFromValue(formData.get("productCategory"));
   const productStock = String(formData.get("productStock")).trim();
   const productOffer = String(formData.get("productDeal")).trim();
+  const productDescription = String(formData.get("productDescription")).trim();
   const businessId = seller.id;
   const categoryId = productCategory;
 
@@ -1682,6 +1692,8 @@ async function buildProductPayload(formData) {
       productStock,
       offerFlag: Boolean(productOffer),
       productOffer,
+      description: productDescription,
+      productDescription,
       image: productImage,
       productImage,
       stockQuantity: productStock === "Out of stock" ? 0 : productStock === "Limited stock" ? 5 : 999,
@@ -1720,6 +1732,19 @@ async function buildOfferPayload(formData) {
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }
+  };
+}
+
+async function categoryImageFromForm(formData) {
+  let uploadedImage = "";
+  try {
+    uploadedImage = await optimizeImageFile(formData.get("categoryImageFile"), "category");
+  } catch (error) {
+    return { ok: false, message: error.message || "Category image could not be optimized." };
+  }
+  return {
+    ok: true,
+    image: uploadedImage || String(formData.get("categoryImageUrl")).trim()
   };
 }
 
@@ -1904,6 +1929,8 @@ function bindForms() {
       name: nextProduct.productName,
       image: nextProduct.productImage,
       price: nextProduct.productPrice,
+      productOffer: nextProduct.productOffer,
+      offerText: nextProduct.productOffer,
       offerFlag: nextProduct.offerFlag,
       stock: nextProduct.stockQuantity,
       description: nextProduct.description || ""
@@ -1950,8 +1977,14 @@ function bindForms() {
   document.getElementById("sellerCategoryForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const seller = currentSeller();
+    const formData = new FormData(event.currentTarget);
     const name = categoryFormValue("sellerCategorySelect", "sellerCategorySearch");
     if (!seller || !name) return;
+    const imageResult = await categoryImageFromForm(formData);
+    if (!imageResult.ok) {
+      showToast(imageResult.message, "warn");
+      return;
+    }
 
     const exists = sellerCategories()
       .filter((category) => category.sellerId === String(seller.id))
@@ -1961,7 +1994,7 @@ function bindForms() {
       return;
     }
 
-    const response = await postJson('./api/categories/save.php', { name, businessId: seller.id });
+    const response = await postJson('./api/categories/save.php', { name, businessId: seller.id, image: imageResult.image });
     if (!response.ok || response.data?.ok === false) {
       showToast(response.data?.message || "Category save failed.", "warn");
       return;

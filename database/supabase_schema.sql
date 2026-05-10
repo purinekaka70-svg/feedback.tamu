@@ -103,6 +103,10 @@ create table if not exists products (
   created_at timestamptz not null default now()
 );
 
+alter table products add column if not exists offer_text text not null default '';
+alter table products add column if not exists description text not null default '';
+alter table categories add column if not exists image text not null default '';
+
 create table if not exists seller_offers (
   public_id text primary key,
   seller_public_id text not null,
@@ -113,6 +117,11 @@ create table if not exists seller_offers (
   offer_image text not null default '',
   created_at timestamptz not null default now()
 );
+
+alter table seller_offers add column if not exists offer_title text not null default '';
+alter table seller_offers add column if not exists offer_note text not null default '';
+alter table seller_offers add column if not exists offer_expiry text not null default '';
+alter table seller_offers add column if not exists offer_image text not null default '';
 
 create table if not exists cart (
   id bigserial primary key,

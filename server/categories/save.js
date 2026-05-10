@@ -3,12 +3,17 @@ const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { rateLimit } = require("../_lib/security");
 
+async function ensureCategoryColumns() {
+  await query("alter table categories add column if not exists image text not null default ''");
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   if (!rateLimit(req, res, "category-save", { limit: 80, windowMs: 10 * 60 * 1000 })) return;
   const session = requireRole(req, res, ["admin", "seller"]);
   if (!session) return;
   try {
+    await ensureCategoryColumns().catch(() => {});
     const payload = await body(req);
     const businessId = payload.businessId ? Number(payload.businessId) : null;
     if (session.role === "seller" && Number(session.businessId) !== Number(businessId)) {

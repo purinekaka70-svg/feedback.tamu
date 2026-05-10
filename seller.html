@@ -281,6 +281,17 @@
                   <option value="">Loading categories...</option>
                 </select>
               </label>
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Category Image URL (optional)</span>
+                  <input class="input" name="categoryImageUrl" type="url" placeholder="https://example.com/category.jpg" />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Upload Category Image (optional)</span>
+                  <input class="input" name="categoryImageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif" />
+                </label>
+              </div>
               <button class="button button-primary" type="submit">Add category</button>
             </form>
 
@@ -330,6 +341,11 @@
               <label class="field">
                 <span class="field-label">Special Offer</span>
                 <input class="input" name="productDeal" placeholder="Buy 2 get 1 free" />
+              </label>
+
+              <label class="field">
+                <span class="field-label">Product type, brand, size, details</span>
+                <textarea class="input input-textarea" name="productDescription" rows="3" placeholder="Example: Brookside milk, 500ml packet, box of 12, long-life dairy milk. Buyers will see this."></textarea>
               </label>
 
               <div class="field-grid">

@@ -84,7 +84,8 @@ function normalizeProductRecord(product = {}) {
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
-  const rawOffer = product.offerText || product.productOffer || product.offer || product.description || "";
+  const description = String(product.description || product.productDescription || product.details || "").trim();
+  const rawOffer = product.offerText || product.productOffer || product.offer || "";
   const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
   const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer);
 
@@ -108,7 +109,9 @@ function normalizeProductRecord(product = {}) {
     stock,
     productStock: stock,
     offerFlag,
-    productOffer
+    productOffer,
+    description,
+    productDescription: description
   };
 }
 
@@ -1231,6 +1234,8 @@ function renderCart() {
         <article class="cart-item">
           <strong>${product.productName}</strong>
           <p>${store.storeName}</p>
+          <p class="tiny">${product.productCategory || "Product"}${product.description ? ` | ${product.description}` : ""}</p>
+          ${product.productOffer ? `<p class="tiny">Offer: ${product.productOffer}</p>` : ""}
           <p>${currency(product.productPrice)} each | Total ${currency(productLineTotal(product, item.quantity))}</p>
           ${isBogoOffer(product) ? `<p class="tiny">Buy one get one free applied: ${item.quantity} item(s), pay for ${paidQuantityForProduct(product, item.quantity)}.</p>` : ""}
           <div class="button-row">

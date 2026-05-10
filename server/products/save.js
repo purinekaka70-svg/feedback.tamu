@@ -28,8 +28,9 @@ async function columnExists(table, column) {
   return rows.length > 0;
 }
 
-async function ensureOfferTextColumn() {
+async function ensureProductDetailColumns() {
   await query("alter table products add column if not exists offer_text text not null default ''");
+  await query("alter table products add column if not exists description text not null default ''");
 }
 
 module.exports = async function handler(req, res) {
@@ -49,8 +50,9 @@ module.exports = async function handler(req, res) {
       send(res, 422, { ok: false, message: "Business, product name and category are required." });
       return;
     }
+    await ensureProductDetailColumns().catch(() => {});
     const offerText = text(payload.productOffer || payload.offerText || payload.offer, 500);
-    const descriptionText = text(payload.description || payload.productDescription, 500);
+    const descriptionText = text(payload.description || payload.productDescription || payload.details, 800);
     const params = [
       businessId,
       categoryId,
@@ -60,9 +62,8 @@ module.exports = async function handler(req, res) {
       Boolean(payload.offerFlag),
       offerText,
       Math.max(0, Math.trunc(number(payload.stock))),
-      descriptionText || offerText
+      descriptionText
     ];
-    await ensureOfferTextColumn().catch(() => {});
     const hasOfferText = await columnExists("products", "offer_text");
     let rows;
     if (payload.id && /^\d+$/.test(String(payload.id))) {

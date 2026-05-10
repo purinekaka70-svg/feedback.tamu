@@ -68,6 +68,7 @@ CREATE TABLE products (
     price DECIMAL(10,2),
     image LONGTEXT,
     offer_flag BOOLEAN DEFAULT FALSE,
+    offer_text TEXT NULL,
     stock INT DEFAULT 0,
     description TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

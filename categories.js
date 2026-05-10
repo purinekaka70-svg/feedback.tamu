@@ -261,7 +261,8 @@ function normalizeProductRecord(product = {}) {
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
-  const rawOffer = product.offerText || product.productOffer || product.offer || product.description || "";
+  const description = String(product.description || product.productDescription || product.details || "").trim();
+  const rawOffer = product.offerText || product.productOffer || product.offer || "";
   const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
   const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer);
 
@@ -285,7 +286,9 @@ function normalizeProductRecord(product = {}) {
     stock,
     productStock: stock,
     offerFlag,
-    productOffer
+    productOffer,
+    description,
+    productDescription: description
   };
 }
 
@@ -322,11 +325,30 @@ function productLineTotal(product, quantity) {
 }
 
 function offerMessage(product) {
-  return product?.productOffer || "";
+  if (!product) return "";
+  const store = getStore(product.storeId);
+  return [
+    `Product: ${product.productName}`,
+    store?.storeName ? `Seller: ${store.storeName}` : "",
+    product.productCategory ? `Category: ${product.productCategory}` : "",
+    product.description ? `Details: ${product.description}` : "",
+    product.productOffer ? `Offer: ${product.productOffer}` : "",
+    `Price: ${currency(product.productPrice)}`
+  ].filter(Boolean).join(" | ");
 }
 
 function offerCardMessage(offer) {
-  return offer?.note || offer?.title || "";
+  if (!offer) return "";
+  const store = getStore(offer.storeId);
+  return [
+    offer.title ? `Offer: ${offer.title}` : "",
+    store?.storeName ? `Seller: ${store.storeName}` : offer.storeName ? `Seller: ${offer.storeName}` : "",
+    offer.category ? `Category: ${offer.category}` : "",
+    offer.details && offer.details !== offer.note ? `Details: ${offer.details}` : "",
+    offer.note ? `Offer details: ${offer.note}` : "",
+    offer.price ? `Price: ${currency(offer.price)}` : "",
+    offer.expires ? `Ends: ${offer.expires}` : ""
+  ].filter(Boolean).join(" | ");
 }
 
 function offerToastDuration(message) {
@@ -531,6 +553,50 @@ function businessImageGroup(value) {
 function fallbackBusinessImageFor(store) {
   const group = businessImageGroup(`${store.businessType || ""} ${store.storeName || ""}`);
   return fallbackImageFor(`${store.id || store.storeName || ""}-${group}`, businessTypeImagePools[group] || businessTypeImagePools.retail);
+}
+
+function catalogImagePoolForText(value) {
+  const text = normalizeSearchValue(value);
+  if (/\b(milk|dairy|yoghurt|yogurt|cheese|cream|brookside|mala)\b/.test(text)) return categoryImagePools.fresh;
+  if (/\b(soda|juice|water|drink|beverage|tea|coffee)\b/.test(text)) return categoryImagePools.beverage;
+  if (/\b(rice|sugar|flour|unga|maize|oil|grocery|food|cereal)\b/.test(text)) return categoryImagePools.grocery;
+  if (/\b(soap|detergent|clean|tissue|toilet|household)\b/.test(text)) return categoryImagePools.household;
+  if (/\b(snack|biscuit|sweet|cake|crisps|chocolate)\b/.test(text)) return categoryImagePools.snack;
+  if (/\b(bulk|wholesale|carton|box|crate|dozen)\b/.test(text)) return categoryImagePools.wholesale;
+  return fallbackLocationImages;
+}
+
+function categoryImageForStore(storeId, categoryName) {
+  const keyName = normalizeSearchValue(categoryName);
+  const storeKey = String(storeId || "");
+  const match = cachedCategories.find((category) => {
+    const categoryStoreId = String(category.businessId || category.business_id || "");
+    return normalizeSearchValue(category.name || category.categoryName) === keyName &&
+      (!categoryStoreId || categoryStoreId === storeKey) &&
+      (category.image || category.categoryImage);
+  });
+  return match?.image || match?.categoryImage || "";
+}
+
+function productImageSource(product) {
+  if (product.productImage) return product.productImage;
+  const categoryImage = categoryImageForStore(product.storeId, product.productCategory);
+  if (categoryImage) return categoryImage;
+  const seed = [
+    product.productName,
+    product.description,
+    product.productCategory,
+    product.storeName
+  ].filter(Boolean).join(" ");
+  return fallbackImageFor(seed, catalogImagePoolForText(seed));
+}
+
+function offerImageSource(offer) {
+  if (offer.image) return offer.image;
+  const product = offer.productId ? getProduct(offer.productId) : null;
+  if (product) return productImageSource(product);
+  const seed = [offer.title, offer.note, offer.storeName].filter(Boolean).join(" ");
+  return fallbackImageFor(seed, catalogImagePoolForText(seed));
 }
 
 function escapeAttribute(value) {
@@ -772,11 +838,7 @@ function visibleProducts() {
       state.focusedStoreId === "all" || product.storeId === state.focusedStoreId;
     const matchesFocusedBusinessCategory =
       state.focusedBusinessCategory === "all" || product.productCategory === state.focusedBusinessCategory;
-    const matchesSearch =
-      !query ||
-      product.productName.toLowerCase().includes(query) ||
-      product.productCategory.toLowerCase().includes(query) ||
-      (product.productOffer || "").toLowerCase().includes(query);
+    const matchesSearch = !query || productMatchesSearch(product, getStore(product.storeId), state.search);
 
     return inVisibleStore && matchesCategory && matchesFocusedStore && matchesFocusedBusinessCategory && matchesSearch;
   });
@@ -789,10 +851,14 @@ function catalogOffers() {
     .map((product) => ({
       id: `product-offer-${product.id}`,
       storeId: product.storeId,
+      storeName: product.storeName,
       title: product.productName,
       note: product.productOffer,
+      details: product.description || "",
+      category: product.productCategory || "",
+      price: product.productPrice,
       expires: "Store offer",
-      image: product.productImage || "",
+      image: productImageSource(product),
       productId: product.id
     }));
   const standaloneOffers = sellerOffers()
@@ -800,10 +866,14 @@ function catalogOffers() {
     .map((offer) => ({
       id: offer.id,
       storeId: offer.storeId,
+      storeName: offer.storeName,
       title: offer.title,
       note: offer.note,
+      details: offer.note,
+      category: "",
+      price: "",
       expires: offer.expires || offer.offerExpiry || "Active offer",
-      image: offer.image || "",
+      image: offerImageSource(offer),
       productId: offer.productId || ""
     }));
   return [...productOffers, ...standaloneOffers].filter((offer, index, list) =>
@@ -822,7 +892,9 @@ function visibleOffers() {
     const matchesSearch =
       !query ||
       offer.title.toLowerCase().includes(query) ||
-      offer.note.toLowerCase().includes(query);
+      offer.note.toLowerCase().includes(query) ||
+      String(offer.details || "").toLowerCase().includes(query) ||
+      String(offer.category || "").toLowerCase().includes(query);
 
     return matchesStore && matchesFocusedStore && matchesSearch;
   });
@@ -1218,6 +1290,19 @@ function showToast(message, tone = "success", duration = 2600) {
   }, duration);
 }
 
+function productCartToastMessage(product, quantity) {
+  const store = getStore(product.storeId);
+  return [
+    `Added: ${product.productName}`,
+    store?.storeName ? `Seller: ${store.storeName}` : "",
+    product.productCategory ? `Category: ${product.productCategory}` : "",
+    product.description ? `Details: ${product.description}` : "",
+    product.productOffer ? `Offer: ${product.productOffer}` : "",
+    `Price: ${currency(product.productPrice)}`,
+    `Cart quantity: ${quantity}`
+  ].filter(Boolean).join(" | ");
+}
+
 function initReveal() {
   const items = document.querySelectorAll(".reveal");
   if (!("IntersectionObserver" in window)) {
@@ -1326,7 +1411,10 @@ async function addToCart(productId) {
   await saveCartItemToBackend(productId, nextQuantity);
   savePreviewState();
   renderCartSummary();
-  showToast(product.productOffer || "Item added to cart.", product.productOffer ? "info" : "success", product.productOffer ? offerToastDuration(product.productOffer) : 2600);
+  const toastMessage = product.productOffer
+    ? productCartToastMessage(product, nextQuantity)
+    : `${product.productName} added to cart.${product.description ? ` ${product.description}` : ""}`;
+  showToast(toastMessage, product.productOffer ? "info" : "success", product.productOffer ? offerToastDuration(toastMessage) : 3200);
 }
 
 function renderTypeFilters() {
@@ -1404,7 +1492,7 @@ function renderDeals() {
       return `
         <article class="deal-card" data-offer-card="${offer.id}">
           <div class="deal-visual">
-            ${cardImageHtml(offer.image, offer.title, offer.title)}
+            ${cardImageHtml(offerImageSource(offer), offer.title, `${offer.title} ${offer.note}`)}
           </div>
           <div class="deal-copy">
             <div class="deal-head">
@@ -1802,10 +1890,11 @@ function renderProducts() {
           <div class="category-card-grid">
             ${[...grouped.entries()].map(([category, products]) => {
             const imageProduct = products.find((product) => product.productImage) || products[0];
+            const categoryImage = categoryImageForStore(state.focusedStoreId, category) || (imageProduct ? productImageSource(imageProduct) : "");
             return `
               <article class="category-market-card" role="button" tabindex="0" data-open-business-category="${escapeAttribute(category)}">
                 <div class="category-card-image">
-                  ${cardImageHtml(imageProduct?.productImage || "", category, category)}
+                  ${cardImageHtml(categoryImage, category, `${category} ${selectedStore?.storeName || ""}`)}
                 </div>
                 <div class="category-card-copy">
                   <strong>${category}</strong>
@@ -2043,18 +2132,20 @@ function productCardHtml(product) {
   const store = getStore(product.storeId);
   const isOffer = Boolean(product.productOffer);
   const badge = isOffer ? "HOT DEAL" : "New";
+  const details = product.description || product.productDescription || "";
   return `
     <article class="product-card supermarket-product-card ${isOffer ? "is-offer-product" : ""}" data-product-offer-card="${isOffer ? product.id : ""}">
       <div class="product-visual">
-        ${cardImageHtml(product.productImage, product.productName, product.productName || product.productCategory)}
+        ${cardImageHtml(productImageSource(product), product.productName, [product.productName, details, product.productCategory].filter(Boolean).join(" "))}
         <span class="product-card-badge">${badge}</span>
       </div>
       <div class="product-head">
         <div>
           <h3>${product.productName}</h3>
-          <p class="tiny">${product.productCategory || "Product"}</p>
+          <p class="tiny">${product.productCategory || "Product"}${store ? ` | ${store.storeName}` : ""}</p>
         </div>
       </div>
+      ${details ? `<p class="product-detail-label">${escapeHtml(details)}</p>` : ""}
       <strong class="product-price">${currency(product.productPrice)}</strong>
       ${product.productOffer ? `<p class="product-offer-label">${product.productOffer}</p>` : ""}
       <div class="product-card-actions">

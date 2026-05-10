@@ -1695,6 +1695,19 @@ button {
   white-space: nowrap;
 }
 
+.product-detail-label {
+  display: -webkit-box;
+  min-height: 1.1em;
+  margin: 0;
+  overflow: hidden;
+  color: #475569;
+  font-size: 0.62rem;
+  font-weight: 750;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 .product-card-badge {
   position: absolute;
   top: 6px;

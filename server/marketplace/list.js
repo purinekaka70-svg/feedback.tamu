@@ -174,7 +174,7 @@ module.exports = async function handler(req, res) {
       const categoryName = row.category_name || row.category_id || "Other";
       const stockCount = Number(row.stock || 0);
       const stock = stockCount <= 0 ? "Out of stock" : stockCount <= 5 ? "Limited stock" : "In stock";
-      const offerText = actualOfferText(row.offer_text, row.offer_note, row.offer, row.description);
+      const offerText = actualOfferText(row.offer_text, row.offer_note, row.offer);
       return [{
         id: String(row.id),
         businessId: String(row.business_id),
@@ -199,6 +199,7 @@ module.exports = async function handler(req, res) {
         productOffer: offerText,
         offerText,
         description: row.description || "",
+        productDescription: row.description || "",
         createdAt: row.created_at || ""
       }];
     });
