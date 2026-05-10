@@ -1,6 +1,5 @@
 const EMPLOYEE_KEYS = {
-  adminPhone: "tamu_market_admin_phone",
-  firebaseRestSession: "tamu_employee_firebase_rest_session"
+  adminPhone: "tamu_market_admin_phone"
 };
 
 const employeeViewMeta = {
@@ -70,12 +69,7 @@ function employeeCounty() {
 
 async function firebaseIdToken() {
   const user = window.firebase?.auth?.().currentUser;
-  if (user) {
-    return user.getIdToken();
-  }
-
-  const session = readStorage(EMPLOYEE_KEYS.firebaseRestSession, null);
-  return session?.idToken || "";
+  return user ? user.getIdToken() : "";
 }
 
 async function employeeAuthHeaders(extra = {}) {
@@ -178,69 +172,6 @@ async function ensureFirebaseApp() {
   }
 
   return { ok: true };
-}
-
-function clearEmployeeRestSession() {
-  try {
-    window.localStorage.removeItem(EMPLOYEE_KEYS.firebaseRestSession);
-  } catch (error) {
-    return;
-  }
-}
-
-function employeeFromRestSession(session) {
-  if (!session?.idToken || !session.email) {
-    return null;
-  }
-
-  return {
-    id: session.localId || session.email,
-    uid: session.localId || "",
-    email: session.email,
-    name: session.displayName || session.email,
-    role: "employee",
-    status: "approved",
-    active: true,
-    approved: true,
-    county: "All",
-    assignedCounty: "All",
-    location: "All"
-  };
-}
-
-async function signInEmployeeWithFirebaseRest(email, password) {
-  const config = await loadFirebaseConfig();
-  if (!config?.apiKey) {
-    return { ok: false, message: "Firebase API key is not configured." };
-  }
-
-  try {
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(config.apiKey)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, returnSecureToken: true })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return {
-        ok: false,
-        message: employeeLoginErrorMessage({ code: `auth/${String(result.error?.message || "invalid-credential").toLowerCase().replace(/_/g, "-")}` })
-      };
-    }
-
-    const session = {
-      idToken: result.idToken,
-      refreshToken: result.refreshToken,
-      localId: result.localId,
-      email: result.email || email,
-      displayName: result.displayName || "",
-      expiresAt: Date.now() + (Number(result.expiresIn || 3600) * 1000)
-    };
-    writeStorage(EMPLOYEE_KEYS.firebaseRestSession, session);
-    return { ok: true, account: employeeFromRestSession(session) };
-  } catch (error) {
-    return { ok: false, message: "Firebase REST login failed. Check internet connection and Firebase config." };
-  }
 }
 
 async function employeeRecordForFirebaseUser(user) {
@@ -433,11 +364,10 @@ async function loadEmployeeOrders() {
 async function signInEmployee(email, password) {
   const firebase = await ensureFirebaseApp();
   if (!firebase.ok) {
-    return signInEmployeeWithFirebaseRest(email, password);
+    return firebase;
   }
 
   try {
-    clearEmployeeRestSession();
     await window.firebase.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
     const credential = await window.firebase.auth().signInWithEmailAndPassword(email, password);
     const user = credential.user;
@@ -450,8 +380,7 @@ async function signInEmployee(email, password) {
 
     return { ok: true, account };
   } catch (error) {
-    const fallback = await signInEmployeeWithFirebaseRest(email, password);
-    return fallback.ok ? fallback : { ok: false, message: employeeLoginErrorMessage(error) };
+    return { ok: false, message: employeeLoginErrorMessage(error) };
   }
 }
 
@@ -1016,7 +945,6 @@ function bindNavigation() {
     if (window.firebase?.auth) {
       await window.firebase.auth().signOut().catch(() => {});
     }
-    clearEmployeeRestSession();
     await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
     currentEmployee = null;
     showLogin();
@@ -1051,13 +979,6 @@ async function restoreSession() {
       await loadEmployeeOrders();
       return true;
     }
-  }
-
-  const restAccount = employeeFromRestSession(readStorage(EMPLOYEE_KEYS.firebaseRestSession, null));
-  if (isEmployeeActive(restAccount)) {
-    currentEmployee = restAccount;
-    await loadEmployeeOrders();
-    return true;
   }
 
   return false;
