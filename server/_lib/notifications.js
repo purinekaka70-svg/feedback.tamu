@@ -19,13 +19,40 @@ function businessExternalId(id) {
   return value ? `business:${value}` : "";
 }
 
+function siteBaseUrl() {
+  const raw = String(
+    process.env.PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    process.env.APP_URL ||
+    process.env.VERCEL_URL ||
+    ""
+  ).trim();
+  if (!raw) return "";
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withProtocol.replace(/\/+$/, "");
+}
+
+function notificationUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  const base = siteBaseUrl();
+  return base && url.startsWith("/") ? `${base}${url}` : url;
+}
+
 function notificationPayload(notification = {}) {
-  return {
+  const data = notification.data && typeof notification.data === "object" ? notification.data : {};
+  const payload = {
     headings: { en: String(notification.title || "Tamu Express").slice(0, 120) },
-    contents: { en: String(notification.message || "You have a new update.").slice(0, 240) },
-    url: notification.url || "",
-    data: notification.data || {}
+    contents: { en: String(notification.message || "You have a new update.").slice(0, 240) }
   };
+  const url = notificationUrl(notification.url);
+  if (url) payload.url = url;
+  if (Object.keys(data).length) {
+    payload.data = data;
+    payload.custom_data = data;
+  }
+  return payload;
 }
 
 async function postNotification(payload, logLabel) {
