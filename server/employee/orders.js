@@ -2,10 +2,77 @@ const { query } = require("../_lib/db");
 const { employeeFromRequest, employeeIsAllowed } = require("../_lib/firebase-admin");
 const { body, method, send, text } = require("../_lib/http");
 
-async function loadOrders(county) {
-  const params = [];
+const KENYA_COUNTIES = [
+  "mombasa", "kwale", "kilifi", "tana river", "lamu", "taita taveta",
+  "garissa", "wajir", "mandera", "marsabit", "isiolo", "meru",
+  "tharaka nithi", "embu", "kitui", "machakos", "makueni", "nyandarua",
+  "nyeri", "kirinyaga", "muranga", "kiambu", "turkana", "west pokot",
+  "samburu", "trans nzoia", "uasin gishu", "elgeyo marakwet", "nandi",
+  "baringo", "laikipia", "nakuru", "narok", "kajiado", "kericho",
+  "bomet", "kakamega", "vihiga", "bungoma", "busia", "siaya", "kisumu",
+  "homa bay", "migori", "kisii", "nyamira", "nairobi"
+];
+
+const COUNTY_ALIASES = {
+  "taita-taveta": "taita taveta",
+  "elgeyo-marakwet": "elgeyo marakwet",
+  "homa-bay": "homa bay",
+  "trans-nzoia": "trans nzoia",
+  "tharaka-nithi": "tharaka nithi",
+  "west-pokot": "west pokot"
+};
+
+function countyKey(value) {
+  const cleaned = String(value || "")
+    .toLowerCase()
+    .replace(/county/g, "")
+    .replace(/[^a-z0-9\s-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const normalized = COUNTY_ALIASES[cleaned] || cleaned;
+  return normalized.replace(/[^a-z0-9]+/g, "");
+}
+
+function countyFromText(value) {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/county/g, "")
+    .replace(/[^a-z0-9\s-]+/g, " ")
+    .replace(/\s+/g, " ");
+  const direct = KENYA_COUNTIES.find((county) => normalized.includes(county));
+  return direct || "";
+}
+
+function isAllCounties(value) {
+  return ["all", "allcounties", "countrywide", "national"].includes(
+    String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "")
+  );
+}
+
+function orderCountyText(row) {
+  const parts = [
+    row.buyer_location,
+    row.store_summary,
+    row.business_locations,
+    JSON.stringify(row.items || []),
+    JSON.stringify(row.route_breakdown || [])
+  ];
+  return parts.filter(Boolean).join(" ");
+}
+
+function orderMatchesCounty(row, county) {
+  if (!county || isAllCounties(county)) return true;
+  const target = countyKey(county);
+  const textValue = orderCountyText(row);
+  const derivedCounty = countyFromText(textValue);
+  const normalizedText = countyKey(textValue);
+  return countyKey(derivedCounty) === target || normalizedText.includes(target);
+}
+
+async function loadOrders() {
   let sql = `
     select o.*,
+           string_agg(distinct coalesce(b.location_name, ''), ' ') as business_locations,
            coalesce(
              json_agg(
                distinct jsonb_build_object(
@@ -14,9 +81,10 @@ async function loadOrders(county) {
                  'storeId', oi.store_public_id,
                  'businessId', oi.business_id,
                  'storeName', oi.store_name,
-                 'quantity', oi.quantity,
-                 'unitPrice', oi.unit_price,
-                 'lineTotal', oi.line_total
+                 'storeCounty', b.location_name,
+                  'quantity', oi.quantity,
+                  'unitPrice', oi.unit_price,
+                  'lineTotal', oi.line_total
                )
              ) filter (where oi.id is not null),
              '[]'
@@ -48,17 +116,11 @@ async function loadOrders(county) {
            ) as business_payments
       from orders o
       left join order_items oi on oi.order_id = o.id
+      left join businesses b on b.id = oi.business_id or b.id::text = oi.store_public_id
       left join order_route_breakdown rb on rb.order_id = o.id
       left join payments p on p.order_public_id = o.public_id`;
-  const allCounties = ["all", "allcounties", "countrywide", "national"].includes(
-    String(county || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "")
-  );
-  if (county && !allCounties) {
-    params.push(`%${county}%`);
-    sql += " where o.buyer_location ilike $1";
-  }
-  sql += " group by o.id order by o.created_at desc";
-  return query(sql, params);
+  sql += " group by o.id order by o.created_at desc limit 300";
+  return query(sql);
 }
 
 function normalizeOrderStatus(value) {
@@ -92,17 +154,15 @@ module.exports = async function handler(req, res) {
       return;
     }
     const allowedCounty = text(employee.county || employee.location || employee.assignedCounty || "All", 120);
-    const allCounties = ["all", "allcounties", "countrywide", "national"].includes(
-      allowedCounty.toLowerCase().replace(/[^a-z0-9]+/g, "")
-    );
+    const allCounties = isAllCounties(allowedCounty);
     if (req.method === "GET") {
       const requestedCounty = text(new URL(req.url, "http://local").searchParams.get("county"), 120);
       const county = allCounties
         ? ""
-        : requestedCounty && requestedCounty.toLowerCase() === allowedCounty.toLowerCase()
+        : requestedCounty && countyKey(requestedCounty) === countyKey(allowedCounty)
           ? requestedCounty
           : allowedCounty;
-      const rows = await loadOrders(county);
+      const rows = (await loadOrders()).filter((row) => orderMatchesCounty(row, county));
       send(res, 200, { ok: true, orders: rows.map((row) => ({
         id: row.public_id || String(row.id),
         publicId: row.public_id || String(row.id),
@@ -111,6 +171,7 @@ module.exports = async function handler(req, res) {
         phone: row.customer_phone,
         customerPhone: row.customer_phone,
         buyerLocation: row.buyer_location,
+        buyerCounty: countyFromText(orderCountyText(row)) || county || "",
         buyerLatitude: Number(row.buyer_latitude || 0),
         buyerLongitude: Number(row.buyer_longitude || 0),
         paymentMethod: row.payment_method,
@@ -142,7 +203,22 @@ module.exports = async function handler(req, res) {
           [id, status]
         )
       : await query(
-          "update orders set status = $2::order_status where (public_id = $1 or id::text = $1) and buyer_location ilike $3 returning public_id",
+          `update orders set status = $2::order_status
+            where (public_id = $1 or id::text = $1)
+              and exists (
+                select 1
+                  from orders eo
+                  left join order_items eoi on eoi.order_id = eo.id
+                  left join businesses eb on eb.id = eoi.business_id or eb.id::text = eoi.store_public_id
+                 where eo.id = orders.id
+                   and (
+                     eo.buyer_location ilike $3
+                     or eo.store_summary ilike $3
+                     or eb.location_name ilike $3
+                     or eoi.store_name ilike $3
+                   )
+              )
+            returning public_id`,
           [id, status, `%${allowedCounty}%`]
         );
     if (!updated.length) {
