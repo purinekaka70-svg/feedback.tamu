@@ -68,11 +68,6 @@ async function firebaseIdToken() {
   return user ? user.getIdToken() : "";
 }
 
-async function employeeAuthHeaders(extra = {}) {
-  const token = await firebaseIdToken();
-  return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
-}
-
 function orderCountyValues(order) {
   return [
     order.county,
@@ -178,11 +173,11 @@ async function employeeRecordForFirebaseUser(user) {
           email: result.employee.email || user.email
         };
       }
-      if (response.status === 403) {
+      if (response.status === 403 || response.status === 401) {
         throw new Error(result.message || "This Firebase account is not allowed as an employee.");
       }
     } catch (error) {
-      if (error.message && error.message.includes("not allowed as an employee")) {
+      if (error.message) {
         throw error;
       }
     }
@@ -205,36 +200,6 @@ async function employeeRecordForFirebaseUser(user) {
   }
 
   return null;
-}
-
-async function employeeRecordFromBackendSession() {
-  try {
-    const response = await fetch("./api/employee/session.php", { cache: "no-store" });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok && result.ok && result.employee) {
-      return result.employee;
-    }
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-
-async function signInEmployeeWithDatabase(email, password) {
-  try {
-    const response = await fetch("./api/employee/login.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok && result.ok && result.employee) {
-      return { ok: true, account: result.employee };
-    }
-    return { ok: false, message: result.message || "Employee database login failed.", status: response.status };
-  } catch (error) {
-    return { ok: false, message: "Employee login service is unavailable.", status: 0 };
-  }
 }
 
 function isEmployeeActive(account) {
@@ -305,11 +270,15 @@ async function loadEmployeeOrders() {
   }
 
   try {
-    const authHeaders = await employeeAuthHeaders();
+    const token = await firebaseIdToken();
+    if (!token) {
+      cachedEmployeeOrders = [];
+      return;
+    }
     const [orderRes, marketRes] = await Promise.all([
       fetch(`./api/employee/orders.php?county=${encodeURIComponent(employeeCounty())}`, {
         cache: 'no-store',
-        headers: authHeaders
+        headers: { Authorization: `Bearer ${token}` }
       }),
       fetch('./api/marketplace/list.php', { cache: 'no-store' })
     ]);
@@ -324,16 +293,9 @@ async function loadEmployeeOrders() {
 }
 
 async function signInEmployee(email, password) {
-  const databaseLogin = await signInEmployeeWithDatabase(email, password);
-  if (databaseLogin.ok) {
-    return databaseLogin;
-  }
-
   const firebase = await ensureFirebaseApp();
   if (!firebase.ok) {
-    return databaseLogin.status === 401
-      ? databaseLogin
-      : { ok: false, message: databaseLogin.message || firebase.message };
+    return firebase;
   }
 
   try {
@@ -554,10 +516,10 @@ async function updateOrder(orderId, patch) {
   renderEmployee();
   const updatedOrder = orders().find((order) => order.id === orderId);
   await syncOrderToFirestore(updatedOrder);
-  const headers = await employeeAuthHeaders({ 'Content-Type': 'application/json' });
+  const token = await firebaseIdToken();
   fetch('./api/employee/orders.php', {
     method: 'POST',
-    headers,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ id: orderId, county: employeeCounty(), status: patch.status, deliveryStatus: patch.deliveryStatus })
   }).catch(() => {});
 }
@@ -914,7 +876,6 @@ function bindNavigation() {
     if (window.firebase?.auth) {
       await window.firebase.auth().signOut().catch(() => {});
     }
-    await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
     currentEmployee = null;
     showLogin();
   });
@@ -927,14 +888,6 @@ function bindNavigation() {
 }
 
 async function restoreSession() {
-  const backendAccount = await employeeRecordFromBackendSession();
-  if (isEmployeeActive(backendAccount)) {
-    currentEmployee = backendAccount;
-    subscribeEmployeeOrders();
-    await loadEmployeeOrders();
-    return true;
-  }
-
   const firebase = await ensureFirebaseApp();
   if (!firebase.ok) {
     return false;

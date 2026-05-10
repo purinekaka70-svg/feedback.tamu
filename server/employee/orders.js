@@ -1,5 +1,4 @@
 const { query } = require("../_lib/db");
-const { claims } = require("../_lib/auth");
 const { employeeFromRequest, employeeIsAllowed } = require("../_lib/firebase-admin");
 const { body, method, send, text } = require("../_lib/http");
 
@@ -17,20 +16,9 @@ async function loadOrders(county) {
 module.exports = async function handler(req, res) {
   if (!method(req, res, ["GET", "POST"])) return;
   try {
-    const session = claims(req);
-    const employee = session?.role === "employee"
-      ? {
-          id: session.employeeId || session.userId || session.email,
-          email: session.email,
-          role: "employee",
-          status: session.status || "approved",
-          county: session.county || session.assignedCounty || session.location,
-          active: true,
-          approved: true
-        }
-      : await employeeFromRequest(req);
+    const employee = await employeeFromRequest(req);
     if (!employeeIsAllowed(employee)) {
-      send(res, 401, { ok: false, message: "Approved employee access is required." });
+      send(res, 401, { ok: false, message: "Approved Firebase employee access is required." });
       return;
     }
     const allowedCounty = text(employee.county || employee.location || employee.assignedCounty, 120);
