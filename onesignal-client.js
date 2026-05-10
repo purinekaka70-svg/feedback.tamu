@@ -396,11 +396,12 @@
     button.addEventListener("click", async () => {
       button.disabled = true;
       button.textContent = "Enabling...";
+      if (await finishNativePermission(button)) {
+        return;
+      }
+
       const OneSignal = await getOneSignalFast();
       if (!OneSignal) {
-        if (await finishNativePermission(button)) {
-          return;
-        }
         button.textContent = lastInitError ? "Reload page" : "Enable notifications";
         button.disabled = false;
         return;
@@ -411,20 +412,14 @@
         return;
       }
       try {
-        button.textContent = OneSignal?.Slidedown?.promptPush ? "Opening banner..." : "Enabling...";
+        button.textContent = "Enabling...";
         await requestOneSignalSubscription(OneSignal);
       } catch {
-        if (await finishNativePermission(button)) {
-          return;
-        }
         button.textContent = "Enable notifications";
         button.disabled = false;
         return;
       }
       if (await finishEnabledState(OneSignal, button)) {
-        return;
-      }
-      if (await finishNativePermission(button)) {
         return;
       }
       if (notificationsDenied()) {
