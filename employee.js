@@ -52,10 +52,6 @@ function normalizeCounty(value) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-function employeeCoversAllCounties() {
-  return ["all", "allcounties", "countrywide", "national"].includes(normalizeCounty(employeeCounty()));
-}
-
 function employeeCounty() {
   return currentEmployee?.county
     || currentEmployee?.location
@@ -64,7 +60,7 @@ function employeeCounty() {
     || currentEmployee?.workCounty
     || currentEmployee?.area
     || currentEmployee?.region
-    || "All";
+    || "";
 }
 
 async function firebaseIdToken() {
@@ -90,7 +86,6 @@ function orderCountyValues(order) {
 }
 
 function orderMatchesEmployeeCounty(order) {
-  if (employeeCoversAllCounties()) return true;
   const target = normalizeCounty(employeeCounty());
   if (!target) return false;
   return orderCountyValues(order).some((value) => {
@@ -185,12 +180,9 @@ async function employeeRecordForFirebaseUser(user) {
       || data.location
       || data.area
       || data.region
-      || "All",
-    assignedCounty: data.assignedCounty || data.county || data.location || "All",
-    location: data.location || data.county || data.assignedCounty || "All",
-    status: data.status || "approved",
-    active: data.active !== false,
-    approved: data.approved !== false
+      || "",
+    assignedCounty: data.assignedCounty || data.county || data.location || "",
+    location: data.location || data.county || data.assignedCounty || ""
   });
 
   const token = await user.getIdToken().catch(() => "");
@@ -251,16 +243,7 @@ async function employeeRecordForFirebaseUser(user) {
     return null;
   }
 
-  return normalizeFirebaseEmployee(user.uid, {
-    uid: user.uid,
-    email: user.email,
-    name: user.displayName || user.email,
-    role: "employee",
-    status: "approved",
-    active: true,
-    approved: true,
-    county: "All"
-  });
+  return null;
 }
 
 function isEmployeeActive(account) {
