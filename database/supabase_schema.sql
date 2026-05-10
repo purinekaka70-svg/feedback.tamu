@@ -191,12 +191,20 @@ create table if not exists employees (
   id bigserial primary key,
   email text not null unique,
   uid text not null unique,
+  firebase_uid text unique,
+  display_name text not null default '',
   role text not null default 'employee',
   county text not null default '',
   approved boolean not null default false,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+alter table employees add column if not exists firebase_uid text;
+alter table employees add column if not exists display_name text not null default '';
+create unique index if not exists employees_firebase_uid_unique
+  on employees (firebase_uid)
+  where firebase_uid is not null and firebase_uid <> '';
 
 insert into users (name, email, password, role, status)
 values (

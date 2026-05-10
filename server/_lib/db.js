@@ -85,4 +85,12 @@ async function tableExists(table) {
   return Number(rows[0]?.count || 0) > 0;
 }
 
-module.exports = { connectionSummary, getPool, query, run, tableExists };
+async function tableColumns(table) {
+  const rows = await query(
+    "select column_name from information_schema.columns where table_schema = 'public' and table_name = $1",
+    [table]
+  );
+  return new Set(rows.map((row) => row.column_name));
+}
+
+module.exports = { connectionSummary, getPool, query, run, tableColumns, tableExists };

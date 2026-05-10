@@ -223,24 +223,20 @@ async function employeeRecordForFirebaseUser(user) {
           email: result.employee.email || user.email
         };
       }
-      if (response.status === 401 || response.status === 403) {
-        const error = new Error(result.message || "Employee account is not allowed by the server.");
-        error.employeeSessionDenied = true;
-        throw error;
-      }
-      // If the employee endpoint is unavailable or no profile is found there,
-      // continue to browser Firestore lookup and final Firebase Auth fallback below.
+      const error = new Error(result.message || "Employee backend login failed.");
+      error.employeeSessionDenied = true;
+      throw error;
     } catch (error) {
       if (error.employeeSessionDenied || (error.message && (
         error.message.includes("not allowed")
         || error.message.includes("not approved")
-        || error.message.includes("No matching employee profile")
         || error.message.includes("assigned county")
         || error.message.includes("role is not allowed")
         || error.message.includes("inactive")
       ))) {
         throw error;
       }
+      throw new Error("Employee backend login failed. Check Firebase Admin and Supabase configuration.");
     }
   }
 
@@ -1056,6 +1052,7 @@ function bindNavigation() {
     if (window.firebase?.auth) {
       await window.firebase.auth().signOut().catch(() => {});
     }
+    await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
     currentEmployee = null;
     showLogin();
   });

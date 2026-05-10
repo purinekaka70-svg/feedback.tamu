@@ -1,3 +1,4 @@
+const { issueAuth } = require("../_lib/auth");
 const { employeeAccessMessage, employeeFromRequest } = require("../_lib/firebase-admin");
 const { method, send } = require("../_lib/http");
 
@@ -19,6 +20,13 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    issueAuth(res, {
+      userId: employee.id,
+      firebaseUid: employee.uid || employee.firebase_uid || "",
+      role: "employee",
+      status: "approved",
+      email: employee.email
+    });
     send(res, 200, { ok: true, employee });
   } catch (error) {
     const message = String(error?.message || "");

@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const { query, tableExists } = require("./db");
+const { query, tableColumns, tableExists } = require("./db");
 
 const employeeCollections = ["employees", "marketEmployees", "market_employees", "users", "staff", "deliveryEmployees", "delivery_employees"];
 const uidFields = ["uid", "authUid", "firebaseUid", "firebaseId", "userId"];
@@ -56,59 +56,16 @@ function decodeFirebaseClientToken(token) {
   }
 }
 
-async function firebaseClientAccount(token) {
-  const apiKey = process.env.FIREBASE_API_KEY || "";
-  if (!apiKey) return null;
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken: token })
-  });
-  const payload = await response.json().catch(() => ({}));
-  const user = Array.isArray(payload.users) ? payload.users[0] : null;
-  if (!response.ok || !user?.localId) return null;
-  return {
-    uid: user.localId,
-    email: user.email || "",
-    name: user.displayName || user.email || "",
-    role: "employee",
-    county: "All",
-    status: "approved",
-    approved: true,
-    active: !user.disabled,
-    firebaseTokenVerifiedByRest: true
-  };
-}
-
-function canUseClientTokenFallback(error) {
-  const message = String(error?.message || "");
-  const code = String(error?.code || "");
-  return message.includes("Firebase Admin is not configured")
-    || message.includes("Could not load the default credentials")
-    || message.includes("credential")
-    || code.includes("app/invalid-credential");
-}
-
 async function employeeFromRequest(req) {
   const header = String(req.headers.authorization || "");
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return null;
   try {
     const decoded = await admin.auth(app()).verifyIdToken(token);
-    return employeeForDecodedUser(decoded, { allowFirebaseEmployeeFallback: true });
+    return employeeForDecodedUser(decoded, { syncSupabase: true });
   } catch (error) {
-    if (!canUseClientTokenFallback(error)) {
-      throw error;
-    }
-    const decoded = await firebaseClientAccount(token).catch(() => null)
-      || decodeFirebaseClientToken(token);
-    if (!decoded?.uid && !decoded?.email) {
-      throw error;
-    }
-    return employeeForDecodedUser(decoded, {
-      allowFirebaseEmployeeFallback: decoded.firebaseTokenVerifiedByRest === true,
-      supabaseOnly: decoded.firebaseTokenVerifiedByRest !== true
-    });
+    console.error("Firebase employee token verification failed:", error?.message || error);
+    throw error;
   }
 }
 
@@ -116,9 +73,10 @@ function normalizeEmployee(doc, decoded) {
   if (!doc) return null;
   const data = doc.data ? doc.data() : doc;
   const email = data.email || data.employeeEmail || decoded.email || "";
-  const uid = data.uid || data.authUid || data.firebaseUid || data.firebaseId || data.userId || decoded.uid;
+  const uid = data.firebase_uid || data.uid || data.authUid || data.firebaseUid || data.firebaseId || data.userId || decoded.uid;
   const county = data.county
     || data.assignedCounty
+    || data.assigned_county
     || data.locationCounty
     || data.deliveryCounty
     || data.workCounty
@@ -132,8 +90,10 @@ function normalizeEmployee(doc, decoded) {
     id: doc.id || data.id || uid || email,
     ...data,
     uid,
+    firebase_uid: data.firebase_uid || uid,
     email,
-    name: data.name || data.displayName || data.employeeName || data.fullName || email,
+    name: data.display_name || data.name || data.displayName || data.employeeName || data.fullName || email,
+    display_name: data.display_name || data.name || data.displayName || data.employeeName || data.fullName || email,
     role: String(data.role || data.accountType || data.userType || "employee").toLowerCase(),
     county,
     assignedCounty: data.assignedCounty || county,
@@ -150,57 +110,143 @@ async function firstQueryResult(collectionRef, field, value) {
   return snap.empty ? null : snap.docs[0];
 }
 
-async function employeeFromSupabase(decoded) {
+async function ensureEmployeeSchema() {
   try {
     if (!await tableExists("employees")) return null;
-    const email = String(decoded.email || "").trim();
-    const uid = String(decoded.uid || "").trim();
-    const rows = await query(
-      `select id::text, email, uid, role, county, approved, active, created_at
-         from employees
-        where ($1 <> '' and uid = $1)
-           or ($2 <> '' and lower(email) = lower($2))
-        order by case when uid = $1 then 0 else 1 end
-        limit 1`,
-      [uid, email]
-    );
-    const employee = rows[0];
-    if (!employee) return null;
-    return normalizeEmployee({
-      id: employee.id,
-      uid: employee.uid || uid,
-      email: employee.email || email,
-      role: employee.role || "employee",
-      county: employee.county || "All",
-      status: employee.active === false ? "inactive" : employee.approved === false ? "pending" : "approved",
-      approved: employee.approved !== false,
-      active: employee.active !== false,
-      sourceCollection: "supabase.employees"
-    }, decoded);
-  } catch {
+    await query("alter table employees add column if not exists firebase_uid text").catch(() => {});
+    await query("alter table employees add column if not exists display_name text not null default ''").catch(() => {});
+    await query("create unique index if not exists employees_firebase_uid_unique on employees (firebase_uid) where firebase_uid is not null and firebase_uid <> ''").catch(() => {});
+    return tableColumns("employees");
+  } catch (error) {
+    console.error("Employee schema sync failed:", error?.message || error);
     return null;
   }
+}
+
+function addField(columns, names, fields, value) {
+  const name = names.find((candidate) => columns.has(candidate));
+  if (!name) return;
+  fields.names.push(name);
+  fields.values.push(value);
+  fields.placeholders.push(`$${fields.values.length}`);
+}
+
+function employeeSelect(columns) {
+  const cols = ["id::text as id"];
+  [
+    "email", "uid", "firebase_uid", "display_name", "name", "role", "county",
+    "approved", "active", "created_at", "status", "location", "assigned_county"
+  ].forEach((column) => {
+    if (columns.has(column)) cols.push(column);
+  });
+  return cols.join(", ");
+}
+
+async function employeeFromSupabase(decoded, options = {}) {
+  const columns = await ensureEmployeeSchema();
+  if (!columns) return null;
+  const email = String(decoded.email || "").trim().toLowerCase();
+  const uid = String(decoded.uid || decoded.user_id || "").trim();
+  const checks = [];
+  const values = [];
+  if (uid && columns.has("firebase_uid")) {
+    values.push(uid);
+    checks.push(`firebase_uid = $${values.length}`);
+  }
+  if (uid && columns.has("uid")) {
+    values.push(uid);
+    checks.push(`uid = $${values.length}`);
+  }
+  if (email && columns.has("email")) {
+    values.push(email);
+    checks.push(`lower(email) = lower($${values.length})`);
+  }
+  if (!checks.length) return null;
+
+  const rows = await query(
+    `select ${employeeSelect(columns)}
+       from employees
+      where ${checks.join(" or ")}
+      order by
+        case
+          ${columns.has("firebase_uid") && uid ? `when firebase_uid = $1 then 0` : ""}
+          else 1
+        end,
+        id asc
+      limit 1`,
+    values
+  );
+  const employee = rows[0];
+  if (employee) {
+    const updates = [];
+    const updateValues = [];
+    if (uid && columns.has("firebase_uid") && !employee.firebase_uid) {
+      updateValues.push(uid);
+      updates.push(`firebase_uid = $${updateValues.length}`);
+    }
+    if (uid && columns.has("uid") && !employee.uid) {
+      updateValues.push(uid);
+      updates.push(`uid = $${updateValues.length}`);
+    }
+    if (email && columns.has("email") && String(employee.email || "").toLowerCase() !== email) {
+      updateValues.push(email);
+      updates.push(`email = $${updateValues.length}`);
+    }
+    if (updates.length) {
+      updateValues.push(employee.id);
+      const updated = await query(
+        `update employees set ${updates.join(", ")} where id::text = $${updateValues.length} returning ${employeeSelect(columns)}`,
+        updateValues
+      ).catch((error) => {
+        console.error("Employee profile update failed:", error?.message || error);
+        return [];
+      });
+      return normalizeEmployee({ ...employee, ...(updated[0] || {}) }, decoded);
+    }
+    return normalizeEmployee({ ...employee, sourceCollection: "supabase.employees" }, decoded);
+  }
+  if (!options.createIfMissing) return null;
+
+  const fields = { names: [], values: [], placeholders: [] };
+  addField(columns, ["firebase_uid"], fields, uid);
+  addField(columns, ["uid"], fields, uid);
+  addField(columns, ["email"], fields, email);
+  addField(columns, ["display_name", "name"], fields, decoded.name || decoded.displayName || email || "Employee");
+  addField(columns, ["role"], fields, "employee");
+  addField(columns, ["county"], fields, decoded.county || "All");
+  addField(columns, ["approved"], fields, true);
+  addField(columns, ["active"], fields, true);
+  addField(columns, ["status"], fields, "approved");
+  if (columns.has("created_at")) {
+    fields.names.push("created_at");
+    fields.placeholders.push("now()");
+  }
+  if (!fields.names.length) return null;
+  const created = await query(
+    `insert into employees (${fields.names.map((name) => `"${name}"`).join(", ")})
+     values (${fields.placeholders.join(", ")})
+     returning ${employeeSelect(columns)}`,
+    fields.values
+  ).catch(async (error) => {
+    if (String(error?.code || "") === "23505") {
+      console.info("Employee profile already exists during Firebase sync, reloading:", email || uid);
+      return [];
+    }
+    console.error("Employee profile creation failed:", error?.message || error);
+    throw error;
+  });
+  if (!created[0]) {
+    return employeeFromSupabase(decoded, { createIfMissing: false });
+  }
+  console.info("Created Supabase employee profile from Firebase Auth:", email || uid);
+  return normalizeEmployee({ ...created[0], sourceCollection: "supabase.employees.created" }, decoded);
 }
 
 async function employeeForDecodedUser(decoded, options = {}) {
   const email = String(decoded.email || "").trim();
   const docIds = [decoded.uid, email, email.toLowerCase()].filter(Boolean);
-  const supabaseEmployee = await employeeFromSupabase(decoded);
+  const supabaseEmployee = await employeeFromSupabase(decoded, { createIfMissing: options.syncSupabase });
   if (supabaseEmployee) return supabaseEmployee;
-  if (options.supabaseOnly) {
-    return options.allowFirebaseEmployeeFallback ? normalizeEmployee({
-      id: decoded.uid || email,
-      uid: decoded.uid,
-      email: decoded.email,
-      name: decoded.name,
-      role: "employee",
-      county: decoded.county || "All",
-      status: "approved",
-      approved: true,
-      active: decoded.active !== false,
-      sourceCollection: decoded.firebaseTokenVerifiedByRest ? "firebaseAuth.rest" : "firebaseAuth.token"
-    }, decoded) : null;
-  }
 
   const db = admin.firestore(app());
 
