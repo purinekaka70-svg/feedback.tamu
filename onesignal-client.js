@@ -37,6 +37,7 @@
         safari_web_id: SAFARI_WEB_ID,
         serviceWorkerPath: "OneSignalSDKWorker.js",
         serviceWorkerParam: { scope: "/" },
+        allowLocalhostAsSecureOrigin: location.hostname === "localhost" || location.hostname === "127.0.0.1",
         notifyButton: {
           enable: false
         },
@@ -145,6 +146,17 @@
     return window.Notification?.permission === "denied";
   }
 
+  function notificationsSupported(OneSignal) {
+    if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      return false;
+    }
+    if (!("Notification" in window)) return false;
+    if (OneSignal?.Notifications?.isPushSupported) {
+      return OneSignal.Notifications.isPushSupported();
+    }
+    return true;
+  }
+
   function notificationsEnabled(OneSignal) {
     const subscription = OneSignal?.User?.PushSubscription;
     return subscription?.optedIn === true && Boolean(subscription.id || subscription.token);
@@ -155,6 +167,35 @@
     if (OneSignal.User?.PushSubscription?.optIn) {
       await OneSignal.User.PushSubscription.optIn();
     }
+  }
+
+  async function requestBrowserPermissionImmediately() {
+    if (!("Notification" in window) || notificationsDenied() || window.Notification.permission === "granted") {
+      return window.Notification?.permission || "unsupported";
+    }
+    if (!window.Notification.requestPermission) {
+      return window.Notification.permission;
+    }
+    try {
+      return await window.Notification.requestPermission();
+    } catch {
+      return window.Notification.permission;
+    }
+  }
+
+  async function requestOneSignalSubscription(OneSignal) {
+    if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
+    if (!notificationsGranted(OneSignal) && OneSignal?.Slidedown?.promptPush) {
+      await OneSignal.Slidedown.promptPush({ force: true }).catch(() => {});
+      await sleep(300);
+    }
+    if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
+      await OneSignal.Notifications.requestPermission().catch(() => {});
+    }
+    if (notificationsGranted(OneSignal)) {
+      await optInNotifications(OneSignal);
+    }
+    return waitForSubscription(OneSignal, 10000);
   }
 
   async function waitForSubscription(OneSignal, timeoutMs = 6000) {
@@ -192,6 +233,11 @@
         button.remove();
         return;
       }
+      if (OneSignal && !notificationsSupported(OneSignal)) {
+        button.disabled = true;
+        button.textContent = window.isSecureContext ? "Notifications unsupported" : "HTTPS required";
+        return;
+      }
       if (notificationsDenied()) {
         button.disabled = true;
         button.textContent = "Notifications blocked";
@@ -203,6 +249,12 @@
     button.addEventListener("click", async () => {
       button.disabled = true;
       button.textContent = "Enabling...";
+      await requestBrowserPermissionImmediately();
+      if (notificationsDenied()) {
+        button.textContent = "Notifications blocked";
+        button.disabled = true;
+        return;
+      }
       const OneSignal = await Promise.race([window.tamuOneSignalReady, sleep(READY_TIMEOUT_MS).then(() => null)]);
       if (!OneSignal) {
         button.textContent = "Try again";
@@ -210,16 +262,7 @@
         return;
       }
       try {
-        if (OneSignal?.Slidedown?.promptPush) {
-          await OneSignal.Slidedown.promptPush();
-        } else if (OneSignal?.Notifications?.requestPermission) {
-          await OneSignal.Notifications.requestPermission();
-        } else if (window.Notification?.requestPermission) {
-          await window.Notification.requestPermission();
-        }
-        if (notificationsGranted(OneSignal)) {
-          await optInNotifications(OneSignal);
-        }
+        await requestOneSignalSubscription(OneSignal);
       } catch {
         button.textContent = "Try again";
         button.disabled = false;
@@ -243,8 +286,19 @@
     });
     document.body.appendChild(button);
     window.tamuOneSignalReady.then((OneSignal) => {
-      OneSignal?.Notifications?.addEventListener?.("permissionChange", updateButton);
-      OneSignal?.User?.PushSubscription?.addEventListener?.("change", updateButton);
+      OneSignal?.Notifications?.addEventListener?.("permissionChange", async () => {
+        if (notificationsGranted(OneSignal)) {
+          await requestOneSignalSubscription(OneSignal);
+          await identifyFromSession();
+        }
+        updateButton();
+      });
+      OneSignal?.User?.PushSubscription?.addEventListener?.("change", async () => {
+        if (notificationsEnabled(OneSignal)) {
+          await identifyFromSession();
+        }
+        updateButton();
+      });
       updateButton();
     });
     updateButton();
@@ -258,6 +312,21 @@
   window.tamuPushCustomerId = function (phone) {
     const normalized = String(phone || "").replace(/[^\d+]/g, "").trim();
     return normalized ? `customer:${normalized}` : "";
+  };
+  window.tamuPushDebug = async function () {
+    const OneSignal = await window.tamuOneSignalReady;
+    const subscription = OneSignal?.User?.PushSubscription || {};
+    return {
+      sdkReady: Boolean(OneSignal),
+      secureContext: window.isSecureContext,
+      supported: notificationsSupported(OneSignal),
+      permission: window.Notification?.permission || "unsupported",
+      sdkPermission: OneSignal?.Notifications?.permission,
+      optedIn: subscription.optedIn,
+      subscriptionId: subscription.id || "",
+      token: subscription.token ? "present" : "",
+      externalId: OneSignal?.User?.externalId || window.localStorage.getItem(STORAGE_KEY) || ""
+    };
   };
 
   if (document.readyState === "loading") {

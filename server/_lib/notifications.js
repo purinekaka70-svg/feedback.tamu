@@ -1,6 +1,9 @@
+const DEFAULT_APP_ID = "7c0a3b0d-53b6-4b67-9b42-266f49bfabcc";
+const NOTIFICATION_TIMEOUT_MS = 4500;
+
 function oneSignalConfig() {
   return {
-    appId: process.env.ONESIGNAL_APP_ID || "",
+    appId: process.env.ONESIGNAL_APP_ID || DEFAULT_APP_ID,
     apiKey: process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY || ""
   };
 }
@@ -58,7 +61,7 @@ function notificationPayload(notification = {}) {
 async function postNotification(payload, logLabel) {
   const { appId, apiKey } = oneSignalConfig();
   if (!appId || !apiKey) {
-    console.warn("OneSignal notification skipped: missing ONESIGNAL_APP_ID or ONESIGNAL_REST_API_KEY.");
+    console.warn("OneSignal notification skipped: missing ONESIGNAL_REST_API_KEY.");
     return { ok: false, skipped: true };
   }
 
@@ -75,6 +78,9 @@ async function postNotification(payload, logLabel) {
     if (!response.ok) {
       console.error(`${logLabel} failed:`, response.status, String(result?.errors || result?.message || "").slice(0, 180));
       return { ok: false, status: response.status, result };
+    }
+    if (Number(result?.recipients || 0) === 0) {
+      console.warn(`${logLabel} accepted but matched zero subscribed recipients.`);
     }
     return { ok: true, result };
   } catch (error) {
@@ -128,6 +134,23 @@ async function sendPushToBusinessIds(businessIds, notification = {}) {
   return filters.length ? sendPushToFilters(filters, notification) : { ok: false, skipped: true };
 }
 
+async function settlePushes(pushes, label = "OneSignal notifications") {
+  const tasks = (pushes || []).filter(Boolean).map((task) => Promise.race([
+    Promise.resolve(task),
+    new Promise((resolve) => setTimeout(() => resolve({ ok: false, timeout: true }), NOTIFICATION_TIMEOUT_MS))
+  ]));
+  if (!tasks.length) return [];
+  const results = await Promise.allSettled(tasks);
+  const failed = results.filter((result) => {
+    if (result.status === "rejected") return true;
+    return result.value?.ok === false && !result.value?.skipped;
+  });
+  if (failed.length) {
+    console.warn(`${label}: ${failed.length} notification request(s) did not complete successfully.`);
+  }
+  return results;
+}
+
 module.exports = {
   businessExternalId,
   customerExternalId,
@@ -135,5 +158,6 @@ module.exports = {
   sendPushToExternalIds,
   sendPushToFilters,
   sendPushToRole,
+  settlePushes,
   tagFilter
 };

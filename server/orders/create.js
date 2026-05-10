@@ -1,7 +1,7 @@
 const { getPool } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
-const { sendPushToBusinessIds, sendPushToRole } = require("../_lib/notifications");
+const { sendPushToBusinessIds, sendPushToRole, settlePushes } = require("../_lib/notifications");
 const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
@@ -312,9 +312,11 @@ module.exports = async function handler(req, res) {
       message: `${text(payload.customer, 80) || "A customer"} placed order ${id}.`,
       data: { type: "order_created", orderId: id }
     };
-    sendPushToRole("admin", { ...orderNotification, url: "/admin.html" }).catch(() => {});
-    sendPushToRole("employee", { ...orderNotification, url: "/employee.html" }).catch(() => {});
-    sendPushToBusinessIds(businessIds, { ...orderNotification, url: "/seller.html" }).catch(() => {});
+    await settlePushes([
+      sendPushToRole("admin", { ...orderNotification, url: "/admin.html" }),
+      sendPushToRole("employee", { ...orderNotification, url: "/employee.html" }),
+      sendPushToBusinessIds(businessIds, { ...orderNotification, url: "/seller.html" })
+    ], "Order created notifications");
     send(res, 201, { ok: true, message: "Order saved.", order: { id: orderId, publicId: id } });
   } catch (error) {
     await client.query("rollback").catch(() => {});

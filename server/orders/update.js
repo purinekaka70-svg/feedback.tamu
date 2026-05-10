@@ -2,7 +2,7 @@ const { claims } = require("../_lib/auth");
 const { getPool, query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
-const { customerExternalId, sendPushToExternalIds } = require("../_lib/notifications");
+const { customerExternalId, sendPushToExternalIds, settlePushes } = require("../_lib/notifications");
 const { rateLimit, requireSameOrigin } = require("../_lib/security");
 
 function compactError(error) {
@@ -107,12 +107,14 @@ module.exports = async function handler(req, res) {
           [updated[0].id]
         ).catch(() => []);
         const customer = customerRows[0] || {};
-        sendPushToExternalIds([customerExternalId(customer.customer_phone)], {
-          title: "Order payment confirmed",
-          message: `Your Tamu Express order ${publicId} has been marked as paid.`,
-          url: `/cart.html?phone=${encodeURIComponent(customer.customer_phone || "")}`,
-          data: { type: "order_paid", orderId: publicId }
-        }).catch(() => {});
+        await settlePushes([
+          sendPushToExternalIds([customerExternalId(customer.customer_phone)], {
+            title: "Order payment confirmed",
+            message: `Your Tamu Express order ${publicId} has been marked as paid.`,
+            url: `/cart.html?phone=${encodeURIComponent(customer.customer_phone || "")}`,
+            data: { type: "order_paid", orderId: publicId }
+          })
+        ], "Order paid customer notification");
       }
     }
     send(res, 200, { ok: true });
