@@ -84,6 +84,29 @@
     }
   }
 
+  function ensureEnableButton() {
+    if (document.getElementById("enableNotificationsButton")) return;
+    const button = document.createElement("button");
+    button.id = "enableNotificationsButton";
+    button.type = "button";
+    button.textContent = "Enable notifications";
+    button.setAttribute("aria-label", "Enable push notifications");
+    button.addEventListener("click", async () => {
+      const OneSignal = await window.tamuOneSignalReady;
+      try {
+        if (OneSignal?.Notifications?.requestPermission) {
+          await OneSignal.Notifications.requestPermission();
+        } else if (OneSignal?.Slidedown?.promptPush) {
+          await OneSignal.Slidedown.promptPush();
+        }
+      } catch {
+        return;
+      }
+      button.classList.add("is-hidden");
+    });
+    document.body.appendChild(button);
+  }
+
   window.tamuOneSignalReady = initOneSignal();
   window.tamuPushLogin = identify;
   window.tamuPushLogout = logout;
@@ -93,5 +116,12 @@
     return normalized ? `customer:${normalized}` : "";
   };
 
-  window.tamuOneSignalReady.then(() => identifyFromSession());
+  window.tamuOneSignalReady.then(() => {
+    identifyFromSession();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", ensureEnableButton, { once: true });
+    } else {
+      ensureEnableButton();
+    }
+  });
 })();

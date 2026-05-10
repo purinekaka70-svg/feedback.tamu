@@ -1,0 +1,30 @@
+#enableNotificationsButton {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: #15803d;
+  color: #fff;
+  font: 800 0.92rem "Manrope", system-ui, sans-serif;
+  box-shadow: 0 14px 34px rgba(15, 107, 50, 0.28);
+  cursor: pointer;
+}
+
+#enableNotificationsButton:hover {
+  background: #0f6b32;
+}
+
+#enableNotificationsButton.is-hidden {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  #enableNotificationsButton {
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100vw - 24px);
+  }
+}
