@@ -403,6 +403,21 @@ textarea {
   white-space: nowrap;
 }
 
+.payment-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.payment-confirm-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-strong);
+}
+
 .stage-card {
   background: linear-gradient(180deg, #f8fbf8 0%, #eef7ef 100%);
 }

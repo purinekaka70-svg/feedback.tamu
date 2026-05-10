@@ -1042,7 +1042,9 @@ function readCheckoutForm() {
   const businessPayments = [...document.querySelectorAll("[data-business-payment-store]")]
     .map((entry) => {
       const method = entry.querySelector("[data-business-payment-method]")?.value || "M-Pesa";
-      return { storeId: entry.dataset.businessPaymentStore, method, ref: "" };
+      const ref = entry.querySelector("[data-business-payment-ref]")?.value.trim() || "";
+      const paid = Boolean(entry.querySelector("[data-business-payment-paid]")?.checked);
+      return { storeId: entry.dataset.businessPaymentStore, method, ref, paid };
     });
 
   return {
@@ -1059,15 +1061,18 @@ function readCheckoutForm() {
   };
 }
 
-function saveBuyerProfileFromForm() {
+function saveBuyerProfileFromForm(options = {}) {
   const profile = readCheckoutForm();
   writeStorage(STORAGE_KEYS.buyerProfile, profile);
-  renderSummaryPanels();
+  if (!options.skipRender) {
+    renderSummaryPanels();
+  }
 }
 
 function renderPaymentOptions(items) {
   const container = document.getElementById("sellerPaymentMethods");
   const selectedStores = selectedStoreSummaries(items);
+  const profile = buyerProfile();
 
   if (!selectedStores.length) {
     container.innerHTML = '<div class="breakdown-card"><p>No business payment needed until products are in cart.</p></div>';
@@ -1077,6 +1082,10 @@ function renderPaymentOptions(items) {
   container.innerHTML = selectedStores
     .map(
       ({ store, subtotal }) => {
+        const savedPayment = (profile.businessPayments || []).find((payment) => String(payment.storeId) === String(store.id)) || {};
+        const savedRef = savedPayment.ref || savedPayment.reference || "";
+        const isPaid = Boolean(savedPayment.paid || savedRef);
+        const method = storeTillNumber(store) ? "M-Pesa Till" : storePochiNumber(store) ? "M-Pesa Pochi" : storeCardAccount(store) ? "Bank Account" : "Direct payment";
         return `
           <article class="breakdown-card" data-business-payment-store="${store.id}">
             <strong>${store.storeName}</strong>
@@ -1087,8 +1096,16 @@ function renderPaymentOptions(items) {
               ${storeCardAccount(store) ? `Bank account: ${storeCardAccount(store)}` : ""}
               ${!storeTillNumber(store) && !storePochiNumber(store) && !storeCardAccount(store) ? "Payment details pending from seller." : ""}
             </p>
-            <p class="tiny">Order can be submitted now. Seller payment reference is confirmed later by the business or admin.</p>
-            <input type="hidden" data-business-payment-method value="${storeTillNumber(store) ? "M-Pesa Till" : storePochiNumber(store) ? "M-Pesa Pochi" : storeCardAccount(store) ? "Bank Account" : "Direct payment"}" />
+            <label class="payment-confirm-row">
+              <input type="checkbox" data-business-payment-paid ${isPaid ? "checked" : ""} />
+              <span>I have paid this business directly</span>
+            </label>
+            <label class="field">
+              <span class="field-label">Business M-Pesa Reference</span>
+              <input class="input" data-business-payment-ref value="${escapeAttr(savedRef)}" placeholder="Paste M-Pesa code for ${escapeAttr(store.storeName)}" />
+            </label>
+            <p class="tiny">Leave blank if payment is still pending. Seller or admin can confirm later.</p>
+            <input type="hidden" data-business-payment-method value="${method}" />
           </article>
         `;
       }
@@ -1378,16 +1395,18 @@ function buildOrderPayload(profile, delivery) {
   const storeSummaries = selectedStoreSummaries(cart);
   const businessPayments = storeSummaries.map(({ store, subtotal }) => {
     const submitted = profile.businessPayments.find((payment) => payment.storeId === store.id) || {};
+    const reference = String(submitted.ref || "").trim();
+    const paid = Boolean(reference);
     return {
       storeId: store.id,
       storeName: store.storeName,
       amount: subtotal,
       method: submitted.method || "",
-      reference: submitted.ref || "",
+      reference,
       tillNumber: storeTillNumber(store),
       pochiNumber: storePochiNumber(store),
       bankAccount: storeCardAccount(store),
-      status: submitted.ref ? "submitted" : "pending_payment"
+      status: paid ? "submitted" : "pending_payment"
     };
   });
   const sellerPaymentStatus = uniqueStores.reduce((statusMap, storeId) => {
@@ -1515,12 +1534,16 @@ function bindEvents() {
     await handleCheckout();
   });
 
-  document.getElementById("checkoutForm").addEventListener("input", () => {
-    saveBuyerProfileFromForm();
+  document.getElementById("checkoutForm").addEventListener("input", (event) => {
+    saveBuyerProfileFromForm({
+      skipRender: Boolean(event.target.closest("[data-business-payment-ref]"))
+    });
   });
 
-  document.getElementById("checkoutForm").addEventListener("change", () => {
-    saveBuyerProfileFromForm();
+  document.getElementById("checkoutForm").addEventListener("change", (event) => {
+    saveBuyerProfileFromForm({
+      skipRender: Boolean(event.target.closest("[data-business-payment-ref], [data-business-payment-paid]"))
+    });
   });
 
   document.getElementById("placedOrderList")?.addEventListener("click", async (event) => {

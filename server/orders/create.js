@@ -276,7 +276,7 @@ module.exports = async function handler(req, res) {
     }
     if (schema.payments) {
       for (const payment of Array.isArray(payload.businessPayments) ? payload.businessPayments : []) {
-        const reference = text(payment.reference || payload.mpesaReference, 120);
+        const reference = text(payment.reference || payment.ref, 120);
         if (!reference) continue;
         const paymentValues = [id, text(payment.method || payload.paymentMethod, 40), reference, number(payment.amount), paymentStatus(payment.status)];
         if (schema.paymentsBusinessId) {
