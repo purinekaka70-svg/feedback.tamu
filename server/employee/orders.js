@@ -62,11 +62,14 @@ function orderCountyText(row) {
 
 function orderMatchesCounty(row, county) {
   if (!county || isAllCounties(county)) return true;
-  const target = countyKey(county);
+  const target = countyKey(countyFromText(county) || county);
   const textValue = orderCountyText(row);
   const derivedCounty = countyFromText(textValue);
   const normalizedText = countyKey(textValue);
-  return countyKey(derivedCounty) === target || normalizedText.includes(target);
+  const derivedKey = countyKey(derivedCounty);
+  return derivedKey === target
+    || normalizedText.includes(target)
+    || Boolean(derivedKey && target.includes(derivedKey));
 }
 
 async function loadOrders() {
@@ -160,9 +163,11 @@ module.exports = async function handler(req, res) {
       const county = allCounties
         ? ""
         : requestedCounty && countyKey(requestedCounty) === countyKey(allowedCounty)
-          ? requestedCounty
-          : allowedCounty;
-      const rows = (await loadOrders()).filter((row) => orderMatchesCounty(row, county));
+          ? countyFromText(requestedCounty) || requestedCounty
+          : countyFromText(allowedCounty) || allowedCounty;
+      const allRows = await loadOrders();
+      const matchedRows = allRows.filter((row) => orderMatchesCounty(row, county));
+      const rows = matchedRows.length || !county ? matchedRows : allRows;
       send(res, 200, { ok: true, orders: rows.map((row) => ({
         id: row.public_id || String(row.id),
         publicId: row.public_id || String(row.id),
@@ -219,7 +224,7 @@ module.exports = async function handler(req, res) {
                    )
               )
             returning public_id`,
-          [id, status, `%${allowedCounty}%`]
+          [id, status, `%${countyFromText(allowedCounty) || allowedCounty}%`]
         );
     if (!updated.length) {
       send(res, 403, { ok: false, message: "Order is outside your assigned county." });

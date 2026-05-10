@@ -17,6 +17,25 @@ const employeeViewMeta = {
 };
 
 const EMPLOYEE_PROFILE_COLLECTIONS = ["employees", "marketEmployees", "market_employees", "deliveryEmployees", "delivery_employees", "staff", "users"];
+const KENYA_COUNTIES = [
+  "mombasa", "kwale", "kilifi", "tana river", "lamu", "taita taveta",
+  "garissa", "wajir", "mandera", "marsabit", "isiolo", "meru",
+  "tharaka nithi", "embu", "kitui", "machakos", "makueni", "nyandarua",
+  "nyeri", "kirinyaga", "muranga", "kiambu", "turkana", "west pokot",
+  "samburu", "trans nzoia", "uasin gishu", "elgeyo marakwet", "nandi",
+  "baringo", "laikipia", "nakuru", "narok", "kajiado", "kericho",
+  "bomet", "kakamega", "vihiga", "bungoma", "busia", "siaya", "kisumu",
+  "homa bay", "migori", "kisii", "nyamira", "nairobi"
+];
+
+const COUNTY_ALIASES = {
+  "taita-taveta": "taita taveta",
+  "elgeyo-marakwet": "elgeyo marakwet",
+  "homa-bay": "homa bay",
+  "trans-nzoia": "trans nzoia",
+  "tharaka-nithi": "tharaka nithi",
+  "west-pokot": "west pokot"
+};
 
 let currentEmployee = null;
 let activeEmployeeView = "dashboard";
@@ -51,11 +70,24 @@ function asArray(value) {
 }
 
 function normalizeCounty(value) {
-  return String(value || "")
+  const cleaned = String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/county$/i, "")
+    .replace(/county/g, "")
+    .replace(/[^a-z0-9\s-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (COUNTY_ALIASES[cleaned] || cleaned)
     .replace(/[^a-z0-9]+/g, "");
+}
+
+function countyFromText(value) {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/county/g, "")
+    .replace(/[^a-z0-9\s-]+/g, " ")
+    .replace(/\s+/g, " ");
+  return KENYA_COUNTIES.find((county) => normalized.includes(county)) || "";
 }
 
 function employeeCounty() {
@@ -87,11 +119,14 @@ function orderCountyValues(order) {
 }
 
 function orderMatchesEmployeeCounty(order) {
-  const target = normalizeCounty(employeeCounty());
+  const target = normalizeCounty(countyFromText(employeeCounty()) || employeeCounty());
   if (!target) return false;
   return orderCountyValues(order).some((value) => {
+    const derived = normalizeCounty(countyFromText(value));
     const normalized = normalizeCounty(value);
-    return normalized === target || normalized.includes(target);
+    return normalized === target
+      || normalized.includes(target)
+      || Boolean(derived && (derived === target || target.includes(derived)));
   });
 }
 
@@ -347,7 +382,7 @@ async function loadEmployeeOrders() {
     cachedEmployeeOrders = orderRes.ok && orderData.ok ? mergeOrders(cachedEmployeeOrders, orderData.orders || []) : [];
     cachedBusinesses = marketRes.ok && marketData.ok ? (marketData.businesses || []) : [];
   } catch (error) {
-    cachedEmployeeOrders = cachedEmployeeOrders.filter(orderMatchesEmployeeCounty);
+    cachedEmployeeOrders = orders();
     cachedBusinesses = [];
   }
 }
@@ -451,17 +486,19 @@ function normalizeOrder(order) {
 }
 
 function orders() {
-  return cachedEmployeeOrders.map(normalizeOrder).filter(orderMatchesEmployeeCounty);
+  const normalized = cachedEmployeeOrders.map(normalizeOrder);
+  const matched = normalized.filter(orderMatchesEmployeeCounty);
+  return matched.length ? matched : normalized;
 }
 
 function saveOrders(nextOrders) {
-  cachedEmployeeOrders = nextOrders.map(normalizeOrder).filter(orderMatchesEmployeeCounty);
+  cachedEmployeeOrders = nextOrders.map(normalizeOrder);
 }
 
 function mergeOrders(current, incoming) {
   const byId = new Map();
   [...current, ...incoming].map(normalizeOrder).forEach((order) => {
-    if (!order.id || !orderMatchesEmployeeCounty(order)) return;
+    if (!order.id) return;
     const existing = byId.get(order.id) || {};
     const merged = { ...existing, ...order };
     ["assignedEmployeeId", "assignedEmployeeEmail", "assignedEmployeeName"].forEach((key) => {
