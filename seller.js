@@ -1009,6 +1009,7 @@ function renderOrders() {
           ${orderStatus !== "processing" && !["delivered", "cancelled"].includes(orderStatus) ? `<button class="button button-outline button-small" data-mark-processing="${order.id}" type="button">Processing</button>` : ""}
           ${orderStatus !== "delivered" ? `<button class="button button-outline button-small" data-mark-delivered="${order.id}" type="button">Delivered</button>` : ""}
           ${orderStatus !== "cancelled" ? `<button class="button button-outline button-small" data-mark-cancelled="${order.id}" type="button">Cancel</button>` : ""}
+          <button class="button button-ghost button-small" data-delete-seller-order="${order.id}" type="button">Delete</button>
         </div>
       </article>
     `;
@@ -1081,6 +1082,12 @@ function renderOrders() {
   container.querySelectorAll("[data-mark-cancelled]").forEach((button) => {
     button.addEventListener("click", () => {
       updateSellerOrderStatus(button.dataset.markCancelled, "cancelled");
+    });
+  });
+
+  container.querySelectorAll("[data-delete-seller-order]").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteSellerOrder(button.dataset.deleteSellerOrder, button);
     });
   });
 
@@ -1161,6 +1168,36 @@ async function updateSellerOrderStatus(orderId, status) {
   renderSellerPaymentOrders();
   renderSellerCustomers();
   renderSellerAnalytics();
+}
+
+async function deleteSellerOrder(orderId, trigger) {
+  const seller = currentSeller();
+  if (!seller || !orderId) {
+    showToast("Login again to delete this order.", "warn");
+    return;
+  }
+  if (!window.confirm("Delete this order permanently? This cannot be undone.")) {
+    return;
+  }
+
+  if (trigger) trigger.disabled = true;
+  try {
+    const response = await postJson('./api/orders/delete.php', { id: orderId, businessId: seller.id });
+    if (!response.ok || response.data?.ok === false) {
+      await loadSellerData();
+      refreshSellerOrderViews();
+      showToast(response.data?.detail || response.data?.message || "Order delete failed.", "warn");
+      return;
+    }
+
+    cachedOrders = orders().filter((order) => !sameId(order.id, orderId));
+    await loadSellerData();
+    notifyRealtime("orders", "order-deleted");
+    refreshSellerOrderViews();
+    showToast({ title: "Order deleted", message: `Order ${orderId} was deleted.`, type: "warn" });
+  } finally {
+    if (trigger) trigger.disabled = false;
+  }
 }
 
 function eventTime(value) {

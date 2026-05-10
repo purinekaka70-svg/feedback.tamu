@@ -1,7 +1,7 @@
 const { claims } = require("../_lib/auth");
 const { getPool } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
-const { rateLimit } = require("../_lib/security");
+const { rateLimit, requireSameOrigin } = require("../_lib/security");
 
 async function tableExists(client, table) {
   const result = await client.query(
@@ -29,6 +29,7 @@ function compactError(error) {
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   if (!rateLimit(req, res, "order-delete", { limit: 20, windowMs: 10 * 60 * 1000 })) return;
+  if (!requireSameOrigin(req, res)) return;
   const session = claims(req);
   let client;
   try {
@@ -40,21 +41,40 @@ module.exports = async function handler(req, res) {
       send(res, 422, { ok: false, message: "Order id is required." });
       return;
     }
-    if (session?.role === "seller") {
-      send(res, 403, { ok: false, message: "Seller cannot delete the full customer order. Update your order status instead." });
-      return;
-    }
     if (!session?.role && !phone) {
       send(res, 403, { ok: false, message: "Customer phone is required to delete this order." });
       return;
     }
+    const actorBusinessId = Number(session?.businessId || 0) || 0;
     const hasRouteBreakdown = await tableExists(client, "order_route_breakdown") && await columnExists(client, "order_route_breakdown", "order_id");
     const hasPayments = await tableExists(client, "payments") && await columnExists(client, "payments", "order_public_id");
     const hasDeliveries = await tableExists(client, "deliveries") && await columnExists(client, "deliveries", "order_public_id");
+    const hasOrderItemsBusinessId = await columnExists(client, "order_items", "business_id");
     await client.query("begin");
     const params = [id];
     let sql = "select id, public_id from orders where (public_id = $1 or id::text = $1)";
-    if (session?.role !== "admin") {
+    if (session?.role === "seller") {
+      if (!actorBusinessId) {
+        await client.query("rollback").catch(() => {});
+        send(res, 403, { ok: false, message: "Seller business session is required to delete this order." });
+        return;
+      }
+      if (hasOrderItemsBusinessId) {
+        params.push(actorBusinessId, String(actorBusinessId));
+        sql += ` and exists (
+          select 1 from order_items oi
+           where oi.order_id = orders.id
+             and (oi.business_id = $2 or oi.store_public_id = $3)
+        )`;
+      } else {
+        params.push(String(actorBusinessId));
+        sql += ` and exists (
+          select 1 from order_items oi
+           where oi.order_id = orders.id
+             and oi.store_public_id = $2
+        )`;
+      }
+    } else if (session?.role !== "admin") {
       params.push(phone);
       sql += " and customer_phone = $2";
     }
@@ -63,7 +83,7 @@ module.exports = async function handler(req, res) {
     const order = rows.rows[0];
     if (!order) {
       await client.query("rollback").catch(() => {});
-      send(res, 403, { ok: false, message: "Order was not found for this customer." });
+      send(res, 403, { ok: false, message: "Order was not found or access was denied." });
       return;
     }
     await client.query("delete from order_items where order_id = $1", [order.id]);
