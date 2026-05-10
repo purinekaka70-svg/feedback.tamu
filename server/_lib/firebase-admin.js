@@ -1,4 +1,5 @@
 const admin = require("firebase-admin");
+const { query, tableExists } = require("./db");
 
 const employeeCollections = ["employees", "marketEmployees", "market_employees", "users", "staff", "deliveryEmployees", "delivery_employees"];
 const uidFields = ["uid", "authUid", "firebaseUid", "firebaseId", "userId"];
@@ -80,10 +81,44 @@ async function firstQueryResult(collectionRef, field, value) {
   return snap.empty ? null : snap.docs[0];
 }
 
+async function employeeFromSupabase(decoded) {
+  try {
+    if (!await tableExists("employees")) return null;
+    const email = String(decoded.email || "").trim();
+    const uid = String(decoded.uid || "").trim();
+    const rows = await query(
+      `select id::text, email, uid, role, county, approved, active, created_at
+         from employees
+        where ($1 <> '' and uid = $1)
+           or ($2 <> '' and lower(email) = lower($2))
+        order by case when uid = $1 then 0 else 1 end
+        limit 1`,
+      [uid, email]
+    );
+    const employee = rows[0];
+    if (!employee) return null;
+    return normalizeEmployee({
+      id: employee.id,
+      uid: employee.uid || uid,
+      email: employee.email || email,
+      role: employee.role || "employee",
+      county: employee.county || "All",
+      status: employee.active === false ? "inactive" : employee.approved === false ? "pending" : "approved",
+      approved: employee.approved !== false,
+      active: employee.active !== false,
+      sourceCollection: "supabase.employees"
+    }, decoded);
+  } catch {
+    return null;
+  }
+}
+
 async function employeeForDecodedUser(decoded) {
   const db = admin.firestore(app());
   const email = String(decoded.email || "").trim();
   const docIds = [decoded.uid, email, email.toLowerCase()].filter(Boolean);
+  const supabaseEmployee = await employeeFromSupabase(decoded);
+  if (supabaseEmployee) return supabaseEmployee;
 
   for (const collectionName of employeeCollections) {
     const collectionRef = db.collection(collectionName);
