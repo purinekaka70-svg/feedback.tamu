@@ -1,4 +1,4 @@
-const { employeeFromRequest, employeeIsAllowed } = require("../_lib/firebase-admin");
+const { employeeAccessMessage, employeeFromRequest } = require("../_lib/firebase-admin");
 const { method, send } = require("../_lib/http");
 
 module.exports = async function handler(req, res) {
@@ -13,8 +13,9 @@ module.exports = async function handler(req, res) {
     }
 
     const employee = await employeeFromRequest(req);
-    if (!employeeIsAllowed(employee)) {
-      send(res, 403, { ok: false, message: "Employee account is not active, approved, or assigned to a county." });
+    const accessMessage = employeeAccessMessage(employee);
+    if (accessMessage) {
+      send(res, 403, { ok: false, message: accessMessage });
       return;
     }
 

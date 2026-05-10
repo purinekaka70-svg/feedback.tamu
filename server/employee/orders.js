@@ -1,5 +1,5 @@
 const { query, tableExists } = require("../_lib/db");
-const { employeeFromRequest, employeeIsAllowed } = require("../_lib/firebase-admin");
+const { employeeAccessMessage, employeeFromRequest } = require("../_lib/firebase-admin");
 const { body, method, send, text } = require("../_lib/http");
 
 const KENYA_COUNTIES = [
@@ -183,8 +183,9 @@ module.exports = async function handler(req, res) {
   if (!method(req, res, ["GET", "POST"])) return;
   try {
     const employee = await employeeFromRequest(req);
-    if (!employeeIsAllowed(employee)) {
-      send(res, 401, { ok: false, message: "Approved Firebase employee access is required." });
+    const accessMessage = employeeAccessMessage(employee);
+    if (accessMessage) {
+      send(res, 403, { ok: false, message: accessMessage });
       return;
     }
     const allowedCounty = text(employee.county || employee.location || employee.assignedCounty || "All", 120);

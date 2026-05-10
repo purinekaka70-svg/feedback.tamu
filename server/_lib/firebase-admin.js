@@ -159,6 +159,13 @@ async function employeeForDecodedUser(decoded) {
 }
 
 function employeeIsAllowed(employee) {
+  return !employeeAccessMessage(employee);
+}
+
+function employeeAccessMessage(employee) {
+  if (!employee) {
+    return "No matching employee profile was found for this Firebase user. Add the employee to Supabase employees with the same uid or email.";
+  }
   const role = String(employee?.role || employee?.accountType || employee?.userType || "employee").toLowerCase();
   const status = String(employee?.status || "").toLowerCase();
   const inactive = employee?.active === false
@@ -174,7 +181,19 @@ function employeeIsAllowed(employee) {
       || (!status && employee?.approved === undefined && employee?.verified === undefined));
   const employeeRole = employeeRoles.includes(role) || role.includes("employee") || role.includes("delivery");
   const county = employee?.county || employee?.location || employee?.assignedCounty || employee?.deliveryCounty || employee?.workCounty || employee?.area || employee?.region;
-  return !inactive && approved && employeeRole && Boolean(county);
+  if (inactive) {
+    return "Employee account is inactive, disabled, blocked, suspended, or rejected.";
+  }
+  if (!approved) {
+    return "Employee account is not approved. Set approved to true or status to approved/active.";
+  }
+  if (!employeeRole) {
+    return "Employee account role is not allowed. Use employee, delivery, driver, rider, or courier.";
+  }
+  if (!county) {
+    return "Employee account has no assigned county or location.";
+  }
+  return "";
 }
 
-module.exports = { employeeForDecodedUser, employeeFromRequest, employeeIsAllowed };
+module.exports = { employeeAccessMessage, employeeForDecodedUser, employeeFromRequest, employeeIsAllowed };

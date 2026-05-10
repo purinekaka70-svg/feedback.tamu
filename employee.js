@@ -194,6 +194,15 @@ async function ensureFirebaseApp() {
   return { ok: true };
 }
 
+async function apiPayload(response) {
+  const raw = await response.text().catch(() => "");
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return { message: raw.trim().slice(0, 180) };
+  }
+}
+
 async function employeeRecordForFirebaseUser(user) {
   if (!user?.uid) {
     return null;
@@ -206,7 +215,7 @@ async function employeeRecordForFirebaseUser(user) {
         cache: "no-store",
         headers: { Authorization: `Bearer ${token}` }
       });
-      const result = await response.json().catch(() => ({}));
+      const result = await apiPayload(response);
       if (response.ok && result.ok && result.employee) {
         return {
           ...result.employee,
@@ -214,10 +223,22 @@ async function employeeRecordForFirebaseUser(user) {
           email: result.employee.email || user.email
         };
       }
-      // If backend Firebase Admin is not configured or no employee document is found,
+      if (response.status === 401 || response.status === 403) {
+        const error = new Error(result.message || "Employee account is not allowed by the server.");
+        error.employeeSessionDenied = true;
+        throw error;
+      }
+      // If the employee endpoint is unavailable or no profile is found there,
       // continue to browser Firestore lookup and final Firebase Auth fallback below.
     } catch (error) {
-      if (error.message && error.message.includes("not allowed as an employee")) {
+      if (error.employeeSessionDenied || (error.message && (
+        error.message.includes("not allowed")
+        || error.message.includes("not approved")
+        || error.message.includes("No matching employee profile")
+        || error.message.includes("assigned county")
+        || error.message.includes("role is not allowed")
+        || error.message.includes("inactive")
+      ))) {
         throw error;
       }
     }
@@ -377,8 +398,8 @@ async function loadEmployeeOrders() {
       }),
       fetch('./api/marketplace/list.php', { cache: 'no-store' })
     ]);
-    const orderData = await orderRes.json().catch(() => ({}));
-    const marketData = await marketRes.json().catch(() => ({}));
+    const orderData = await apiPayload(orderRes);
+    const marketData = await apiPayload(marketRes);
     if (!orderRes.ok || !orderData.ok) {
       cachedEmployeeOrders = [];
       return {
