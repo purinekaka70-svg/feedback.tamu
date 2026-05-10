@@ -4,6 +4,7 @@
   const DEFAULT_APP_ID = "7c0a3b0d-53b6-4b67-9b42-266f49bfabcc";
   const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+  const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const READY_TIMEOUT_MS = 20000;
   let lastInitError = "";
 
@@ -51,7 +52,12 @@
             prompts: [
               {
                 type: "push",
-                autoPrompt: false
+                autoPrompt: false,
+                text: {
+                  actionMessage: "Get order and payment updates from Tamu Express.",
+                  acceptButton: "Allow",
+                  cancelButton: "Later"
+                }
               }
             ]
           }
@@ -225,12 +231,12 @@
 
   async function requestOneSignalSubscription(OneSignal) {
     if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
-    if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
-      await OneSignal.Notifications.requestPermission().catch(() => {});
-    }
     if (!notificationsGranted(OneSignal) && OneSignal?.Slidedown?.promptPush) {
       await OneSignal.Slidedown.promptPush({ force: true }).catch(() => {});
-      await sleep(300);
+      await sleep(700);
+    }
+    if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
+      await OneSignal.Notifications.requestPermission().catch(() => {});
     }
     if (notificationsGranted(OneSignal)) {
       await optInNotifications(OneSignal);
@@ -254,14 +260,50 @@
     return identify(customerId, { role: "customer" });
   }
 
+  function notificationIcon() {
+    const icon = document.querySelector("link[rel~='icon']")?.href;
+    return icon || "/tamu-express-logo.png";
+  }
+
+  async function showTestNotification(force = false) {
+    if (!("Notification" in window) || window.Notification.permission !== "granted") return false;
+    if (!force && window.sessionStorage.getItem(TEST_NOTIFICATION_KEY) === "shown") return false;
+    window.sessionStorage.setItem(TEST_NOTIFICATION_KEY, "shown");
+    const title = "Tamu Express notifications enabled";
+    const options = {
+      body: "Order, payment, seller, admin, and employee alerts will appear here.",
+      icon: notificationIcon(),
+      badge: notificationIcon(),
+      tag: "tamu-notifications-enabled",
+      renotify: true
+    };
+    try {
+      const registration = await navigator.serviceWorker?.ready;
+      if (registration?.showNotification) {
+        await registration.showNotification(title, options);
+        return true;
+      }
+    } catch {
+      // Fall through to the Notification constructor.
+    }
+    try {
+      new Notification(title, options);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function finishEnabledState(OneSignal, button) {
     await identifyFromSession();
     if (notificationsEnabled(OneSignal)) {
+      await showTestNotification();
       button.classList.add("is-hidden");
       button.remove();
       return true;
     }
     if (notificationsGranted(OneSignal)) {
+      await showTestNotification(true);
       button.disabled = true;
       button.textContent = "Notifications enabled";
       window.setTimeout(async () => {
@@ -311,23 +353,30 @@
     };
     button.addEventListener("click", async () => {
       button.disabled = true;
-      button.textContent = "Enabling...";
-      await requestBrowserPermissionImmediately();
+      button.textContent = "Opening banner...";
+      const OneSignal = await getOneSignal();
+      if (!OneSignal) {
+        button.textContent = "Enabling...";
+        await requestBrowserPermissionImmediately();
+        if (notificationsGranted(null)) {
+          await showTestNotification(true);
+          button.textContent = "Notifications enabled";
+          button.disabled = true;
+          return;
+        }
+        button.textContent = lastInitError ? "Reload page" : "SDK loading failed";
+        button.disabled = false;
+        return;
+      }
       if (notificationsDenied()) {
         button.textContent = "Notifications blocked";
         button.disabled = true;
         return;
       }
-      const OneSignal = await getOneSignal();
-      if (!OneSignal) {
-        button.textContent = lastInitError ? "Reload page" : "SDK loading failed";
-        button.disabled = false;
-        return;
-      }
       try {
         await requestOneSignalSubscription(OneSignal);
       } catch {
-        button.textContent = "Try again";
+        button.textContent = "Enable notifications";
         button.disabled = false;
         return;
       }
@@ -349,6 +398,7 @@
         if (notificationsGranted(OneSignal)) {
           await requestOneSignalSubscription(OneSignal);
           await identifyFromSession();
+          await showTestNotification();
         }
         updateButton();
       });
