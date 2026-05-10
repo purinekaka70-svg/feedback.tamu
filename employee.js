@@ -1066,6 +1066,7 @@ function bindNavigation() {
       await window.firebase.auth().signOut().catch(() => {});
     }
     await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
+    await window.tamuPushLogout?.();
     currentEmployee = null;
     showLogin();
   });
@@ -1101,6 +1102,7 @@ async function restoreSession() {
   }
 
   currentEmployee = account;
+  window.tamuPushLogin?.("employees", { role: "employee", employee_id: String(account.id || account.uid || account.email || "") });
   subscribeEmployeeOrders();
   await loadEmployeeOrders();
   return true;
@@ -1124,6 +1126,7 @@ function bindLogin() {
 
     const account = result.account;
     currentEmployee = account;
+    window.tamuPushLogin?.("employees", { role: "employee", employee_id: String(account.id || account.uid || account.email || "") });
     status.textContent = "";
     form.reset();
     showDashboard();

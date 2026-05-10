@@ -1,6 +1,7 @@
 const { getPool } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
+const { businessExternalId, sendPushToExternalIds } = require("../_lib/notifications");
 const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
@@ -305,6 +306,15 @@ module.exports = async function handler(req, res) {
       await client.query("delete from cart where session_id = $1", [text(payload.sessionId, 120)]);
     }
     await client.query("commit");
+    const businessIds = [...new Set(items.map((item) => item.businessId || item.storeId).filter(Boolean))];
+    const orderNotification = {
+      title: "New order placed",
+      message: `${text(payload.customer, 80) || "A customer"} placed order ${id}.`,
+      data: { type: "order_created", orderId: id }
+    };
+    sendPushToExternalIds(["admin"], { ...orderNotification, url: "/admin.html" }).catch(() => {});
+    sendPushToExternalIds(["employees"], { ...orderNotification, url: "/employee.html" }).catch(() => {});
+    sendPushToExternalIds(businessIds.map(businessExternalId), { ...orderNotification, url: "/seller.html" }).catch(() => {});
     send(res, 201, { ok: true, message: "Order saved.", order: { id: orderId, publicId: id } });
   } catch (error) {
     await client.query("rollback").catch(() => {});

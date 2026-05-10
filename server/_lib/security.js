@@ -78,17 +78,22 @@ function requireSameOrigin(req, res) {
 function securityHeaders(res) {
   const connectSources = [
     "'self'",
+    "https://api.onesignal.com",
+    "https://*.onesignal.com",
+    "https://cdn.onesignal.com",
+    "https://onesignal.com",
     "https://identitytoolkit.googleapis.com",
     "https://securetoken.googleapis.com",
     "https://*.googleapis.com"
   ].join(" ");
   const csp = [
     "default-src 'self'",
-    `script-src 'self' https://www.gstatic.com https://unpkg.com`,
+    `script-src 'self' https://www.gstatic.com https://unpkg.com https://cdn.onesignal.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https:",
     `connect-src ${connectSources}`,
+    "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

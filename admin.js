@@ -252,6 +252,7 @@ function bindAdminLogin() {
       status.textContent = "";
       form.reset();
       startDashboard();
+      window.tamuPushLogin?.("admin", { role: "admin" });
     } catch (error) {
       status.textContent = window.location.protocol === "file:"
         ? "Admin login needs hosting. Open the Vercel link, not the local file."
@@ -1326,6 +1327,7 @@ function bindCategoryForm() {
 function bindLogout() {
   const logout = async () => {
     await fetch("./api/auth/logout.php", { method: "POST" }).catch(() => {});
+    await window.tamuPushLogout?.();
     window.localStorage.removeItem(STORAGE_KEYS.adminSession);
     window.location.href = "./index.html";
   };

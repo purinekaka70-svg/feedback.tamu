@@ -23,6 +23,7 @@ const routes = {
   "orders/list": () => require("../server/orders/list"),
   "orders/update": () => require("../server/orders/update"),
   "payments/index": () => require("../server/payments"),
+  "onesignal/config": () => require("../server/onesignal/config"),
   "products/delete": () => require("../server/products/delete"),
   "products/save": () => require("../server/products/save"),
   "sellers/login": () => require("../server/sellers/login"),

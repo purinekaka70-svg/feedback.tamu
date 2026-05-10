@@ -1672,6 +1672,7 @@ function bindForms() {
 
     const loginSeller = response.data.seller;
     setCurrentSeller(loginSeller);
+    window.tamuPushLogin?.(`business:${loginSeller.id}`, { role: "seller", business_id: String(loginSeller.id) });
     await loadSellerData();
     event.currentTarget.reset();
     document.getElementById("loginStatus").textContent = "";
@@ -1876,6 +1877,7 @@ function bindActions() {
   document.getElementById("resetOfferBtn").addEventListener("click", resetOfferForm);
   const logoutSeller = async () => {
     await fetch("./api/auth/logout.php", { method: "POST", cache: "no-store", credentials: "same-origin" }).catch(() => {});
+    await window.tamuPushLogout?.();
     hideDashboard();
     toggleForms(false);
     showToast("Logged out successfully.", "info");
