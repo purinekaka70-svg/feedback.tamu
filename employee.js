@@ -893,7 +893,10 @@ function closeEmployeeMenu() {
   const toggle = document.getElementById("employeeMenuToggle");
   sidebar?.classList.remove("is-open");
   overlay?.classList.remove("is-open");
-  toggle?.setAttribute("aria-expanded", "false");
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Open employee menu");
+  }
   document.body.classList.remove("employee-menu-open");
 }
 
@@ -929,6 +932,7 @@ function setEmployeeView(view) {
 
 function bindNavigation() {
   const toggle = document.getElementById("employeeMenuToggle");
+  const closeButton = document.getElementById("employeeMenuClose");
   const sidebar = document.getElementById("employeeSidebar");
   const overlay = document.getElementById("employeeSidebarOverlay");
   if (toggle?.dataset.bound === "true") {
@@ -939,11 +943,13 @@ function bindNavigation() {
   }
   toggle?.addEventListener("click", () => {
     closeOtherMenusForEmployee();
-    const isOpen = sidebar.classList.toggle("is-open");
-    overlay.classList.toggle("is-open", isOpen);
+    const isOpen = sidebar?.classList.toggle("is-open");
+    overlay?.classList.toggle("is-open", Boolean(isOpen));
     toggle.setAttribute("aria-expanded", String(isOpen));
+    toggle.setAttribute("aria-label", isOpen ? "Close employee menu" : "Open employee menu");
     document.body.classList.toggle("employee-menu-open", isOpen);
   });
+  closeButton?.addEventListener("click", closeEmployeeMenu);
   overlay?.addEventListener("click", closeEmployeeMenu);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeEmployeeMenu();

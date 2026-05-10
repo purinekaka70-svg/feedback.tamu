@@ -237,23 +237,44 @@ h2 {
   top: 18px;
   left: 18px;
   z-index: 150;
-  width: 46px;
+  width: auto;
   height: 46px;
   border: 1px solid rgba(21, 128, 61, 0.2);
   border-radius: 14px;
   background: #fff;
   display: none;
-  place-items: center;
-  gap: 4px;
+  align-items: center;
+  grid-template-columns: 22px auto;
+  gap: 9px;
+  padding: 0 13px;
   cursor: pointer;
   box-shadow: 0 14px 32px rgba(17, 24, 39, 0.16);
+  color: var(--green-dark);
+  font-weight: 900;
 }
 
-.employee-menu-toggle span {
+.employee-menu-lines {
+  display: grid;
+  gap: 4px;
+}
+
+.employee-menu-lines span {
   display: block;
   width: 22px;
   height: 2px;
   background: var(--green);
+}
+
+.employee-menu-close {
+  display: none;
+  justify-self: end;
+  border: 1px solid rgba(21, 128, 61, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--green-dark);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 900;
 }
 
 .employee-sidebar-overlay {
@@ -458,6 +479,10 @@ body.employee-menu-open {
 
   .employee-menu-toggle {
     display: grid;
+  }
+
+  .employee-menu-close {
+    display: inline-flex;
   }
 
   .employee-sidebar {

@@ -703,6 +703,14 @@ svg {
     gap: 4px !important;
   }
 
+  body.employee-dashboard-active .employee-menu-toggle {
+    width: auto !important;
+    min-width: 88px !important;
+    padding-inline: 10px !important;
+    grid-template-columns: 22px auto !important;
+    gap: 8px !important;
+  }
+
   .topbar-menu-toggle {
     left: auto !important;
     right: 10px !important;
@@ -755,7 +763,7 @@ svg {
   .employee-sidebar,
   .topbar-actions,
   body[data-seller-page="true"] > .seller-sidebar {
-    padding: 68px 12px 14px !important;
+    padding: 58px 12px 14px !important;
   }
 
   .topbar-actions {
@@ -942,6 +950,11 @@ body.employee-dashboard-active #employeeDashboardView {
   pointer-events: auto !important;
 }
 
+body.employee-dashboard-active .employee-menu-toggle {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 @media (min-width: 901px) {
   body.seller-dashboard-active .seller-menu-toggle {
     display: none !important;
@@ -966,6 +979,10 @@ body.employee-dashboard-active #employeeDashboardView {
 
 @media (max-width: 980px) {
   body.admin-dashboard-active .admin-menu-toggle {
+    display: inline-grid !important;
+  }
+
+  body.employee-dashboard-active .employee-menu-toggle {
     display: inline-grid !important;
   }
 

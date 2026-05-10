@@ -42,12 +42,16 @@
 
     <main id="employeeDashboardView" class="employee-app is-hidden">
       <button id="employeeMenuToggle" class="employee-menu-toggle" type="button" aria-label="Open employee menu" aria-expanded="false">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span class="employee-menu-lines" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+        <strong>Menu</strong>
       </button>
 
       <aside id="employeeSidebar" class="employee-sidebar panel" aria-label="Employee menu">
+        <button id="employeeMenuClose" class="employee-menu-close" type="button" aria-label="Close employee menu">Close</button>
         <div class="sidebar-head">
           <img src="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png" alt="Tamu Express">
           <div>
@@ -62,6 +66,9 @@
           <button class="side-nav-button" type="button" data-employee-view="notifications">Notifications</button>
           <button class="side-nav-button" type="button" data-employee-view="maps">Maps</button>
           <button class="side-nav-button" type="button" data-employee-view="delivered">Delivered Orders</button>
+          <button class="side-nav-button" type="button" data-employee-view="customerChats">Customer Chats</button>
+          <button class="side-nav-button" type="button" data-employee-view="adminChats">Admin Chats</button>
+          <button class="side-nav-button" type="button" data-employee-view="settings">Settings</button>
           <button id="employeeLogoutButton" class="side-nav-button side-nav-danger" type="button">Logout</button>
         </nav>
 
