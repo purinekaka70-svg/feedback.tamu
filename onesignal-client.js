@@ -361,16 +361,12 @@
     if (permission === "granted") {
       await showTestNotification(true);
       appToast("Notifications enabled", "You will now receive Tamu Express order and payment alerts.", "success");
-      button.textContent = "Notifications enabled";
-      button.disabled = true;
+      button.classList.add("is-hidden");
+      button.remove();
       getOneSignal().then(async (OneSignal) => {
         if (!OneSignal) return;
         await requestOneSignalSubscription(OneSignal).catch(() => false);
         await identifyFromSession();
-        if (button.isConnected && notificationsEnabled(OneSignal)) {
-          button.classList.add("is-hidden");
-          button.remove();
-        }
       });
       return true;
     }
