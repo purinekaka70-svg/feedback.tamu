@@ -173,11 +173,11 @@ async function employeeRecordForFirebaseUser(user) {
           email: result.employee.email || user.email
         };
       }
-      if (response.status === 403 || response.status === 401) {
+      if (response.status === 403) {
         throw new Error(result.message || "This Firebase account is not allowed as an employee.");
       }
     } catch (error) {
-      if (error.message) {
+      if (error.message && error.message.includes("not allowed as an employee")) {
         throw error;
       }
     }
@@ -185,15 +185,32 @@ async function employeeRecordForFirebaseUser(user) {
 
   try {
     const db = window.firebase.firestore();
-    const directDoc = await db.collection("employees").doc(user.uid).get();
-    if (directDoc.exists) {
-      return { id: directDoc.id, ...directDoc.data(), uid: directDoc.data().uid || user.uid, email: directDoc.data().email || user.email };
+    const employeeCollection = db.collection("employees");
+    const docIds = [user.uid, user.email, String(user.email || "").toLowerCase()].filter(Boolean);
+    for (const docId of docIds) {
+      const directDoc = await employeeCollection.doc(docId).get();
+      if (directDoc.exists) {
+        return { id: directDoc.id, ...directDoc.data(), uid: directDoc.data().uid || user.uid, email: directDoc.data().email || user.email };
+      }
     }
 
-    const uidQuery = await db.collection("employees").where("uid", "==", user.uid).limit(1).get();
-    if (!uidQuery.empty) {
-      const doc = uidQuery.docs[0];
-      return { id: doc.id, ...doc.data(), uid: doc.data().uid || user.uid, email: doc.data().email || user.email };
+    const lookupQueries = [
+      ["uid", user.uid],
+      ["authUid", user.uid],
+      ["firebaseUid", user.uid],
+      ["userId", user.uid],
+      ["email", user.email],
+      ["email", String(user.email || "").toLowerCase()],
+      ["employeeEmail", user.email],
+      ["employeeEmail", String(user.email || "").toLowerCase()]
+    ].filter(([, value]) => value);
+
+    for (const [field, value] of lookupQueries) {
+      const snapshot = await employeeCollection.where(field, "==", value).limit(1).get();
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data(), uid: doc.data().uid || user.uid, email: doc.data().email || user.email };
+      }
     }
   } catch (error) {
     return null;
