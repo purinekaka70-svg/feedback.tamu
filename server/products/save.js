@@ -4,7 +4,13 @@ const { body, method, number, send, text } = require("../_lib/http");
 
 async function resolveCategoryId(businessId, payload) {
   const rawId = text(payload.categoryId, 100);
-  if (/^\d+$/.test(rawId)) return Number(rawId);
+  if (/^\d+$/.test(rawId)) {
+    const rows = await query(
+      "select id from categories where id = $1 and (business_id = $2 or business_id is null) limit 1",
+      [Number(rawId), businessId]
+    );
+    return rows[0]?.id || null;
+  }
   const name = text(payload.categoryName || payload.productCategory || rawId, 100);
   if (!name) return null;
   const found = await query("select id from categories where business_id = $1 and lower(name) = lower($2) limit 1", [businessId, name]);
@@ -58,16 +64,17 @@ module.exports = async function handler(req, res) {
     const hasOfferText = await columnExists("products", "offer_text");
     let rows;
     if (payload.id && /^\d+$/.test(String(payload.id))) {
+      const id = Number(payload.id);
       rows = hasOfferText
         ? await query(
             `update products set business_id=$1, category_id=$2, name=$3, image=$4, price=$5, offer_flag=$6, offer_text=$7, stock=$8, description=$9
-              where id=$10 returning id`,
-            [...params, Number(payload.id)]
+              where id=$10 ${session.role === "seller" ? "and business_id=$1" : ""} returning id`,
+            [...params, id]
           )
         : await query(
             `update products set business_id=$1, category_id=$2, name=$3, image=$4, price=$5, offer_flag=$6, stock=$7, description=$8
-              where id=$9 returning id`,
-            [params[0], params[1], params[2], params[3], params[4], params[5], params[7], params[8], Number(payload.id)]
+              where id=$9 ${session.role === "seller" ? "and business_id=$1" : ""} returning id`,
+            [params[0], params[1], params[2], params[3], params[4], params[5], params[7], params[8], id]
           );
     } else {
       rows = hasOfferText
@@ -79,6 +86,10 @@ module.exports = async function handler(req, res) {
             "insert into products (business_id, category_id, name, image, price, offer_flag, stock, description) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id",
             [params[0], params[1], params[2], params[3], params[4], params[5], params[7], params[8]]
           );
+    }
+    if (payload.id && !rows.length) {
+      send(res, 403, { ok: false, message: "Product was not found for your business." });
+      return;
     }
     send(res, 201, { ok: true, product: { id: rows[0]?.id || payload.id } });
   } catch {

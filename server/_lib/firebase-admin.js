@@ -105,6 +105,11 @@ async function employeeForDecodedUser(decoded) {
     }
   }
 
+  const claimRole = String(decoded.role || decoded.accountType || decoded.userType || "").toLowerCase();
+  if (!employeeRoles.includes(claimRole) && !claimRole.includes("employee") && !claimRole.includes("delivery")) {
+    return null;
+  }
+
   return normalizeEmployee({
     id: decoded.uid,
     uid: decoded.uid,

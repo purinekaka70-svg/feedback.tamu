@@ -2,6 +2,7 @@ const { findUserByEmail, issueAuth, verifyPassword } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { sellerFromBusiness } = require("../_lib/market");
+const { rateLimit } = require("../_lib/security");
 
 async function verifySupabasePassword(password, hash) {
   if (!hash) return false;
@@ -12,6 +13,7 @@ async function verifySupabasePassword(password, hash) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "seller-login", { limit: 12, windowMs: 10 * 60 * 1000 })) return;
   try {
     const payload = await body(req);
     const email = text(payload.email, 180).toLowerCase();

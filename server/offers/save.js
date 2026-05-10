@@ -25,6 +25,13 @@ module.exports = async function handler(req, res) {
       return;
     }
     const id = publicId(payload.id || payload.publicId);
+    if (session.role === "seller") {
+      const existing = await query("select seller_public_id from seller_offers where public_id = $1 limit 1", [id]);
+      if (existing[0] && String(existing[0].seller_public_id) !== String(sellerId)) {
+        send(res, 403, { ok: false, message: "Offer was not found for your business." });
+        return;
+      }
+    }
     await ensureOfferColumns().catch(() => {});
     const params = [
       id,

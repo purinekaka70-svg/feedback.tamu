@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const { getPool } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 async function tableColumns(client, table) {
   const result = await client.query(
@@ -34,6 +35,7 @@ async function nextId(client, table) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "seller-register", { limit: 6, windowMs: 60 * 60 * 1000 })) return;
   const pool = getPool();
   let client;
   try {
@@ -48,6 +50,10 @@ module.exports = async function handler(req, res) {
     const location = text(payload.location || payload.county || payload.locationName, 180);
     if (!email || !password || !businessName || !ownerName) {
       send(res, 422, { ok: false, message: "Business name, seller name, email and password are required." });
+      return;
+    }
+    if (password.length < 8) {
+      send(res, 422, { ok: false, message: "Password must be at least 8 characters." });
       return;
     }
     const exists = await client.query("select id from users where lower(email) = lower($1) limit 1", [email]);

@@ -1,11 +1,23 @@
 const bcrypt = require("bcryptjs");
 const cookie = require("cookie");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { query } = require("./db");
 const { send } = require("./http");
 
 function secret() {
-  return process.env.TAMU_APP_KEY || process.env.JWT_SECRET || "change-this-tamu-express-secret";
+  const configured = process.env.TAMU_APP_KEY || process.env.JWT_SECRET || "";
+  if (configured && configured.length >= 24) {
+    return configured;
+  }
+  const privateFallback = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_PASS || "";
+  if (privateFallback.length >= 24) {
+    return crypto.createHash("sha256").update(`tamu-auth:${privateFallback}`).digest("hex");
+  }
+  if (secureCookie()) {
+    throw new Error("TAMU_APP_KEY or JWT_SECRET must be set to a strong value in production.");
+  }
+  return "dev-only-tamu-express-secret-change-before-production";
 }
 
 function secureCookie() {

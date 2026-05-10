@@ -46,7 +46,7 @@ module.exports = async function handler(req, res) {
   const key = routeKey(req);
   const loadEndpoint = routes[key] || routes[`${key}/index`];
   if (!loadEndpoint) {
-    send(res, 404, { ok: false, message: "API endpoint was not found.", key });
+    send(res, 404, { ok: false, message: "API endpoint was not found." });
     return;
   }
   const endpoint = loadEndpoint();

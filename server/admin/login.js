@@ -1,6 +1,7 @@
 const { findUserByEmail, issueAuth, verifyPassword } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { rateLimit } = require("../_lib/security");
 
 const DEFAULT_ADMIN_EMAIL = "AdminTamuEpress@gmail.com";
 
@@ -89,6 +90,7 @@ async function adminDiagnostic(email, password, existingAdmin, active, valid) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "admin-login", { limit: 8, windowMs: 10 * 60 * 1000 })) return;
   try {
     const payload = await body(req);
     const email = text(payload.email || payload.username, 180).trim().toLowerCase();
@@ -113,11 +115,10 @@ module.exports = async function handler(req, res) {
       admin = await repairConfiguredAdmin(email, password);
     }
     if (!admin) {
-      const details = await adminDiagnostic(email, password, admin, active, valid);
+      await adminDiagnostic(email, password, admin, active, valid).catch(() => null);
       send(res, 401, {
         ok: false,
-        message: `Invalid admin credentials (${details.reason}).`,
-        details
+        message: "Invalid admin credentials."
       });
       return;
     }

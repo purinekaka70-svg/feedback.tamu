@@ -1,7 +1,9 @@
+const { securityHeaders } = require("./security");
+
 function send(res, status, payload) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("X-Content-Type-Options", "nosniff");
+  securityHeaders(res);
   res.end(JSON.stringify(payload));
 }
 

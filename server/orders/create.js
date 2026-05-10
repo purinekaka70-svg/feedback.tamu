@@ -1,6 +1,7 @@
 const { getPool } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
+const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
   return text(value, 120) || `order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -183,6 +184,7 @@ function compactError(error) {
 
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
+  if (!rateLimit(req, res, "order-create", { limit: 30, windowMs: 10 * 60 * 1000 })) return;
   const client = await getPool().connect();
   try {
     const payload = await body(req);

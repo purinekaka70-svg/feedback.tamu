@@ -979,7 +979,6 @@ function renderOrders() {
           ${orderStatus !== "processing" && !["delivered", "cancelled"].includes(orderStatus) ? `<button class="button button-outline button-small" data-mark-processing="${order.id}" type="button">Processing</button>` : ""}
           ${orderStatus !== "delivered" ? `<button class="button button-outline button-small" data-mark-delivered="${order.id}" type="button">Delivered</button>` : ""}
           ${orderStatus !== "cancelled" ? `<button class="button button-outline button-small" data-mark-cancelled="${order.id}" type="button">Cancel</button>` : ""}
-          <button class="button button-ghost button-small" data-delete-order="${order.id}" type="button">Delete</button>
         </div>
       </article>
     `;
@@ -1054,20 +1053,6 @@ function renderOrders() {
     });
   });
 
-  container.querySelectorAll("[data-delete-order]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const updated = orders().filter((order) => order.id !== button.dataset.deleteOrder);
-      cachedOrders = updated;
-      await postJson('./api/orders/delete.php', { id: button.dataset.deleteOrder });
-      renderCounts();
-      renderOrders();
-      renderSellerNotifications();
-      renderSellerPaymentOrders();
-      renderSellerCustomers();
-      renderSellerAnalytics();
-      showToast("Order deleted.", "warn");
-    });
-  });
 }
 
 function sellerOrderDistance(order, sellerId) {
