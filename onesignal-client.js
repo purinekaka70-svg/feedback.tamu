@@ -28,7 +28,7 @@
             safari_web_id: SAFARI_WEB_ID,
             serviceWorkerPath: "OneSignalSDKWorker.js",
             notifyButton: {
-              enable: true
+              enable: false
             }
           });
           resolve(OneSignal);
@@ -97,6 +97,17 @@
     return window.Notification?.permission === "granted" || OneSignal?.Notifications?.permission === true;
   }
 
+  function notificationsEnabled(OneSignal) {
+    return notificationsGranted(OneSignal) || OneSignal?.User?.PushSubscription?.optedIn === true;
+  }
+
+  async function optInNotifications(OneSignal) {
+    if (!OneSignal) return;
+    if (OneSignal.User?.PushSubscription?.optIn) {
+      await OneSignal.User.PushSubscription.optIn();
+    }
+  }
+
   async function rememberCustomer(phone) {
     const customerId = window.tamuPushCustomerId(phone);
     if (!customerId) return false;
@@ -116,8 +127,12 @@
         window.tamuOneSignalReady,
         new Promise((resolve) => window.setTimeout(() => resolve(null), 3500))
       ]);
-      const granted = notificationsGranted(OneSignal);
-      button.classList.toggle("is-hidden", granted);
+      const enabled = notificationsEnabled(OneSignal);
+      button.classList.toggle("is-hidden", enabled);
+      if (enabled) {
+        button.remove();
+        return;
+      }
       button.disabled = false;
       button.textContent = "Enable notifications";
     };
@@ -133,14 +148,20 @@
         } else if (window.Notification?.requestPermission) {
           await window.Notification.requestPermission();
         }
+        if (notificationsGranted(OneSignal)) {
+          await optInNotifications(OneSignal);
+        }
       } catch {
         button.textContent = "Try again";
         button.disabled = false;
         return;
       }
-      const granted = notificationsGranted(OneSignal);
-      if (granted) {
+      const enabled = notificationsEnabled(OneSignal);
+      if (enabled) {
         await identifyFromSession();
+        button.classList.add("is-hidden");
+        button.remove();
+        return;
       }
       await updateButton();
     });
