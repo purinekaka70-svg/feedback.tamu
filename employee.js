@@ -124,16 +124,10 @@ function firebaseConfig() {
   if (window.tamuFirebaseConfig) {
     return window.tamuFirebaseConfig;
   }
-  return null;
+  return readStorage("tamu_market_firebase_config", null);
 }
 
 async function loadFirebaseConfig() {
-  try {
-    window.localStorage.removeItem("tamu_market_firebase_config");
-  } catch (error) {
-    // Ignore storage restrictions; firebase-config.js remains the source of truth.
-  }
-
   const existing = firebaseConfig();
   if (existing?.apiKey && existing?.projectId) {
     return existing;
@@ -160,11 +154,6 @@ async function ensureFirebaseApp() {
       ok: false,
       message: "Firebase Auth is not configured. Add firebase-config.js or set TAMU_FIREBASE_* server variables."
     };
-  }
-
-  const currentApp = window.firebase.apps[0];
-  if (currentApp && currentApp.options?.projectId !== config.projectId) {
-    await currentApp.delete().catch(() => {});
   }
 
   if (!window.firebase.apps.length) {
@@ -301,7 +290,7 @@ function employeeLoginErrorMessage(error) {
     return `No Firebase Auth employee exists for this email in ${project}.`;
   }
   if (code.includes("wrong-password") || code.includes("invalid-credential") || code.includes("invalid-login-credentials")) {
-    return `Firebase rejected this email/password in ${project} (${code || "no-code"}). Confirm the user is in Authentication > Users for this same project and the sign-in provider is Email/Password.`;
+    return `Firebase rejected this email/password in ${project}. Confirm the user is in Firebase Authentication for this same project and has an Email/Password sign-in method.`;
   }
   if (code.includes("too-many-requests")) {
     return "Firebase temporarily blocked this email after too many failed attempts. Wait a few minutes or use Reset Firebase password.";
