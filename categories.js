@@ -416,7 +416,7 @@ async function loadMarketData() {
     }
     const data = await res.json();
     if (data.ok) {
-      marketLoadError = "";
+      marketLoadError = data.message || "";
       cachedApplications = data.businesses || [];
       cachedProducts = (data.products || []).map(normalizeProductRecord);
       cachedCategories = data.categories || [];

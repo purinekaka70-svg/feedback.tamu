@@ -2,6 +2,31 @@ const { query } = require("../_lib/db");
 const { method, send } = require("../_lib/http");
 const { DEFAULT_CATEGORIES, key, sellerFromBusiness, slug } = require("../_lib/market");
 
+async function columnExists(table, column) {
+  const rows = await query(
+    "select 1 from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = $2 limit 1",
+    [table, column]
+  );
+  return rows.length > 0;
+}
+
+async function tableExists(table) {
+  const rows = await query(
+    "select 1 from information_schema.tables where table_schema = 'public' and table_name = $1 limit 1",
+    [table]
+  );
+  return rows.length > 0;
+}
+
+async function safeColumns(table, columns) {
+  const checks = await Promise.all(columns.map(async (column) => [column, await columnExists(table, column)]));
+  return Object.fromEntries(checks);
+}
+
+function selectColumn(columns, name, fallback = "''") {
+  return columns[name] ? name : `${fallback} as ${name}`;
+}
+
 function actualOfferText(...values) {
   return values
     .map((value) => String(value || "").trim())
@@ -11,23 +36,106 @@ function actualOfferText(...values) {
 module.exports = async function handler(req, res) {
   if (!method(req, res, "GET")) return;
   try {
+    const databaseConfigured = Boolean(
+      process.env.SUPABASE_DB_URL ||
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.SUPABASE_DB_HOST
+    );
+    if (!databaseConfigured) {
+      send(res, 200, {
+        ok: true,
+        locations: [],
+        businesses: [],
+        categories: [],
+        products: [],
+        offers: [],
+        message: "Database connection is not configured."
+      });
+      return;
+    }
+
+    const hasBusinesses = await tableExists("businesses");
+    if (!hasBusinesses) {
+      send(res, 200, {
+        ok: true,
+        locations: [],
+        businesses: [],
+        categories: [],
+        products: [],
+        offers: [],
+        message: "No businesses table is available yet."
+      });
+      return;
+    }
+
+    const businessColumns = await safeColumns("businesses", [
+      "id",
+      "user_id",
+      "name",
+      "store_name",
+      "owner_name",
+      "phone",
+      "email",
+      "type",
+      "business_type",
+      "location_name",
+      "location",
+      "county",
+      "latitude",
+      "longitude",
+      "payment_methods",
+      "till_number",
+      "pochi_number",
+      "bank_account",
+      "delivery_availability",
+      "delivery_notes",
+      "logo",
+      "logo_image",
+      "rating",
+      "status",
+      "created_at"
+    ]);
+    const statusFilter = businessColumns.status ? "where status = 'approved'" : "";
     const businessRows = await query(
-      `select id, user_id, name, owner_name, phone, email, type, location_name, latitude, longitude,
-              payment_methods, till_number, pochi_number, bank_account, delivery_availability,
-              delivery_notes, logo, logo_image, rating, status, created_at
+      `select ${selectColumn(businessColumns, "id", "0")},
+              ${selectColumn(businessColumns, "user_id")},
+              ${businessColumns.name ? "name" : selectColumn(businessColumns, "store_name", "'Business'")},
+              ${selectColumn(businessColumns, "owner_name")},
+              ${selectColumn(businessColumns, "phone")},
+              ${selectColumn(businessColumns, "email")},
+              ${businessColumns.type ? "type" : selectColumn(businessColumns, "business_type", "'Retail'")},
+              ${businessColumns.location_name ? "location_name" : businessColumns.location ? "location as location_name" : businessColumns.county ? "county as location_name" : "'' as location_name"},
+              ${selectColumn(businessColumns, "latitude", "0")},
+              ${selectColumn(businessColumns, "longitude", "0")},
+              ${selectColumn(businessColumns, "payment_methods", "'[]'")},
+              ${selectColumn(businessColumns, "till_number")},
+              ${selectColumn(businessColumns, "pochi_number")},
+              ${selectColumn(businessColumns, "bank_account")},
+              ${selectColumn(businessColumns, "delivery_availability")},
+              ${selectColumn(businessColumns, "delivery_notes")},
+              ${selectColumn(businessColumns, "logo")},
+              ${selectColumn(businessColumns, "logo_image")},
+              ${selectColumn(businessColumns, "rating", "4.5")},
+              ${selectColumn(businessColumns, "status", "'approved'")},
+              ${selectColumn(businessColumns, "created_at", "now()")}
          from businesses
-        where status = 'approved'
+        ${statusFilter}
         order by name asc`
     );
     const businesses = businessRows.map(sellerFromBusiness).map((business) => ({ ...business, status: "approved" }));
     const businessById = Object.fromEntries(businesses.map((business) => [String(business.id), business]));
 
-    const productRows = await query(
-      `select p.*, c.name as category_name
-         from products p
-         left join categories c on c.id = p.category_id
-        order by p.created_at desc`
-    );
+    const hasProducts = await tableExists("products");
+    const hasCategories = await tableExists("categories");
+    const productRows = hasProducts
+      ? await query(
+          `select p.*, ${hasCategories ? "c.name" : "null"} as category_name
+             from products p
+             ${hasCategories ? "left join categories c on c.id = p.category_id" : ""}
+            order by p.created_at desc`
+        )
+      : [];
     const products = productRows.flatMap((row) => {
       const business = businessById[String(row.business_id)];
       if (!business) return [];
@@ -71,7 +179,9 @@ module.exports = async function handler(req, res) {
       image: "",
       default: true
     }));
-    const categoryRows = await query("select id, business_id, name, image from categories order by name asc");
+    const categoryRows = hasCategories
+      ? await query("select id, business_id, name, image from categories order by name asc")
+      : [];
     categoryRows.forEach((row) => categoryMap.set(`${row.business_id || ""}-${key(row.name)}`, {
       id: String(row.id),
       businessId: row.business_id ? String(row.business_id) : "",
@@ -120,7 +230,10 @@ module.exports = async function handler(req, res) {
       offerImage: product.productImage,
       productId: product.id
     }));
-    const sellerOffers = await query("select public_id, seller_public_id, store_name, offer_title, offer_note, offer_expiry, offer_image, created_at from seller_offers order by created_at desc");
+    const hasSellerOffers = await tableExists("seller_offers");
+    const sellerOffers = hasSellerOffers
+      ? await query("select public_id, seller_public_id, store_name, offer_title, offer_note, offer_expiry, offer_image, created_at from seller_offers order by created_at desc")
+      : [];
     sellerOffers.forEach((row) => {
       const business = businessById[String(row.seller_public_id)];
       if (!business) return;
@@ -150,7 +263,11 @@ module.exports = async function handler(req, res) {
       products,
       offers
     });
-  } catch {
-    send(res, 500, { ok: false, message: "Failed to load live marketplace data." });
+  } catch (error) {
+    send(res, 500, {
+      ok: false,
+      message: "Failed to load live marketplace data.",
+      error: String(error?.message || error).slice(0, 180)
+    });
   }
 };
