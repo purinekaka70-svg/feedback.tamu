@@ -7,7 +7,7 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const READY_TIMEOUT_MS = 12000;
-  const CLICK_READY_TIMEOUT_MS = 10000;
+  const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
 
   function sleep(ms) {
@@ -167,6 +167,10 @@
       script.onerror = () => resolve(false);
       document.head.appendChild(script);
     });
+  }
+
+  function warmOneSignalSdk() {
+    loadOneSignalSdk().catch(() => false);
   }
 
   async function getOneSignal() {
@@ -340,7 +344,7 @@
     if (notificationsGranted(OneSignal)) {
       await optInNotifications(OneSignal);
     }
-    return waitForSubscription(OneSignal, 9000);
+    return waitForSubscription(OneSignal, 7000);
   }
 
   async function waitForSubscription(OneSignal, timeoutMs = 6000) {
@@ -456,6 +460,30 @@
     return false;
   }
 
+  async function subscribeWithOneSignal(button) {
+    button.textContent = "Opening OneSignal...";
+    const OneSignal = await getOneSignalFast();
+    if (!OneSignal) {
+      return false;
+    }
+    if (notificationsDenied()) {
+      clearNotificationsAllowed();
+      button.textContent = "Notifications blocked";
+      button.disabled = true;
+      return true;
+    }
+    if (!notificationsSupported(OneSignal)) {
+      button.textContent = window.isSecureContext ? "Notifications unsupported" : "HTTPS required";
+      button.disabled = true;
+      appToast("Notifications unavailable", button.textContent, "warn");
+      return true;
+    }
+
+    button.textContent = "Subscribing to OneSignal...";
+    await requestOneSignalSubscription(OneSignal);
+    return finishEnabledState(OneSignal, button);
+  }
+
   function ensureEnableButton() {
     if (document.getElementById("enableNotificationsButton")) return;
     if (shouldHideEnableButton(null)) {
@@ -502,32 +530,17 @@
     button.addEventListener("click", async () => {
       button.disabled = true;
       button.textContent = "Enabling notifications...";
-      if (await finishNativePermission(button)) {
-        return;
-      }
-
-      const OneSignal = await getOneSignalFast();
-      if (!OneSignal) {
-        appToast("Notifications unavailable", lastInitError || "OneSignal did not load. Check your connection and try again.", "warn");
-        button.textContent = lastInitError ? "Reload page" : "Enable notifications";
-        button.disabled = false;
-        return;
-      }
-      if (notificationsDenied()) {
-        clearNotificationsAllowed();
-        button.textContent = "Notifications blocked";
-        button.disabled = true;
-        return;
-      }
       try {
-        button.textContent = "Subscribing to OneSignal...";
-        await requestOneSignalSubscription(OneSignal);
+        if (await subscribeWithOneSignal(button)) {
+          return;
+        }
       } catch {
         button.textContent = "Enable notifications";
         button.disabled = false;
         return;
       }
-      if (await finishEnabledState(OneSignal, button)) {
+
+      if (await finishNativePermission(button)) {
         return;
       }
       if (notificationsDenied()) {
@@ -569,6 +582,7 @@
   }
 
   window.tamuOneSignalReady = initOneSignal();
+  warmOneSignalSdk();
   window.tamuPushLogin = identify;
   window.tamuPushLogout = logout;
   window.tamuPushIdentifySession = identifyFromSession;
