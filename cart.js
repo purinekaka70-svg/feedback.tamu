@@ -1561,7 +1561,7 @@ async function handleCheckout() {
   writeStorage(STORAGE_KEYS.buyerProfile, profile);
   await Promise.race([
     Promise.resolve(window.tamuPushRememberCustomer?.(profile.phone)),
-    new Promise((resolve) => window.setTimeout(resolve, 1500))
+    new Promise((resolve) => window.setTimeout(resolve, 6000))
   ]).catch(() => {});
 
   const submitButton = document.getElementById("submitOrderButton");

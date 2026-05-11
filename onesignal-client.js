@@ -194,6 +194,7 @@
       await OneSignal.login(id);
       if (notificationsGranted(OneSignal) && !notificationsEnabled(OneSignal)) {
         await optInNotifications(OneSignal);
+        await waitForSubscription(OneSignal, 6000);
       }
       if (notificationsGranted(OneSignal)) {
         rememberNotificationsAllowed();
@@ -274,11 +275,11 @@
       clearNotificationsAllowed();
       return false;
     }
-    if (notificationsEnabled(OneSignal) || notificationsGranted(OneSignal)) {
+    if (notificationsEnabled(OneSignal)) {
       rememberNotificationsAllowed();
       return true;
     }
-    return notificationsAllowedRemembered() && window.Notification?.permission === "granted";
+    return false;
   }
 
   function removeEnableButton(button) {
@@ -294,7 +295,7 @@
       await requestOneSignalSubscription(OneSignal).catch(() => false);
     }
     await identifyFromSession().catch(() => {});
-    return true;
+    return notificationsEnabled(OneSignal);
   }
 
   async function optInNotifications(OneSignal) {
@@ -331,7 +332,7 @@
     if (notificationsGranted(OneSignal)) {
       await optInNotifications(OneSignal);
     }
-    return waitForSubscription(OneSignal, 15000);
+    return waitForSubscription(OneSignal, 18000);
   }
 
   async function waitForSubscription(OneSignal, timeoutMs = 6000) {
@@ -348,6 +349,17 @@
     if (!customerId) return false;
     window.localStorage.setItem(CUSTOMER_KEY, customerId);
     return identify(customerId, { role: "customer" });
+  }
+
+  async function completeOneSignalSubscription(OneSignal) {
+    if (!OneSignal) return false;
+    await requestOneSignalSubscription(OneSignal).catch(() => false);
+    await identifyFromSession().catch(() => {});
+    if (notificationsEnabled(OneSignal)) {
+      rememberNotificationsAllowed();
+      return true;
+    }
+    return false;
   }
 
   function notificationIcon() {
@@ -397,13 +409,14 @@
     }
     if (notificationsGranted(OneSignal)) {
       rememberNotificationsAllowed();
-      await showTestNotification(true);
-      removeEnableButton(button);
-      window.setTimeout(async () => {
-        await requestOneSignalSubscription(OneSignal).catch(() => false);
-        await identifyFromSession();
-      }, 2500);
-      return true;
+      button.textContent = "Finalizing...";
+      if (await completeOneSignalSubscription(OneSignal)) {
+        await showTestNotification(true);
+        appToast("Push notifications enabled", "This device is subscribed for Tamu Express alerts.", "success");
+        removeEnableButton(button);
+        return true;
+      }
+      appToast("Almost done", "Permission is allowed, but the push subscription did not finish. Tap Enable notifications again.", "warn");
     }
     return false;
   }
@@ -412,14 +425,17 @@
     const permission = await requestBrowserPermissionImmediately();
     if (permission === "granted") {
       rememberNotificationsAllowed();
-      await showTestNotification(true);
-      appToast("Notifications enabled", "You will now receive Tamu Express order and payment alerts.", "success");
-      removeEnableButton(button);
-      getOneSignal().then(async (OneSignal) => {
-        if (!OneSignal) return;
-        await requestOneSignalSubscription(OneSignal).catch(() => false);
-        await identifyFromSession();
-      });
+      button.textContent = "Subscribing...";
+      const OneSignal = await getOneSignal();
+      if (await completeOneSignalSubscription(OneSignal)) {
+        await showTestNotification(true);
+        appToast("Push notifications enabled", "This device is subscribed for Tamu Express alerts.", "success");
+        removeEnableButton(button);
+        return true;
+      }
+      appToast("Permission allowed", "Browser permission is on, but push setup still needs one more try.", "warn");
+      button.textContent = "Finish notifications";
+      button.disabled = false;
       return true;
     }
     if (permission === "denied") {
@@ -452,6 +468,11 @@
       if (shouldHideEnableButton(OneSignal)) {
         removeEnableButton(button);
         syncAllowedNotifications(OneSignal);
+        return;
+      }
+      if (notificationsGranted(OneSignal) && !notificationsEnabled(OneSignal)) {
+        button.disabled = false;
+        button.textContent = "Finish notifications";
         return;
       }
       if (OneSignal && !notificationsSupported(OneSignal)) {
@@ -515,10 +536,11 @@
       OneSignal?.Notifications?.addEventListener?.("permissionChange", async () => {
         if (notificationsGranted(OneSignal)) {
           rememberNotificationsAllowed();
-          removeEnableButton(button);
-          await requestOneSignalSubscription(OneSignal);
-          await identifyFromSession();
-          await showTestNotification();
+          button.textContent = "Finalizing...";
+          if (await completeOneSignalSubscription(OneSignal)) {
+            removeEnableButton(button);
+            await showTestNotification();
+          }
         } else if (notificationsDenied()) {
           clearNotificationsAllowed();
         }
