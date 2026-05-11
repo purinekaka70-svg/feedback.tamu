@@ -50,6 +50,10 @@
           </div>
 
           <div id="loginForm" class="stack">
+            <div id="sellerRegistrationSuccess" class="seller-registration-success is-hidden" role="status" aria-live="polite">
+              <strong>Registered successful.</strong>
+              <span>Account pending for admin approval.</span>
+            </div>
             <form id="sellerLoginForm" class="stack">
               <label class="field">
                 <span class="field-label">Email</span>
@@ -636,7 +640,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="./realtime-sync.js"></script>
-  <script src="./seller.js"></script>
+  <script src="./seller.js?v=20260512-registration-pending-message"></script>
   <script src="./security-client.js"></script>
 </body>
 </html>

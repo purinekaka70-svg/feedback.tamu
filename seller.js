@@ -393,6 +393,7 @@ function toggleForms(showRegistration) {
   const loginForm = document.getElementById("loginForm");
   const formTitle = document.getElementById("formTitle");
   const loginStatus = document.getElementById("loginStatus");
+  const successPanel = document.getElementById("sellerRegistrationSuccess");
   document.body.classList.toggle("seller-register-active", showRegistration);
 
   if (showRegistration) {
@@ -400,6 +401,7 @@ function toggleForms(showRegistration) {
     loginForm.classList.add("is-hidden");
     formTitle.textContent = "Seller Registration";
     if (loginStatus) loginStatus.textContent = "";
+    successPanel?.classList.add("is-hidden");
     window.setTimeout(() => {
       if (map) {
         map.invalidateSize();
@@ -1903,7 +1905,13 @@ function bindForms() {
     toggleForms(false);
     notifyRealtime("marketplace", "seller-registered");
     const successMessage = response.data?.message || "Successfully registered. Please wait for admin approval.";
-    document.getElementById("loginStatus").textContent = successMessage;
+    const pendingMessage = "Registered successful. Account pending for admin approval.";
+    const successPanel = document.getElementById("sellerRegistrationSuccess");
+    if (successPanel) {
+      successPanel.classList.remove("is-hidden");
+      successPanel.innerHTML = "<strong>Registered successful.</strong><span>Account pending for admin approval.</span>";
+    }
+    document.getElementById("loginStatus").textContent = pendingMessage;
     showToast(successMessage, "success");
   });
 
