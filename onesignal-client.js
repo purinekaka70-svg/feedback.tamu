@@ -664,6 +664,11 @@
   };
   async function debugPushState() {
     const OneSignal = await window.tamuOneSignalReady;
+    if (notificationsGranted(OneSignal) || notificationsAllowedRemembered()) {
+      await requestOneSignalSubscription(OneSignal).catch(() => false);
+    } else {
+      await ensureOneSignalServiceWorker();
+    }
     const subscription = OneSignal?.User?.PushSubscription || {};
     const registrations = navigator.serviceWorker?.getRegistrations
       ? await navigator.serviceWorker.getRegistrations().catch(() => [])
@@ -698,7 +703,10 @@
   }
   window.tamuOneSignalReady.then(async (OneSignal) => {
     await identifyFromSession();
-    if (shouldHideEnableButton(OneSignal)) {
+    if (notificationsGranted(OneSignal) || notificationsAllowedRemembered()) {
+      await requestOneSignalSubscription(OneSignal).catch(() => false);
+      await syncAllowedNotifications(OneSignal);
+    } else if (shouldHideEnableButton(OneSignal)) {
       await syncAllowedNotifications(OneSignal);
     }
   });
