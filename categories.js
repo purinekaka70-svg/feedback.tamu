@@ -2007,6 +2007,11 @@ function bindCategoryCardActions(container) {
         return;
       }
       state.focusedBusinessCategory = button.dataset.openBusinessCategory;
+      if (state.focusedStoreId !== "all") {
+        state.activeShopStoreId = state.focusedStoreId;
+        state.shopQuery = "";
+        shouldFocusShopSearch = true;
+      }
       savePreviewState();
       renderMarket();
       document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2259,13 +2264,17 @@ function shopModeProductGroups(selectedStore) {
     if (product.storeId !== selectedStore.id) {
       return false;
     }
+    if (state.focusedBusinessCategory !== "all" && product.productCategory !== state.focusedBusinessCategory) {
+      return false;
+    }
     return productMatchesSearch(product, selectedStore, state.shopQuery);
   });
   const standaloneOffers = sellerOffers()
     .filter((offer) =>
       offer.storeId === selectedStore.id &&
       !offer.productId &&
-      !String(offer.id || "").startsWith("product-offer-")
+      !String(offer.id || "").startsWith("product-offer-") &&
+      state.focusedBusinessCategory === "all"
     )
     .map((offer) => ({
       ...offer,
@@ -2289,13 +2298,16 @@ function shopModeProductGroups(selectedStore) {
 function shopModeSummaryText(selectedStore, groups) {
   const productCount = groups.matches.length;
   const offerCount = groups.standaloneOffers.length;
-  return `${productCount} product${productCount === 1 ? "" : "s"}${offerCount ? ` + ${offerCount} store offer${offerCount === 1 ? "" : "s"}` : ""} in ${selectedStore.storeName}`;
+  const category = state.focusedBusinessCategory !== "all" ? ` in ${state.focusedBusinessCategory}` : "";
+  return `${productCount} product${productCount === 1 ? "" : "s"}${offerCount ? ` + ${offerCount} store offer${offerCount === 1 ? "" : "s"}` : ""}${category} from ${selectedStore.storeName}`;
 }
 
 function shopModeResultsLabel(groups) {
   return groups.query
     ? `${groups.totalCount} result${groups.totalCount === 1 ? "" : "s"} for "${escapeHtml(state.shopQuery)}"`
-    : "Showing all products and offers from this business.";
+    : state.focusedBusinessCategory !== "all"
+      ? `Showing ${escapeHtml(state.focusedBusinessCategory)} products from this business.`
+      : "Showing all products and offers from this business.";
 }
 
 function shopModeResultsHtml(selectedStore, groups = shopModeProductGroups(selectedStore)) {
@@ -2471,8 +2483,10 @@ function updateMarketplaceViewShell() {
     marketEyebrow.textContent = state.focusedLocation === "all" ? "Locations" : state.focusedLocation;
   }
   if (productTitle) {
-    productTitle.textContent = selectedStore && state.activeShopStoreId === selectedStore.id
-      ? `Shop ${selectedStore.storeName}.`
+    productTitle.textContent = selectedStore && state.activeShopStoreId === selectedStore.id && state.focusedBusinessCategory !== "all"
+      ? `Shop ${selectedStore.storeName} - ${state.focusedBusinessCategory}.`
+      : selectedStore && state.activeShopStoreId === selectedStore.id
+        ? `Shop ${selectedStore.storeName}.`
       : selectedStore && state.focusedBusinessCategory !== "all"
         ? `${state.focusedBusinessCategory}.`
       : selectedStore
@@ -2530,6 +2544,8 @@ function bindEvents() {
   document.getElementById("productBackButton")?.addEventListener("click", () => {
     if (state.focusedBusinessCategory !== "all") {
       state.focusedBusinessCategory = "all";
+      state.activeShopStoreId = "";
+      state.shopQuery = "";
     } else {
       state.focusedStoreId = "all";
       state.activeShopStoreId = "";
