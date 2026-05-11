@@ -1568,26 +1568,21 @@ input[type="search"]:focus,
   align-self: stretch;
 }
 
-/* Marketplace cards: keep each card's original design, but lay cards out left-to-right. */
+/* Marketplace cards: adaptive mobile tiles that wrap instead of forcing overflow. */
 #productBrowserSection .category-card-grid,
 #productBrowserSection .product-grid,
 #productBrowserSection .product-grid--shelf,
 #productBrowserSection .product-row-scroll {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  grid-template-columns: none !important;
-  gap: 10px !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)) !important;
+  gap: 9px !important;
   align-items: stretch !important;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  padding: 4px 2px 14px !important;
-  scroll-padding-inline: 2px !important;
-  scroll-snap-type: x proximity !important;
-  -webkit-overflow-scrolling: touch !important;
+  overflow: visible !important;
+  padding: 2px 0 10px !important;
+  scroll-snap-type: none !important;
 }
 
 #productBrowserSection .category-market-card,
@@ -1595,10 +1590,10 @@ input[type="search"]:focus,
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto auto auto auto auto auto !important;
-  flex: 0 0 clamp(154px, 44vw, 186px) !important;
-  width: clamp(154px, 44vw, 186px) !important;
+  flex: initial !important;
+  width: 100% !important;
   min-width: 0 !important;
-  max-width: clamp(154px, 44vw, 186px) !important;
+  max-width: 100% !important;
   min-height: 0 !important;
   padding: 7px !important;
   gap: 5px !important;
@@ -1606,7 +1601,7 @@ input[type="search"]:focus,
   border-radius: 8px !important;
   background: #fff !important;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
-  scroll-snap-align: start !important;
+  scroll-snap-align: none !important;
 }
 
 #productBrowserSection .category-card-image,
@@ -1614,8 +1609,9 @@ input[type="search"]:focus,
   grid-column: auto !important;
   grid-row: auto !important;
   width: 100% !important;
-  height: 142px !important;
-  min-height: 142px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 1 / 1;
   border-radius: 6px !important;
   background: #fff !important;
 }
@@ -1744,14 +1740,38 @@ input[type="search"]:focus,
   #productBrowserSection .product-grid,
   #productBrowserSection .product-grid--shelf,
   #productBrowserSection .product-row-scroll {
-    grid-template-columns: none !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
   }
 
   #productBrowserSection .category-market-card,
   #productBrowserSection .supermarket-product-card {
     grid-template-columns: minmax(0, 1fr) !important;
-    flex-basis: min(72vw, 176px) !important;
-    width: min(72vw, 176px) !important;
-    max-width: min(72vw, 176px) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #productBrowserSection .supermarket-product-card .product-head h3,
+  #productBrowserSection .category-card-copy strong {
+    font-size: 0.72rem !important;
+  }
+
+  #productBrowserSection .product-card-actions {
+    gap: 4px !important;
+  }
+
+  #productBrowserSection .product-card-actions .button {
+    min-height: 26px !important;
+    padding: 0 5px !important;
+    font-size: 0.61rem !important;
+  }
+}
+
+@media (max-width: 320px) {
+  #productBrowserSection .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf,
+  #productBrowserSection .product-row-scroll {
+    grid-template-columns: 1fr !important;
   }
 }
