@@ -255,6 +255,14 @@
     return window.Notification?.permission === "granted" || OneSignal?.Notifications?.permission === true;
   }
 
+  function browserNotificationsGranted() {
+    return window.Notification?.permission === "granted";
+  }
+
+  function oneSignalPermissionGranted(OneSignal) {
+    return OneSignal?.Notifications?.permission === true;
+  }
+
   function notificationsDenied() {
     return window.Notification?.permission === "denied";
   }
@@ -312,6 +320,29 @@
     }
   }
 
+  async function waitForServiceWorker() {
+    if (!navigator.serviceWorker?.ready) return false;
+    return withTimeout(navigator.serviceWorker.ready.then(() => true).catch(() => false), 5000, false);
+  }
+
+  async function syncOneSignalPermission(OneSignal) {
+    if (!OneSignal || notificationsDenied()) return false;
+    if (oneSignalPermissionGranted(OneSignal)) return true;
+    if (!browserNotificationsGranted() && OneSignal.Slidedown?.promptPush) {
+      await withTimeout(OneSignal.Slidedown.promptPush({ force: true }).catch((error) => {
+        lastInitError = String(error?.message || error || "OneSignal prompt failed").slice(0, 180);
+        return false;
+      }), 3500, false);
+    }
+    if (!oneSignalPermissionGranted(OneSignal) && OneSignal.Notifications?.requestPermission) {
+      await withTimeout(OneSignal.Notifications.requestPermission().catch((error) => {
+        lastInitError = String(error?.message || error || "Permission prompt failed").slice(0, 180);
+        return false;
+      }), 6500, false);
+    }
+    return notificationsGranted(OneSignal);
+  }
+
   async function requestBrowserPermissionImmediately() {
     if (!("Notification" in window) || notificationsDenied() || window.Notification.permission === "granted") {
       return window.Notification?.permission || "unsupported";
@@ -329,22 +360,16 @@
   async function requestOneSignalSubscription(OneSignal) {
     if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
     if (notificationsEnabled(OneSignal)) return true;
-    if (!notificationsGranted(OneSignal) && OneSignal?.Slidedown?.promptPush) {
-      await withTimeout(OneSignal.Slidedown.promptPush({ force: true }).catch((error) => {
-        lastInitError = String(error?.message || error || "OneSignal prompt failed").slice(0, 180);
-        return false;
-      }), 3500, false);
-    }
-    if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
-      await withTimeout(OneSignal.Notifications.requestPermission().catch((error) => {
-        lastInitError = String(error?.message || error || "Permission prompt failed").slice(0, 180);
-        return false;
-      }), 6500, false);
-    }
+    await syncOneSignalPermission(OneSignal);
     if (notificationsGranted(OneSignal)) {
+      await waitForServiceWorker();
       await optInNotifications(OneSignal);
     }
-    return waitForSubscription(OneSignal, 7000);
+    if (!(await waitForSubscription(OneSignal, 9000)) && notificationsGranted(OneSignal)) {
+      await optInNotifications(OneSignal);
+      return waitForSubscription(OneSignal, 6000);
+    }
+    return notificationsEnabled(OneSignal);
   }
 
   async function waitForSubscription(OneSignal, timeoutMs = 6000) {
@@ -600,10 +625,12 @@
       supported: notificationsSupported(OneSignal),
       permission: window.Notification?.permission || "unsupported",
       sdkPermission: OneSignal?.Notifications?.permission,
+      serviceWorkerReady: Boolean(await waitForServiceWorker()),
       rememberedAllowed: notificationsAllowedRemembered(),
       optedIn: subscription.optedIn,
       subscriptionId: subscription.id || "",
       token: subscription.token ? "present" : "",
+      lastInitError,
       externalId: OneSignal?.User?.externalId || window.localStorage.getItem(STORAGE_KEY) || ""
     };
   };
