@@ -649,7 +649,7 @@
     const normalized = String(phone || "").replace(/[^\d+]/g, "").trim();
     return normalized ? `customer:${normalized}` : "";
   };
-  window.tamuPushDebug = async function () {
+  async function debugPushState() {
     const OneSignal = await window.tamuOneSignalReady;
     const subscription = OneSignal?.User?.PushSubscription || {};
     return {
@@ -668,7 +668,10 @@
       lastInitError,
       externalId: OneSignal?.User?.externalId || window.localStorage.getItem(STORAGE_KEY) || ""
     };
-  };
+  }
+  window.tamuPushDebug = debugPushState;
+  window.tamupushDebug = debugPushState;
+  window.tamupushdebug = debugPushState;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", ensureEnableButton, { once: true });
