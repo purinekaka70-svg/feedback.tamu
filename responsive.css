@@ -2343,6 +2343,217 @@ input[type="search"]:focus,
   }
 }
 
+/* Final category/card parity: compact Kilimall-style cards on every marketplace surface. */
+.marketplace-landing .store-grid,
+.marketplace-landing .deal-grid,
+.marketplace-landing .product-grid,
+.marketplace-landing .product-grid--shelf,
+.marketplace-landing .category-card-grid,
+#productBrowserSection .product-grid,
+#productBrowserSection .product-grid--shelf,
+#productBrowserSection .category-card-grid,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)) !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.marketplace-landing .store-card,
+.marketplace-landing .business-directory-card,
+.marketplace-landing .location-card,
+.marketplace-landing .category-market-card,
+.marketplace-landing .supermarket-product-card,
+.marketplace-landing .product-card,
+.marketplace-landing .deal-card,
+.marketplace-landing .deal-card.shop-standalone-offer-card,
+#productBrowserSection .category-market-card,
+#productBrowserSection .supermarket-product-card,
+#productBrowserSection .deal-card,
+#productBrowserSection .deal-card.shop-standalone-offer-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  flex-basis: auto !important;
+  padding: 6px !important;
+  gap: 4px !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06) !important;
+  overflow: hidden !important;
+}
+
+.marketplace-landing .category-market-card,
+#productBrowserSection .category-market-card {
+  cursor: pointer !important;
+}
+
+.marketplace-landing .category-card-image,
+.marketplace-landing .product-visual,
+.marketplace-landing .deal-visual,
+.marketplace-landing .business-logo,
+.marketplace-landing .location-card-media,
+#productBrowserSection .category-card-image,
+#productBrowserSection .product-visual,
+#productBrowserSection .deal-visual {
+  width: 100% !important;
+  height: 78px !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  border-radius: 7px !important;
+  background: #f8fafc !important;
+  overflow: hidden !important;
+}
+
+.marketplace-landing .category-card-image img,
+.marketplace-landing .product-visual img,
+.marketplace-landing .deal-visual img,
+.marketplace-landing .business-logo img,
+.marketplace-landing .location-card-media img,
+#productBrowserSection .category-card-image img,
+#productBrowserSection .product-visual img,
+#productBrowserSection .deal-visual img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #f8fafc !important;
+}
+
+.marketplace-landing .category-card-copy,
+#productBrowserSection .category-card-copy {
+  display: grid !important;
+  grid-template-rows: auto auto minmax(22px, auto) !important;
+  gap: 3px !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+.marketplace-landing .category-card-copy strong,
+#productBrowserSection .category-card-copy strong {
+  display: -webkit-box !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  color: #111827 !important;
+  font-family: "Manrope", Aptos, "Segoe UI", sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.marketplace-landing .category-card-copy span,
+#productBrowserSection .category-card-copy span {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: #64748b !important;
+  font-size: 0.56rem !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.marketplace-landing .category-open-button,
+#productBrowserSection .category-open-button {
+  align-self: end !important;
+  width: 100% !important;
+  min-height: 22px !important;
+  padding: 0 5px !important;
+  border-radius: 6px !important;
+  font-size: 0.58rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+}
+
+.marketplace-landing .category-market-card:hover,
+.marketplace-landing .supermarket-product-card:hover,
+.marketplace-landing .deal-card:hover,
+.marketplace-landing .business-directory-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(22, 163, 74, 0.24) !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1) !important;
+}
+
+@media (max-width: 640px) {
+  .marketplace-landing .store-grid,
+  .marketplace-landing .deal-grid,
+  .marketplace-landing .product-grid,
+  .marketplace-landing .product-grid--shelf,
+  .marketplace-landing .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf,
+  #productBrowserSection .category-card-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .marketplace-landing .category-card-image,
+  .marketplace-landing .product-visual,
+  .marketplace-landing .deal-visual,
+  .marketplace-landing .business-logo,
+  .marketplace-landing .location-card-media,
+  #productBrowserSection .category-card-image,
+  #productBrowserSection .product-visual,
+  #productBrowserSection .deal-visual {
+    height: 68px !important;
+  }
+
+  .marketplace-landing .category-card-copy strong,
+  #productBrowserSection .category-card-copy strong {
+    font-size: 0.68rem !important;
+  }
+
+  .marketplace-landing .category-card-copy span,
+  #productBrowserSection .category-card-copy span {
+    font-size: 0.54rem !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1099px) {
+  .marketplace-landing .store-grid,
+  .marketplace-landing .deal-grid,
+  .marketplace-landing .product-grid,
+  .marketplace-landing .product-grid--shelf,
+  .marketplace-landing .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf,
+  #productBrowserSection .category-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)) !important;
+  }
+
+  .marketplace-landing .category-card-image,
+  .marketplace-landing .product-visual,
+  .marketplace-landing .deal-visual,
+  .marketplace-landing .business-logo,
+  .marketplace-landing .location-card-media,
+  #productBrowserSection .category-card-image,
+  #productBrowserSection .product-visual,
+  #productBrowserSection .deal-visual {
+    height: 82px !important;
+  }
+}
+
 /* Authoritative compact marketplace cards: final override for Kilimall-style sizing. */
 .marketplace-landing .store-grid,
 .marketplace-landing .deal-grid,
@@ -3261,5 +3472,163 @@ input[type="search"]:focus,
   #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
   #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* Locked final marketplace card sizing. Keep this after all older responsive overrides. */
+.marketplace-landing .store-grid,
+.marketplace-landing .deal-grid,
+.marketplace-landing .product-grid,
+.marketplace-landing .product-grid--shelf,
+.marketplace-landing .category-card-grid,
+#productBrowserSection .product-grid,
+#productBrowserSection .product-grid--shelf,
+#productBrowserSection .category-card-grid,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)) !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.marketplace-landing .category-market-card,
+.marketplace-landing .supermarket-product-card,
+.marketplace-landing .product-card,
+.marketplace-landing .deal-card,
+.marketplace-landing .deal-card.shop-standalone-offer-card,
+.marketplace-landing .business-directory-card,
+.marketplace-landing .store-card,
+#productBrowserSection .category-market-card,
+#productBrowserSection .supermarket-product-card,
+#productBrowserSection .deal-card,
+#productBrowserSection .deal-card.shop-standalone-offer-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  flex-basis: auto !important;
+  padding: 6px !important;
+  gap: 4px !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+.marketplace-landing .category-card-image,
+.marketplace-landing .product-visual,
+.marketplace-landing .deal-visual,
+.marketplace-landing .business-logo,
+#productBrowserSection .category-card-image,
+#productBrowserSection .product-visual,
+#productBrowserSection .deal-visual {
+  width: 100% !important;
+  height: 78px !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  border-radius: 7px !important;
+  background: #f8fafc !important;
+  overflow: hidden !important;
+}
+
+.marketplace-landing .category-card-image img,
+.marketplace-landing .product-visual img,
+.marketplace-landing .deal-visual img,
+.marketplace-landing .business-logo img,
+#productBrowserSection .category-card-image img,
+#productBrowserSection .product-visual img,
+#productBrowserSection .deal-visual img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #f8fafc !important;
+}
+
+.marketplace-landing .category-card-copy,
+#productBrowserSection .category-card-copy {
+  display: grid !important;
+  grid-template-rows: auto auto minmax(22px, auto) !important;
+  gap: 3px !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+.marketplace-landing .category-card-copy strong,
+#productBrowserSection .category-card-copy strong {
+  display: -webkit-box !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  color: #111827 !important;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.marketplace-landing .category-card-copy span,
+#productBrowserSection .category-card-copy span {
+  overflow: hidden !important;
+  color: #64748b !important;
+  font-size: 0.56rem !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.marketplace-landing .category-open-button,
+#productBrowserSection .category-open-button {
+  align-self: end !important;
+  width: 100% !important;
+  min-height: 22px !important;
+  padding: 0 5px !important;
+  border-radius: 6px !important;
+  font-size: 0.58rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 640px) {
+  .marketplace-landing .store-grid,
+  .marketplace-landing .deal-grid,
+  .marketplace-landing .product-grid,
+  .marketplace-landing .product-grid--shelf,
+  .marketplace-landing .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf,
+  #productBrowserSection .category-card-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .marketplace-landing .category-card-image,
+  .marketplace-landing .product-visual,
+  .marketplace-landing .deal-visual,
+  .marketplace-landing .business-logo,
+  #productBrowserSection .category-card-image,
+  #productBrowserSection .product-visual,
+  #productBrowserSection .deal-visual {
+    height: 68px !important;
+  }
+
+  .marketplace-landing .category-card-copy strong,
+  #productBrowserSection .category-card-copy strong {
+    font-size: 0.68rem !important;
   }
 }

@@ -721,10 +721,14 @@ function businessCategoryEntries(storeId, products = []) {
   });
 
   products.forEach((product) => {
-    const id = productCategoryId(product);
+    const productName = product.productCategory || product.categoryName || "Other";
+    const productToken = categoryToken(productName);
+    const productId = productCategoryId(product);
+    const matchingEntry = [...entries.values()].find((entry) => categoryToken(entry.name) === productToken);
+    const id = entries.has(productId) ? productId : matchingEntry?.id || productId;
     const current = entries.get(id) || {
       id,
-      name: product.productCategory || product.categoryName || "Other",
+      name: productName,
       image: "",
       products: []
     };
@@ -2122,14 +2126,14 @@ function renderProducts() {
             const imageProduct = products.find((product) => product.productImage) || products[0];
             const categoryImage = image || categoryImageForStore(state.focusedStoreId, category) || (imageProduct ? productImageSource(imageProduct) : "");
             return `
-              <article class="category-market-card" role="button" tabindex="0" data-open-business-category="${escapeAttribute(category)}" data-open-business-category-id="${escapeAttribute(id)}">
+              <article class="category-market-card" role="button" tabindex="0" data-open-business-id="${escapeAttribute(state.focusedStoreId)}" data-open-business-category="${escapeAttribute(category)}" data-open-business-category-id="${escapeAttribute(id)}">
                 <div class="category-card-image">
                   ${cardImageHtml(categoryImage, category, `${category} ${selectedStore?.storeName || ""}`)}
                 </div>
                 <div class="category-card-copy">
                   <strong>${category}</strong>
                   <span>${products.length} item${products.length === 1 ? "" : "s"}</span>
-                  <button class="button button-primary button-small category-open-button" type="button">Open Category</button>
+                  <button class="button button-primary button-small category-open-button" type="button">Open</button>
                 </div>
               </article>
             `;
@@ -2171,6 +2175,9 @@ function bindCategoryCardActions(container) {
   container.querySelectorAll("[data-open-business-category]").forEach((button) => {
     const openCategory = (event) => {
       if (event.target.closest("[data-view-image]")) {
+        return;
+      }
+      if (button.dataset.openBusinessId && button.dataset.openBusinessId !== state.focusedStoreId) {
         return;
       }
       state.focusedBusinessCategory = button.dataset.openBusinessCategory;
