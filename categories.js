@@ -511,6 +511,54 @@ function sellerOffers() {
   })).filter((offer) => approvedStoreIds.has(offer.storeId));
 }
 
+function offerCartId(offer) {
+  return `offer:${String(offer?.id || "")}`;
+}
+
+function offerIdFromCartId(value) {
+  const id = String(value || "");
+  return id.startsWith("offer:") ? id.slice(6) : "";
+}
+
+function offerProductRecord(offer) {
+  if (!offer) return null;
+  const store = getStore(offer.storeId);
+  const title = offer.title || offer.offerTitle || "Store offer";
+  const note = offer.note || offer.offerNote || "";
+  const price = Number(offer.nowPrice || offer.price || 0);
+  return {
+    ...offer,
+    itemType: "offer",
+    id: offerCartId(offer),
+    offerId: String(offer.id || ""),
+    businessId: offer.storeId,
+    sellerId: offer.storeId,
+    storeId: offer.storeId,
+    businessName: store?.storeName || offer.storeName || "",
+    sellerName: store?.storeName || offer.storeName || "",
+    storeName: store?.storeName || offer.storeName || "",
+    categoryId: `${offer.storeId || "store"}-special-offers`,
+    categoryName: "Special Offer",
+    productCategory: "Special Offer",
+    name: title,
+    productName: title,
+    image: offerImageSource(offer),
+    productImage: offerImageSource(offer),
+    price,
+    productPrice: price,
+    beforePrice: Number(offer.beforePrice || 0),
+    compareAtPrice: Number(offer.beforePrice || 0),
+    productBeforePrice: Number(offer.beforePrice || 0),
+    stock: "In stock",
+    productStock: "In stock",
+    offerFlag: false,
+    productOffer: "",
+    description: note,
+    productDescription: note,
+    expires: offer.expires || offer.offerExpiry || "Active offer"
+  };
+}
+
 function buyerProfile() {
   return readStorage(STORAGE_KEYS.buyerProfile, {
     latitude: "",
@@ -539,6 +587,10 @@ function getStore(storeId) {
 }
 
 function getProduct(productId) {
+  const offerId = offerIdFromCartId(productId);
+  if (offerId) {
+    return offerProductRecord(sellerOffers().find((offer) => String(offer.id) === offerId));
+  }
   return sellerProducts().find((product) => product.id === productId);
 }
 
@@ -687,6 +739,9 @@ function businessCategoryEntries(storeId, products = []) {
 }
 
 function productImageSource(product) {
+  if (product?.itemType === "offer" && product.productImage) {
+    return product.productImage;
+  }
   const seed = productImageSeed(product);
   const smartProductImage = specificCatalogImageForText(seed);
   if (product.productImage && sellerImageMatchesProduct(product.productImage, product)) return product.productImage;
@@ -1343,7 +1398,7 @@ async function createLocalOrderFromStore(storeId) {
         unitPrice: product.productPrice,
         total: productLineTotal(product, item.quantity),
         lineTotal: productLineTotal(product, item.quantity),
-        offer: "",
+        offer: product.itemType === "offer" ? product.description || product.productName : "",
         paidQuantity: paidQuantityForProduct(product, item.quantity)
       };
     })
@@ -1423,9 +1478,14 @@ function storeCardAccount(store) {
 
 function sanitizeCart() {
   const validProducts = new Set(
-    sellerProducts()
+    [
+      ...sellerProducts()
       .filter((product) => getStore(product.storeId))
-      .map((product) => product.id)
+      .map((product) => product.id),
+      ...sellerOffers()
+      .filter((offer) => getStore(offer.storeId))
+      .map((offer) => offerCartId(offer))
+    ]
   );
 
   const cleanCart = state.cart.filter((item) => validProducts.has(item.productId));
@@ -1568,8 +1628,20 @@ async function addToCart(productId) {
   await saveCartItemToBackend(productId, nextQuantity);
   savePreviewState();
   renderCartSummary();
-  const toastMessage = `${product.productName} added to cart.${product.description ? ` ${product.description}` : ""}`;
-  showToast(toastMessage, "success", 3200);
+  const toastMessage = product.itemType === "offer"
+    ? [
+        `Offer added: ${product.productName}`,
+        product.description ? `Details: ${product.description}` : "",
+        product.beforePrice ? `Before: ${currency(product.beforePrice)}` : "",
+        `Now: ${currency(product.productPrice)}`,
+        `Cart quantity: ${nextQuantity}`
+      ].filter(Boolean).join(" | ")
+    : `${product.productName} added to cart.${product.description ? ` ${product.description}` : ""}`;
+  showToast(
+    toastMessage,
+    product.itemType === "offer" ? "info" : "success",
+    product.itemType === "offer" ? offerToastDuration(toastMessage) : 3200
+  );
 }
 
 function renderTypeFilters() {
@@ -2134,6 +2206,17 @@ function bindProductCardActions(container) {
       const product = getProduct(button.dataset.viewProduct);
       if (!product) return;
       openImageViewer(productImageSource(product), product.productName);
+      if (product.itemType === "offer") {
+        const message = [
+          `Offer: ${product.productName}`,
+          product.storeName ? `Seller: ${product.storeName}` : "",
+          product.description ? `Details: ${product.description}` : "",
+          product.beforePrice ? `Before: ${currency(product.beforePrice)}` : "",
+          `Now: ${currency(product.productPrice)}`,
+          product.expires ? `Ends: ${product.expires}` : ""
+        ].filter(Boolean).join(" | ");
+        showToast(message, "info", offerToastDuration(message));
+      }
     });
   });
 }
@@ -2297,12 +2380,13 @@ function initImageViewer() {
 
 function productCardHtml(product) {
   const store = getStore(product.storeId);
+  const isOfferItem = product.itemType === "offer";
   const details = product.description || product.productDescription || "";
   return `
-    <article class="product-card supermarket-product-card" data-product-card="${product.id}">
+    <article class="product-card supermarket-product-card ${isOfferItem ? "is-offer-product" : ""}" data-product-card="${product.id}">
       <div class="product-visual">
         ${cardImageHtml(productImageSource(product), product.productName, [product.productName, details, product.productCategory].filter(Boolean).join(" "))}
-        <span class="product-card-badge">Product</span>
+        <span class="product-card-badge">${isOfferItem ? "Offer" : "Product"}</span>
       </div>
       <div class="product-head">
         <div>
@@ -2312,6 +2396,7 @@ function productCardHtml(product) {
       </div>
       ${details ? `<p class="product-detail-label">${escapeHtml(details)}</p>` : ""}
       <div class="product-price-row">
+        ${isOfferItem && product.beforePrice ? `<span class="product-price-before">${currency(product.beforePrice)}</span>` : ""}
         <strong class="product-price">${currency(product.productPrice)}</strong>
       </div>
       <div class="product-card-actions">
@@ -2323,25 +2408,8 @@ function productCardHtml(product) {
 }
 
 function standaloneOfferCardHtml(offer) {
-  return `
-    <article class="deal-card shop-standalone-offer-card" data-shop-standalone-offer="${offer.id}">
-      <div class="deal-visual">
-        ${cardImageHtml(offerImageSource(offer), offer.title || "Store offer", [offer.title, offer.note].filter(Boolean).join(" "))}
-      </div>
-      <div class="deal-copy">
-        <div class="deal-head">
-          <div>
-            <h4>${escapeHtml(offer.title || "Store offer")}</h4>
-            <p>${escapeHtml(offer.storeName || "Approved seller")}</p>
-          </div>
-          <span class="status-pill status-pill--timed">${escapeHtml(offer.expires || "Active offer")}</span>
-        </div>
-        ${offer.note ? `<p>${escapeHtml(offer.note)}</p>` : ""}
-        ${offerPriceRowHtml(offer)}
-        <button class="button button-outline button-small" data-view-standalone-offer="${offer.id}" type="button">View offer</button>
-      </div>
-    </article>
-  `;
+  const productLikeOffer = offerProductRecord(offer);
+  return productLikeOffer ? productCardHtml(productLikeOffer) : "";
 }
 
 function shopModeProductGroups(selectedStore) {

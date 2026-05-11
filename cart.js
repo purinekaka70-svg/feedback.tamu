@@ -19,6 +19,7 @@ let buyerMap;
 let buyerMarker;
 let cachedApplications = [];
 let cachedProducts = [];
+let cachedOffers = [];
 let cachedOrders = [];
 
 function readStorage(key, fallback) {
@@ -137,6 +138,71 @@ function sellerProducts() {
   return cachedProducts.map(normalizeProductRecord);
 }
 
+function sellerOffers() {
+  const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
+  return cachedOffers.map((offer) => ({
+    ...offer,
+    itemType: "offer",
+    id: String(offer.id || offer.publicId || offer.public_id || ""),
+    storeId: String(offer.storeId || offer.sellerId || offer.businessId || ""),
+    storeName: offer.storeName || offer.businessName || "",
+    title: offer.title || offer.offerTitle || "",
+    note: offer.note || offer.offerNote || "",
+    expires: offer.expires || offer.offerExpiry || "Active offer",
+    image: offer.image || offer.offerImage || "",
+    beforePrice: Number(offer.beforePrice ?? offer.offerBeforePrice ?? offer.before_price ?? offer.offer_before_price) || 0,
+    nowPrice: Number(offer.nowPrice ?? offer.offerNowPrice ?? offer.now_price ?? offer.offer_now_price ?? offer.price) || 0
+  })).filter((offer) => approvedStoreIds.has(offer.storeId));
+}
+
+function offerCartId(offer) {
+  return `offer:${String(offer?.id || "")}`;
+}
+
+function offerIdFromCartId(value) {
+  const id = String(value || "");
+  return id.startsWith("offer:") ? id.slice(6) : "";
+}
+
+function offerProductRecord(offer) {
+  if (!offer) return null;
+  const store = getStore(offer.storeId);
+  const title = offer.title || offer.offerTitle || "Store offer";
+  const note = offer.note || offer.offerNote || "";
+  const price = Number(offer.nowPrice || offer.price || 0);
+  return {
+    ...offer,
+    itemType: "offer",
+    id: offerCartId(offer),
+    offerId: String(offer.id || ""),
+    businessId: offer.storeId,
+    sellerId: offer.storeId,
+    storeId: offer.storeId,
+    businessName: store?.storeName || offer.storeName || "",
+    sellerName: store?.storeName || offer.storeName || "",
+    storeName: store?.storeName || offer.storeName || "",
+    categoryId: `${offer.storeId || "store"}-special-offers`,
+    categoryName: "Special Offer",
+    productCategory: "Special Offer",
+    name: title,
+    productName: title,
+    image: offer.image || offer.offerImage || "",
+    productImage: offer.image || offer.offerImage || "",
+    price,
+    productPrice: price,
+    beforePrice: Number(offer.beforePrice || 0),
+    compareAtPrice: Number(offer.beforePrice || 0),
+    productBeforePrice: Number(offer.beforePrice || 0),
+    stock: "In stock",
+    productStock: "In stock",
+    offerFlag: false,
+    productOffer: "",
+    description: note,
+    productDescription: note,
+    expires: offer.expires || offer.offerExpiry || "Active offer"
+  };
+}
+
 async function loadMarketData() {
   try {
     const res = await fetch('./api/marketplace/list.php', { cache: 'no-store' });
@@ -144,10 +210,12 @@ async function loadMarketData() {
     if (res.ok && data.ok) {
       cachedApplications = data.businesses || [];
       cachedProducts = data.products || [];
+      cachedOffers = data.offers || [];
     }
   } catch (error) {
     cachedApplications = [];
     cachedProducts = [];
+    cachedOffers = [];
   }
 }
 
@@ -246,6 +314,10 @@ function getStore(storeId) {
 }
 
 function getProduct(productId) {
+  const offerId = offerIdFromCartId(productId);
+  if (offerId) {
+    return offerProductRecord(sellerOffers().find((offer) => String(offer.id) === offerId));
+  }
   return sellerProducts().find((product) => product.id === productId);
 }
 
@@ -858,9 +930,14 @@ function availableCheckoutMethods(items) {
 
 function sanitizeCart() {
   const validProducts = new Set(
-    sellerProducts()
+    [
+      ...sellerProducts()
       .filter((product) => getStore(product.storeId))
-      .map((product) => product.id)
+      .map((product) => product.id),
+      ...sellerOffers()
+      .filter((offer) => getStore(offer.storeId))
+      .map((offer) => offerCartId(offer))
+    ]
   );
   const cleanCart = cart.filter((item) => validProducts.has(item.productId));
   if (cleanCart.length !== cart.length) {
@@ -1236,6 +1313,7 @@ function renderCart() {
           <strong>${product.productName}</strong>
           <p>${store.storeName}</p>
           <p class="tiny">${product.productCategory || "Product"}${product.description ? ` | ${product.description}` : ""}</p>
+          ${product.itemType === "offer" && product.beforePrice ? `<p class="tiny cart-price-before">Before ${currency(product.beforePrice)}</p>` : ""}
           <p>${currency(product.productPrice)} each | Total ${currency(productLineTotal(product, item.quantity))}</p>
           ${isBogoOffer(product) ? `<p class="tiny">Buy one get one free applied: ${item.quantity} item(s), pay for ${paidQuantityForProduct(product, item.quantity)}.</p>` : ""}
           <div class="button-row">
@@ -1396,7 +1474,7 @@ function buildOrderPayload(profile, delivery) {
         unitPrice: product.productPrice,
         total: productLineTotal(product, item.quantity),
         lineTotal: productLineTotal(product, item.quantity),
-        offer: "",
+        offer: product.itemType === "offer" ? product.description || product.productName : "",
         paidQuantity: paidQuantityForProduct(product, item.quantity)
       };
     })
