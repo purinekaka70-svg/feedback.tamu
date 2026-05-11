@@ -331,7 +331,6 @@ body.seller-auth-only #sellerAuthSection {
   display: grid !important;
 }
 
-body.seller-auth-only .topbar-actions,
 body.seller-auth-only .topbar-menu-toggle,
 body.seller-auth-only .topbar-menu-overlay,
 body.seller-auth-only .footer {
