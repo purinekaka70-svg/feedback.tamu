@@ -198,6 +198,44 @@ body.about-page .feature-grid {
   align-items: stretch !important;
 }
 
+body.admin-auth-only,
+body.seller-auth-only,
+body.employee-auth-only {
+  min-height: 100vh !important;
+}
+
+body.admin-auth-only .site-shell,
+body.seller-auth-only .site-shell,
+body.employee-auth-only .employee-shell {
+  min-height: 100vh !important;
+}
+
+body.admin-auth-only .content-shell,
+body.seller-auth-only .content-shell {
+  min-height: calc(100vh - 132px) !important;
+  display: grid !important;
+  align-items: center !important;
+  justify-items: center !important;
+}
+
+body.admin-auth-only #adminLoginView,
+body.seller-auth-only #sellerAuthSection,
+body.employee-auth-only #employeeLoginView {
+  width: 100% !important;
+  min-height: calc(100vh - 132px) !important;
+  display: grid !important;
+  align-items: center !important;
+  justify-items: center !important;
+  align-content: center !important;
+}
+
+body.admin-auth-only .admin-login-card,
+body.seller-auth-only .seller-auth-card,
+body.employee-auth-only .login-card {
+  width: min(100%, 560px) !important;
+  margin: auto !important;
+}
+
 body.about-page .feature-grid > .feature-card {
   display: grid !important;
   align-content: start !important;
