@@ -119,6 +119,7 @@ const state = {
   focusedLocation: readStorage(STORAGE_KEYS.previewState, {}).focusedLocation || "all",
   focusedStoreId: readStorage(STORAGE_KEYS.previewState, {}).focusedStoreId || "all",
   focusedBusinessCategory: readStorage(STORAGE_KEYS.previewState, {}).focusedBusinessCategory || "all",
+  focusedBusinessCategoryId: readStorage(STORAGE_KEYS.previewState, {}).focusedBusinessCategoryId || "",
   activeShopStoreId: readStorage(STORAGE_KEYS.previewState, {}).activeShopStoreId || "",
   shopQuery: readStorage(STORAGE_KEYS.previewState, {}).shopQuery || "",
   locationSearch: "",
@@ -261,7 +262,7 @@ function normalizeBusinessRecord(record = {}) {
 function normalizeProductRecord(product = {}) {
   const businessId = String(product.businessId || product.storeId || product.sellerId || "").trim();
   const categoryName = String(product.categoryName || product.productCategory || product.category || "Other").trim();
-  const categoryId = product.categoryId || `${businessId || "business"}-${slugify(categoryName)}`;
+  const categoryId = String(product.categoryId || product.category_id || `${businessId || "business"}-${slugify(categoryName)}`).trim();
   const name = String(product.name || product.productName || "Product").trim();
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
@@ -305,6 +306,7 @@ function savePreviewState() {
     focusedLocation: state.focusedLocation,
     focusedStoreId: state.focusedStoreId,
     focusedBusinessCategory: state.focusedBusinessCategory,
+    focusedBusinessCategoryId: state.focusedBusinessCategoryId,
     activeShopStoreId: state.activeShopStoreId,
     shopQuery: state.shopQuery,
     businessSearch: state.businessSearch,
@@ -647,6 +649,43 @@ function categoryImageForStore(storeId, categoryName) {
   return match?.image || match?.categoryImage || "";
 }
 
+function businessCategoryEntries(storeId, products = []) {
+  const storeKey = String(storeId || "");
+  const entries = new Map();
+
+  cachedCategories.forEach((category) => {
+    const categoryStoreId = String(category.businessId || category.business_id || category.storeId || "");
+    if (categoryStoreId !== storeKey) {
+      return;
+    }
+    const name = String(category.name || category.categoryName || "Other").trim() || "Other";
+    const id = String(category.id || category.categoryId || `${storeKey}-${slugify(name)}`).trim();
+    entries.set(id, {
+      id,
+      name,
+      image: category.image || category.categoryImage || "",
+      products: []
+    });
+  });
+
+  products.forEach((product) => {
+    const id = productCategoryId(product);
+    const current = entries.get(id) || {
+      id,
+      name: product.productCategory || product.categoryName || "Other",
+      image: "",
+      products: []
+    };
+    if (!current.image && product.productImage) {
+      current.image = productImageSource(product);
+    }
+    current.products.push(product);
+    entries.set(id, current);
+  });
+
+  return [...entries.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function productImageSource(product) {
   const seed = productImageSeed(product);
   const smartProductImage = specificCatalogImageForText(seed);
@@ -683,6 +722,26 @@ function normalizeSearchValue(value) {
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
+}
+
+function categoryToken(value) {
+  return normalizeSearchValue(value) || "other";
+}
+
+function productCategoryId(product) {
+  return String(
+    product?.categoryId ||
+    product?.category_id ||
+    `${product?.storeId || product?.businessId || "business"}-${slugify(product?.productCategory || product?.categoryName || "Other")}`
+  ).trim();
+}
+
+function productMatchesCategory(product, categoryName, categoryId = "") {
+  const expectedId = String(categoryId || "").trim();
+  if (expectedId && productCategoryId(product) === expectedId) {
+    return true;
+  }
+  return categoryToken(product?.productCategory || product?.categoryName) === categoryToken(categoryName);
 }
 
 function searchTerms(value) {
@@ -924,6 +983,20 @@ function visibleStores() {
 }
 
 function visibleProducts() {
+  if (state.focusedStoreId !== "all") {
+    const selectedStore = getStore(state.focusedStoreId);
+    if (!selectedStore) return [];
+    return sellerProducts().filter((product) => {
+      if (product.storeId !== selectedStore.id) {
+        return false;
+      }
+      if (state.focusedBusinessCategory === "all") {
+        return true;
+      }
+      return productMatchesCategory(product, state.focusedBusinessCategory, state.focusedBusinessCategoryId);
+    });
+  }
+
   const allowedStoreIds = new Set(visibleStores().map((store) => store.id));
   const query = state.search.toLowerCase();
 
@@ -1524,6 +1597,7 @@ function renderTypeFilters() {
       state.focusedLocation = "all";
       state.focusedStoreId = "all";
       state.focusedBusinessCategory = "all";
+      state.focusedBusinessCategoryId = "";
       savePreviewState();
       renderMarket();
     });
@@ -1549,6 +1623,7 @@ function renderCategoryFilters() {
       state.focusedLocation = "all";
       state.focusedStoreId = "all";
       state.focusedBusinessCategory = "all";
+      state.focusedBusinessCategoryId = "";
       savePreviewState();
       renderMarket();
     });
@@ -1613,6 +1688,7 @@ function renderDeals() {
       state.focusedLocation = store ? String(store.location || store.county || state.focusedLocation) : state.focusedLocation;
       state.focusedStoreId = button.dataset.offerStore;
       state.focusedBusinessCategory = "all";
+      state.focusedBusinessCategoryId = "";
       savePreviewState();
       renderMarket();
       document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1624,6 +1700,27 @@ function storeRating(store, productCount) {
   const seed = String(store.id || store.storeName || "").split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
   const rating = 4.2 + ((seed + productCount) % 7) / 10;
   return Math.min(4.9, rating).toFixed(1);
+}
+
+function clearMarketplaceSearchInputs() {
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) {
+    searchInput.value = "";
+  }
+}
+
+function openBusinessCategories(storeId) {
+  state.focusedStoreId = storeId;
+  state.focusedBusinessCategory = "all";
+  state.focusedBusinessCategoryId = "";
+  state.activeShopStoreId = "";
+  state.shopQuery = "";
+  state.selectedCategory = "all";
+  state.search = "";
+  clearMarketplaceSearchInputs();
+  savePreviewState();
+  renderMarket();
+  document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderStores() {
@@ -1744,6 +1841,7 @@ function renderStores() {
         state.businessSearch = "";
         state.focusedStoreId = "all";
         state.focusedBusinessCategory = "all";
+        state.focusedBusinessCategoryId = "";
         state.activeShopStoreId = "";
         state.shopQuery = "";
         savePreviewState();
@@ -1816,6 +1914,7 @@ function renderStores() {
     state.focusedLocation = "all";
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
+    state.focusedBusinessCategoryId = "";
     savePreviewState();
     renderMarket();
   });
@@ -1826,13 +1925,7 @@ function renderStores() {
         return;
       }
 
-      state.focusedStoreId = state.focusedStoreId === card.dataset.focusStoreCard ? "all" : card.dataset.focusStoreCard;
-      state.focusedBusinessCategory = "all";
-      state.activeShopStoreId = "";
-      state.shopQuery = "";
-      savePreviewState();
-      renderMarket();
-      document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openBusinessCategories(card.dataset.focusStoreCard);
     };
 
     card.addEventListener("click", openStore);
@@ -1849,13 +1942,7 @@ function renderStores() {
   container.querySelectorAll("[data-open-business], [data-focus-store]").forEach((button) => {
     button.addEventListener("click", () => {
       const storeId = button.dataset.openBusiness || button.dataset.focusStore;
-      state.focusedStoreId = storeId;
-      state.focusedBusinessCategory = "all";
-      state.activeShopStoreId = "";
-      state.shopQuery = "";
-      savePreviewState();
-      renderMarket();
-      document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openBusinessCategories(storeId);
     });
   });
 
@@ -1864,6 +1951,7 @@ function renderStores() {
       state.activeShopStoreId = button.dataset.shopStore;
       state.focusedStoreId = button.dataset.shopStore;
       state.focusedBusinessCategory = "all";
+      state.focusedBusinessCategoryId = "";
       state.shopQuery = "";
       shouldFocusShopSearch = true;
       savePreviewState();
@@ -1935,36 +2023,34 @@ function renderProducts() {
   }
   const list = visibleProducts();
   const regularProducts = list;
+  const storeProducts = selectedStore
+    ? sellerProducts().filter((product) => product.storeId === selectedStore.id)
+    : [];
+  const categoryEntries = selectedStore
+    ? businessCategoryEntries(selectedStore.id, storeProducts)
+    : [];
   summary.textContent =
     state.focusedStoreId === "all"
       ? `${list.length} products`
       : state.focusedBusinessCategory === "all"
-        ? `${new Set(list.map((product) => product.productCategory || "Other")).size} categories from selected seller`
+        ? `${categoryEntries.length} categories from selected seller`
         : `${list.length} products in ${state.focusedBusinessCategory}`;
 
-  if (!list.length) {
-    container.innerHTML = '<div class="card">No products match the current filters yet.</div>';
+  if (!list.length && state.focusedBusinessCategory !== "all") {
+    container.innerHTML = '<div class="card">No products match this business category yet.</div>';
     return;
   }
 
   if (state.focusedStoreId !== "all") {
-    const grouped = list.reduce((map, product) => {
-      const key = product.productCategory || "Other";
-      const current = map.get(key) || [];
-      current.push(product);
-      map.set(key, current);
-      return map;
-    }, new Map());
-
     if (state.focusedBusinessCategory === "all") {
       container.innerHTML = `
-        ${grouped.size ? `
+        ${categoryEntries.length ? `
           <div class="category-card-grid">
-            ${[...grouped.entries()].map(([category, products]) => {
+            ${categoryEntries.map(({ id, name: category, image, products }) => {
             const imageProduct = products.find((product) => product.productImage) || products[0];
-            const categoryImage = categoryImageForStore(state.focusedStoreId, category) || (imageProduct ? productImageSource(imageProduct) : "");
+            const categoryImage = image || categoryImageForStore(state.focusedStoreId, category) || (imageProduct ? productImageSource(imageProduct) : "");
             return `
-              <article class="category-market-card" role="button" tabindex="0" data-open-business-category="${escapeAttribute(category)}">
+              <article class="category-market-card" role="button" tabindex="0" data-open-business-category="${escapeAttribute(category)}" data-open-business-category-id="${escapeAttribute(id)}">
                 <div class="category-card-image">
                   ${cardImageHtml(categoryImage, category, `${category} ${selectedStore?.storeName || ""}`)}
                 </div>
@@ -1977,16 +2063,14 @@ function renderProducts() {
             `;
             }).join("")}
           </div>
-        ` : ""}
+        ` : '<div class="card">No categories are available for this business yet.</div>'}
       `;
       bindProductCardActions(container);
       bindCategoryCardActions(container);
       return;
     }
 
-    const shelfEntries = state.focusedBusinessCategory === "all"
-      ? [...grouped.entries()]
-      : [[state.focusedBusinessCategory, list]];
+    const shelfEntries = [[state.focusedBusinessCategory, list]];
 
     container.innerHTML = shelfEntries.map(([category, products]) => `
       <section class="category-shelf supermarket-shelf">
@@ -2018,8 +2102,12 @@ function bindCategoryCardActions(container) {
         return;
       }
       state.focusedBusinessCategory = button.dataset.openBusinessCategory;
+      state.focusedBusinessCategoryId = button.dataset.openBusinessCategoryId || "";
       state.activeShopStoreId = "";
       state.shopQuery = "";
+      state.selectedCategory = "all";
+      state.search = "";
+      clearMarketplaceSearchInputs();
       savePreviewState();
       renderMarket();
       document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2262,7 +2350,10 @@ function shopModeProductGroups(selectedStore) {
     if (product.storeId !== selectedStore.id) {
       return false;
     }
-    if (state.focusedBusinessCategory !== "all" && product.productCategory !== state.focusedBusinessCategory) {
+    if (
+      state.focusedBusinessCategory !== "all" &&
+      !productMatchesCategory(product, state.focusedBusinessCategory, state.focusedBusinessCategoryId)
+    ) {
       return false;
     }
     return productMatchesSearch(product, selectedStore, state.shopQuery);
@@ -2422,19 +2513,25 @@ function renderMarket() {
   ) {
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
+    state.focusedBusinessCategoryId = "";
     state.activeShopStoreId = "";
     state.shopQuery = "";
     savePreviewState();
   }
 
-  if (
-    state.focusedBusinessCategory !== "all" &&
-    !sellerProducts().some((product) =>
-      product.storeId === state.focusedStoreId && product.productCategory === state.focusedBusinessCategory
-    )
-  ) {
-    state.focusedBusinessCategory = "all";
-    savePreviewState();
+  if (state.focusedBusinessCategory !== "all") {
+    const categoryStillExists = businessCategoryEntries(
+      state.focusedStoreId,
+      sellerProducts().filter((product) => product.storeId === state.focusedStoreId)
+    ).some((category) =>
+      (state.focusedBusinessCategoryId && category.id === state.focusedBusinessCategoryId) ||
+      categoryToken(category.name) === categoryToken(state.focusedBusinessCategory)
+    );
+    if (!categoryStillExists) {
+      state.focusedBusinessCategory = "all";
+      state.focusedBusinessCategoryId = "";
+      savePreviewState();
+    }
   }
 
   renderTypeFilters();
@@ -2508,6 +2605,7 @@ function bindEvents() {
     state.focusedLocation = "all";
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
+    state.focusedBusinessCategoryId = "";
     state.locationSearch = "";
     state.businessSearch = "";
     state.search = "";
@@ -2526,6 +2624,7 @@ function bindEvents() {
     state.businessSearch = "";
     state.focusedStoreId = "all";
     state.focusedBusinessCategory = "all";
+    state.focusedBusinessCategoryId = "";
     state.activeShopStoreId = "";
     state.shopQuery = "";
     savePreviewState();
@@ -2535,10 +2634,12 @@ function bindEvents() {
   document.getElementById("productBackButton")?.addEventListener("click", () => {
     if (state.focusedBusinessCategory !== "all") {
       state.focusedBusinessCategory = "all";
+      state.focusedBusinessCategoryId = "";
       state.activeShopStoreId = "";
       state.shopQuery = "";
     } else {
       state.focusedStoreId = "all";
+      state.focusedBusinessCategoryId = "";
       state.activeShopStoreId = "";
       state.shopQuery = "";
     }
@@ -2591,6 +2692,7 @@ function bindEvents() {
     state.focusedLocation = savedState.focusedLocation || state.focusedLocation;
     state.focusedStoreId = savedState.focusedStoreId || state.focusedStoreId;
     state.focusedBusinessCategory = savedState.focusedBusinessCategory || state.focusedBusinessCategory;
+    state.focusedBusinessCategoryId = savedState.focusedBusinessCategoryId || "";
     state.activeShopStoreId = savedState.activeShopStoreId || "";
     state.shopQuery = savedState.shopQuery || "";
     state.businessSearch = savedState.businessSearch || "";
