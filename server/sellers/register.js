@@ -99,7 +99,8 @@ module.exports = async function handler(req, res) {
     addColumn(columns, ["name", "store_name", "business_name"], fields, businessName);
     addColumn(columns, ["owner_name", "seller_name"], fields, ownerName);
     addColumn(columns, ["phone"], fields, phone);
-    addColumn(columns, ["email"], fields, email);
+    addColumn(columns, ["email", "business_email", "owner_email"], fields, email);
+    addColumn(columns, [passwordColumn(columns)], fields, hash);
     addColumn(columns, ["type", "business_type"], fields, type || "Retail");
     addColumn(columns, ["location_name", "location", "county"], fields, location);
     addColumn(columns, ["latitude", "lat"], fields, Number(payload.latitude || 0));
