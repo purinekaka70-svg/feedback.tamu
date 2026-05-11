@@ -1577,7 +1577,7 @@ input[type="search"]:focus,
   flex-direction: row !important;
   flex-wrap: nowrap !important;
   grid-template-columns: none !important;
-  gap: 14px !important;
+  gap: 10px !important;
   align-items: stretch !important;
   width: 100% !important;
   max-width: 100% !important;
@@ -1594,14 +1594,18 @@ input[type="search"]:focus,
 #productBrowserSection .supermarket-product-card {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
-  grid-template-rows: auto auto auto auto auto !important;
-  flex: 0 0 clamp(206px, 58vw, 238px) !important;
-  width: clamp(206px, 58vw, 238px) !important;
+  grid-template-rows: auto auto auto auto auto auto !important;
+  flex: 0 0 clamp(154px, 44vw, 186px) !important;
+  width: clamp(154px, 44vw, 186px) !important;
   min-width: 0 !important;
-  max-width: clamp(206px, 58vw, 238px) !important;
+  max-width: clamp(154px, 44vw, 186px) !important;
   min-height: 0 !important;
-  padding: 10px !important;
-  gap: 8px !important;
+  padding: 7px !important;
+  gap: 5px !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
   scroll-snap-align: start !important;
 }
 
@@ -1610,9 +1614,10 @@ input[type="search"]:focus,
   grid-column: auto !important;
   grid-row: auto !important;
   width: 100% !important;
-  height: 132px !important;
-  min-height: 132px !important;
-  border-radius: 10px !important;
+  height: 142px !important;
+  min-height: 142px !important;
+  border-radius: 6px !important;
+  background: #fff !important;
 }
 
 #productBrowserSection .category-card-copy,
@@ -1620,6 +1625,7 @@ input[type="search"]:focus,
 #productBrowserSection .supermarket-product-card .product-detail-label,
 #productBrowserSection .supermarket-product-card .product-price-row,
 #productBrowserSection .supermarket-product-card .product-offer-label,
+#productBrowserSection .supermarket-product-card .product-card-meta,
 #productBrowserSection .supermarket-product-card .product-card-actions {
   grid-column: auto !important;
   min-width: 0 !important;
@@ -1638,17 +1644,24 @@ input[type="search"]:focus,
 #productBrowserSection .supermarket-product-card .product-head h3,
 #productBrowserSection .category-card-copy strong {
   min-height: 0 !important;
-  font-size: 0.82rem !important;
-  line-height: 1.14 !important;
+  font-size: 0.78rem !important;
+  font-weight: 750 !important;
+  line-height: 1.22 !important;
   -webkit-line-clamp: 2 !important;
 }
 
 #productBrowserSection .supermarket-product-card .tiny,
 #productBrowserSection .supermarket-product-card .product-detail-label,
-#productBrowserSection .supermarket-product-card .product-offer-label {
+#productBrowserSection .supermarket-product-card .product-offer-label,
+#productBrowserSection .supermarket-product-card .product-card-meta {
   min-height: 0 !important;
-  white-space: normal !important;
+  white-space: nowrap !important;
   overflow-wrap: anywhere !important;
+}
+
+#productBrowserSection .supermarket-product-card .tiny {
+  color: #64748b !important;
+  font-size: 0.58rem !important;
 }
 
 #productBrowserSection .product-price-row,
@@ -1659,10 +1672,67 @@ input[type="search"]:focus,
   gap: 3px 6px !important;
 }
 
+#productBrowserSection .supermarket-product-card .product-price {
+  color: #f04424 !important;
+  font-size: 0.98rem !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+}
+
+#productBrowserSection .supermarket-product-card .product-price-before {
+  color: #94a3b8 !important;
+  font-size: 0.62rem !important;
+}
+
+#productBrowserSection .supermarket-product-card .product-offer-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  min-height: 18px !important;
+  padding: 0 5px !important;
+  border-radius: 3px !important;
+  background: #fff1e8 !important;
+  color: #f04424 !important;
+  font-size: 0.56rem !important;
+  font-weight: 900 !important;
+  text-overflow: ellipsis !important;
+}
+
+#productBrowserSection .product-card-badge {
+  top: 6px !important;
+  left: 6px !important;
+  min-height: 18px !important;
+  border-radius: 3px !important;
+  background: #f04424 !important;
+  font-size: 0.55rem !important;
+}
+
 #productBrowserSection .product-card-actions {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
+  gap: 5px !important;
   align-self: end !important;
+}
+
+#productBrowserSection .product-card-actions .button {
+  min-height: 28px !important;
+  padding: 0 7px !important;
+  border-radius: 5px !important;
+  font-size: 0.66rem !important;
+  font-weight: 900 !important;
+}
+
+#productBrowserSection .product-card-actions .button-primary {
+  border-color: #16a34a !important;
+  background: #16a34a !important;
+  color: #fff !important;
+}
+
+#productBrowserSection .product-card-actions .button-outline {
+  border-color: #fed7aa !important;
+  background: #fff7ed !important;
+  color: #ea580c !important;
 }
 
 #productBrowserSection .deal-card.shop-standalone-offer-card {
@@ -1680,8 +1750,8 @@ input[type="search"]:focus,
   #productBrowserSection .category-market-card,
   #productBrowserSection .supermarket-product-card {
     grid-template-columns: minmax(0, 1fr) !important;
-    flex-basis: min(82vw, 218px) !important;
-    width: min(82vw, 218px) !important;
-    max-width: min(82vw, 218px) !important;
+    flex-basis: min(72vw, 176px) !important;
+    width: min(72vw, 176px) !important;
+    max-width: min(72vw, 176px) !important;
   }
 }

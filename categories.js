@@ -2278,6 +2278,7 @@ function productCardHtml(product) {
         <strong class="product-price">${currency(product.productPrice)}</strong>
       </div>
       ${product.productOffer ? `<p class="product-offer-label">${product.productOffer}</p>` : isOffer ? '<p class="product-offer-label">Price offer</p>' : ""}
+      <p class="product-card-meta">Verified seller | ${product.stock || "In stock"}</p>
       <div class="product-card-actions">
         <button class="button button-primary button-small" data-add-product="${product.id}" type="button">Add</button>
         <button class="button button-outline button-small" data-view-product="${product.id}" type="button">View</button>
