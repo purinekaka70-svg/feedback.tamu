@@ -29,6 +29,10 @@ function needsManualId(columns) {
   return id && id.is_nullable === "NO" && !id.column_default;
 }
 
+function passwordColumn(columns) {
+  return ["password", "password_hash", "password_digest", "hash"].find((candidate) => columns.has(candidate));
+}
+
 async function nextId(client, table) {
   const result = await client.query(`select coalesce(max(id), 0) + 1 as id from ${table}`);
   return Number(result.rows[0]?.id || 1);
@@ -65,6 +69,10 @@ module.exports = async function handler(req, res) {
     await client.query("begin");
     const userColumns = await tableColumns(client, "users");
     const businessColumns = await tableColumns(client, "businesses");
+    const userPasswordColumn = passwordColumn(userColumns);
+    if (!userPasswordColumn) {
+      throw new Error("Users table has no supported password column.");
+    }
     const hash = await bcrypt.hash(password, 10);
     const userFields = { names: [], values: [], casts: [] };
     if (needsManualId(userColumns)) {
@@ -72,7 +80,7 @@ module.exports = async function handler(req, res) {
     }
     addColumn(userColumns, ["name"], userFields, ownerName);
     addColumn(userColumns, ["email"], userFields, email);
-    addColumn(userColumns, ["password"], userFields, hash);
+    addColumn(userColumns, [userPasswordColumn], userFields, hash);
     addColumn(userColumns, ["role"], userFields, "seller");
     addColumn(userColumns, ["status"], userFields, "pending");
     const userPlaceholders = userFields.values.map((_, index) => `$${index + 1}${userFields.casts[index] || ""}`);

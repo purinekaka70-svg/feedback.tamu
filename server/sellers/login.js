@@ -28,6 +28,11 @@ async function ensureBusinessSubscriptionColumns() {
   ).catch(() => {});
 }
 
+function passwordSelect(columns) {
+  const column = ["password", "password_hash", "password_digest", "hash"].find((candidate) => columns.has(candidate));
+  return column ? `u.${column} as account_password` : "null as account_password";
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   if (!rateLimit(req, res, "seller-login", { limit: 12, windowMs: 10 * 60 * 1000 })) return;
@@ -37,16 +42,18 @@ module.exports = async function handler(req, res) {
     const password = String(payload.password || "");
     await ensureBusinessSubscriptionColumns();
     const businessColumns = await tableColumns("businesses").catch(() => new Set());
+    const userColumns = await tableColumns("users").catch(() => new Set());
     const subscriptionSelect = [
       businessColumns.has("subscription_expires_at") ? "b.subscription_expires_at" : "null as subscription_expires_at",
       businessColumns.has("subscription_status") ? "b.subscription_status" : "'' as subscription_status"
     ].join(", ");
+    const accountPasswordSelect = passwordSelect(userColumns);
     const sellerRows = await query(
       `select b.id, b.user_id, b.name, b.owner_name, b.phone, b.email, b.type, b.location_name,
               b.latitude, b.longitude, b.payment_methods, b.till_number, b.pochi_number,
               b.bank_account, b.delivery_availability, b.delivery_notes, b.logo, b.logo_image,
               b.rating, b.status as business_status, ${subscriptionSelect}, b.created_at,
-              u.password as account_password, u.status as user_status, u.id as account_user_id
+              ${accountPasswordSelect}, u.status as user_status, u.id as account_user_id
          from businesses b
          left join users u on u.id = b.user_id or lower(u.email) = lower(b.email)
         where lower(b.email) = lower($1)
@@ -55,7 +62,12 @@ module.exports = async function handler(req, res) {
     );
     const row = sellerRows[0];
     const fallbackAccount = row?.account_password ? null : await findUserByEmail(email, "seller");
-    const accountPassword = row?.account_password || fallbackAccount?.password || "";
+    const accountPassword = row?.account_password
+      || fallbackAccount?.password
+      || fallbackAccount?.password_hash
+      || fallbackAccount?.password_digest
+      || fallbackAccount?.hash
+      || "";
     if (!row || !accountPassword || !(await verifySupabasePassword(password, accountPassword))) {
       send(res, 401, { ok: false, message: "Invalid seller credentials." });
       return;
