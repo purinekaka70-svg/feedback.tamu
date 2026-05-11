@@ -8,7 +8,7 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-force-onesignal-init";
+  const SCRIPT_VERSION = "20260512-reuse-initialized-sdk";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -100,6 +100,16 @@
     }
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     const payloadPromise = config().catch(() => ({ appId: DEFAULT_APP_ID }));
+    const useInitializedSdk = (OneSignal) => {
+      oneSignalInitialized = true;
+      lastInitError = "";
+      try {
+        OneSignal.__tamuInitialized = true;
+      } catch {
+        // Some SDK objects may be sealed.
+      }
+      return OneSignal;
+    };
 
     const setup = async (OneSignal) => {
       if (!OneSignal?.init) {
@@ -111,39 +121,38 @@
       }
       const payload = await payloadPromise;
       if (!payload?.appId) return null;
-      await OneSignal.init({
-        appId: payload.appId,
-        safari_web_id: SAFARI_WEB_ID,
-        serviceWorkerPath: "/OneSignalSDKWorker.js",
-        serviceWorkerUpdaterPath: "/OneSignalSDKUpdaterWorker.js",
-        serviceWorkerParam: { scope: "/" },
-        allowLocalhostAsSecureOrigin: location.hostname === "localhost" || location.hostname === "127.0.0.1",
-        notifyButton: {
-          enable: true
-        },
-        promptOptions: {
-          slidedown: {
-            prompts: [
-              {
-                type: "push",
-                autoPrompt: false,
-                text: {
-                  actionMessage: "Get order and payment updates from Tamu Express.",
-                  acceptButton: "Allow",
-                  cancelButton: "Later"
-                }
-              }
-            ]
-          }
-        }
-      });
-      oneSignalInitialized = true;
       try {
-        OneSignal.__tamuInitialized = true;
-      } catch {
-        // Some SDK objects may be sealed.
+        await OneSignal.init({
+          appId: payload.appId,
+          safari_web_id: SAFARI_WEB_ID,
+          serviceWorkerPath: "/OneSignalSDKWorker.js",
+          serviceWorkerUpdaterPath: "/OneSignalSDKUpdaterWorker.js",
+          serviceWorkerParam: { scope: "/" },
+          allowLocalhostAsSecureOrigin: location.hostname === "localhost" || location.hostname === "127.0.0.1",
+          notifyButton: {
+            enable: true
+          },
+          promptOptions: {
+            slidedown: {
+              prompts: [
+                {
+                  type: "push",
+                  autoPrompt: false,
+                  text: {
+                    actionMessage: "Get order and payment updates from Tamu Express.",
+                    acceptButton: "Allow",
+                    cancelButton: "Later"
+                  }
+                }
+              ]
+            }
+          }
+        });
+      } catch (error) {
+        const message = String(error?.message || error || "");
+        if (!/already initialized/i.test(message)) throw error;
       }
-      return OneSignal;
+      return useInitializedSdk(OneSignal);
     };
 
     if (window.OneSignal?.init) {
@@ -152,7 +161,7 @@
       } catch (error) {
         lastInitError = String(error?.message || error || "OneSignal init failed").slice(0, 180);
         console.warn("OneSignal init failed:", lastInitError);
-        return null;
+        return window.OneSignal?.User ? window.OneSignal : null;
       }
     }
 
@@ -170,7 +179,7 @@
         } catch (error) {
           lastInitError = String(error?.message || error || "OneSignal init failed").slice(0, 180);
           console.warn("OneSignal init failed:", lastInitError);
-          finish(null);
+          finish(OneSignal?.User ? OneSignal : null);
         }
       });
     });
@@ -207,7 +216,7 @@
     if (!loaded) return null;
     window.tamuOneSignalReady = initOneSignal();
     OneSignal = await Promise.race([window.tamuOneSignalReady, sleep(READY_TIMEOUT_MS).then(() => null)]);
-    return OneSignal;
+    return OneSignal || window.OneSignal || null;
   }
 
   async function getOneSignalFast() {
@@ -702,7 +711,7 @@
     return normalized ? `customer:${normalized}` : "";
   };
   async function debugPushState(repair = true) {
-    const OneSignal = await window.tamuOneSignalReady;
+    const OneSignal = (await window.tamuOneSignalReady) || window.OneSignal || null;
     if (repair && (notificationsGranted(OneSignal) || notificationsAllowedRemembered())) {
       await requestOneSignalSubscription(OneSignal).catch(() => false);
     } else if (repair) {
