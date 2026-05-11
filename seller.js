@@ -1922,9 +1922,10 @@ function bindForms() {
     const password = String(formData.get("password"));
     const response = await postJson('./api/sellers/login.php', { email, password });
     if (!response.ok || response.data?.ok === false) {
+      const rawMessage = String(response.data?.message || "").trim();
       const message = response.status === 403
-        ? (response.data?.message || "Your account is not approved by admin yet.")
-        : (response.data?.message || "Invalid seller credentials.");
+        ? (/server returned 403/i.test(rawMessage) ? "" : rawMessage) || "Your account is not approved by admin yet. Account pending for admin approval."
+        : (rawMessage || "Invalid seller credentials.");
       document.getElementById("loginStatus").textContent = message;
       showToast(message, response.status === 403 ? "warn" : "error");
       return;
