@@ -101,13 +101,35 @@ create table if not exists products (
   offer_text text not null default '',
   stock integer not null default 0,
   description text not null default '',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint products_are_not_offers_chk check (coalesce(offer_flag, false) = false and coalesce(offer_text, '') = '')
 );
 
 alter table products add column if not exists offer_text text not null default '';
 alter table products add column if not exists compare_at_price numeric(12, 2) not null default 0;
+alter table products add column if not exists offer_flag boolean not null default false;
 alter table products add column if not exists description text not null default '';
 alter table categories add column if not exists image text not null default '';
+
+update products
+set offer_flag = false,
+    offer_text = '',
+    compare_at_price = 0
+where coalesce(offer_flag, false) = true
+   or offer_flag is null
+   or offer_text is null
+   or compare_at_price is null
+   or coalesce(offer_text, '') <> ''
+   or coalesce(compare_at_price, 0) <> 0;
+
+do $$
+begin
+  alter table products
+    add constraint products_are_not_offers_chk
+    check (coalesce(offer_flag, false) = false and coalesce(offer_text, '') = '');
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists seller_offers (
   public_id text primary key,

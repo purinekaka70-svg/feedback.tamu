@@ -66,15 +66,12 @@ function normalizeProductRecord(product = {}) {
   const name = String(product.name || product.productName || "Product").trim();
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
-  const beforePrice = Number(product.beforePrice ?? product.compareAtPrice ?? product.compare_at_price ?? product.productBeforePrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
   const description = String(product.description || product.productDescription || product.details || "").trim();
-  const rawOffer = product.offerText || product.productOffer || product.offer || "";
-  const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
-  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer || (beforePrice && beforePrice > price));
 
   return {
     ...product,
+    itemType: "product",
     businessId,
     sellerId: product.sellerId || businessId,
     storeId: product.storeId || businessId,
@@ -90,13 +87,13 @@ function normalizeProductRecord(product = {}) {
     productImage: product.productImage || image,
     price,
     productPrice: price,
-    beforePrice,
-    compareAtPrice: beforePrice,
-    productBeforePrice: beforePrice,
+    beforePrice: 0,
+    compareAtPrice: 0,
+    productBeforePrice: 0,
     stock,
     productStock: stock,
-    offerFlag,
-    productOffer,
+    offerFlag: false,
+    productOffer: "",
     description,
     productDescription: description
   };
@@ -604,12 +601,13 @@ function products() {
 function offers() {
   return cachedOffers.map((offer) => ({
     ...offer,
+    itemType: "offer",
     id: String(offer.id || offer.publicId || ""),
     sellerId: String(offer.sellerId || offer.storeId || offer.businessId || ""),
     storeId: String(offer.storeId || offer.sellerId || offer.businessId || ""),
     storeName: offer.storeName || offer.businessName || "",
     offerTitle: offer.offerTitle || offer.title || offer.productName || "Offer",
-    offerNote: offer.offerNote || offer.note || offer.productOffer || "Store offer",
+    offerNote: offer.offerNote || offer.note || "Store offer",
     offerExpiry: offer.offerExpiry || offer.expires || "Active offer",
     offerImage: offer.offerImage || offer.image || offer.productImage || "",
     beforePrice: Number(offer.beforePrice ?? offer.offerBeforePrice ?? offer.before_price ?? offer.offer_before_price) || 0,
@@ -812,14 +810,14 @@ function renderProducts() {
       <article class="list-card seller-catalog-card">
         <div class="seller-product-media">
           ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}" loading="lazy" decoding="async" width="300" height="300">` : product.productCategory}
-          <span class="seller-catalog-badge">${product.productOffer || product.offerFlag ? "Offer" : "New"}</span>
+          <span class="seller-catalog-badge">Product</span>
         </div>
         <div class="seller-catalog-copy">
           <strong>${product.productName}</strong>
           <p class="tiny">${product.productCategory} | ${product.productStock}</p>
           ${product.description ? `<p class="tiny">${escapeHtml(product.description)}</p>` : ""}
-          <span class="seller-catalog-price">${product.beforePrice ? `<s>${currency(product.beforePrice)}</s> ` : ""}${currency(product.productPrice)}</span>
-          ${product.productOffer ? `<p class="tiny seller-catalog-tag">${product.productOffer}</p>` : product.offerFlag ? '<p class="tiny seller-catalog-tag">Price offer</p>' : '<p class="tiny seller-catalog-tag">Everyday item</p>'}
+          <span class="seller-catalog-price">${currency(product.productPrice)}</span>
+          <p class="tiny seller-catalog-tag">Product listing</p>
         </div>
         <div class="button-row">
           <button class="button button-outline button-small" data-edit-product="${product.id}" type="button">Edit</button>
@@ -838,9 +836,7 @@ function renderProducts() {
       document.querySelector('[name="productName"]').value = product.productName;
       renderSmartCategorySelect("productCategorySelect", "productCategorySearch", product.productCategory);
       document.querySelector('[name="productPrice"]').value = product.productPrice;
-      document.querySelector('[name="productBeforePrice"]').value = product.beforePrice || "";
       document.querySelector('[name="productStock"]').value = product.productStock;
-      document.querySelector('[name="productDeal"]').value = product.productOffer || "";
       document.querySelector('[name="productDescription"]').value = product.description || product.productDescription || "";
       document.querySelector('[name="productImageUrl"]').value = product.productImage || "";
       document.getElementById("saveProductBtn").textContent = "Update Product";
@@ -1656,13 +1652,6 @@ async function buildProductPayload(formData) {
   if (!Number.isFinite(price) || price < 0) {
     return { ok: false, message: "Enter a valid product price." };
   }
-  const beforePrice = Number(formData.get("productBeforePrice")) || 0;
-  if (!Number.isFinite(beforePrice) || beforePrice < 0) {
-    return { ok: false, message: "Enter a valid before price." };
-  }
-  if (beforePrice && beforePrice <= price) {
-    return { ok: false, message: "Before price must be higher than the now price." };
-  }
 
   const productId = String(formData.get("productId")).trim();
   const existingProduct = products().find((product) => product.id === productId);
@@ -1676,7 +1665,6 @@ async function buildProductPayload(formData) {
   const productName = String(formData.get("productName")).trim();
   const productCategory = categoryLabelFromValue(formData.get("productCategory"));
   const productStock = String(formData.get("productStock")).trim();
-  const productOffer = String(formData.get("productDeal")).trim();
   const productDescription = String(formData.get("productDescription")).trim();
   const businessId = seller.id;
   const categoryId = productCategory;
@@ -1705,13 +1693,13 @@ async function buildProductPayload(formData) {
       productCategory,
       price,
       productPrice: price,
-      beforePrice,
-      compareAtPrice: beforePrice,
-      productBeforePrice: beforePrice,
+      beforePrice: 0,
+      compareAtPrice: 0,
+      productBeforePrice: 0,
       stock: productStock,
       productStock,
-      offerFlag: Boolean(productOffer || (beforePrice && beforePrice > price)),
-      productOffer,
+      offerFlag: false,
+      productOffer: "",
       description: productDescription,
       productDescription,
       image: productImage,
@@ -1964,12 +1952,12 @@ function bindForms() {
       name: nextProduct.productName,
       image: nextProduct.productImage,
       price: nextProduct.productPrice,
-      beforePrice: nextProduct.beforePrice,
-      compareAtPrice: nextProduct.compareAtPrice,
-      productBeforePrice: nextProduct.productBeforePrice,
-      productOffer: nextProduct.productOffer,
-      offerText: nextProduct.productOffer,
-      offerFlag: nextProduct.offerFlag,
+      beforePrice: 0,
+      compareAtPrice: 0,
+      productBeforePrice: 0,
+      productOffer: "",
+      offerText: "",
+      offerFlag: false,
       stock: nextProduct.stockQuantity,
       description: nextProduct.description || ""
     });

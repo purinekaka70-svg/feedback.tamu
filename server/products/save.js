@@ -29,8 +29,9 @@ async function columnExists(table, column) {
 }
 
 async function ensureProductDetailColumns() {
-  await query("alter table products add column if not exists offer_text text not null default ''");
   await query("alter table products add column if not exists compare_at_price numeric(12, 2) not null default 0");
+  await query("alter table products add column if not exists offer_flag boolean not null default false");
+  await query("alter table products add column if not exists offer_text text not null default ''");
   await query("alter table products add column if not exists description text not null default ''");
 }
 
@@ -52,21 +53,15 @@ module.exports = async function handler(req, res) {
       return;
     }
     await ensureProductDetailColumns().catch(() => {});
-    const offerText = text(payload.productOffer || payload.offerText || payload.offer, 500);
     const descriptionText = text(payload.description || payload.productDescription || payload.details, 800);
     const price = number(payload.price);
-    const compareAtPrice = number(payload.beforePrice || payload.compareAtPrice || payload.productBeforePrice || payload.compare_at_price);
-    if (price < 0 || compareAtPrice < 0) {
-      send(res, 422, { ok: false, message: "Product prices must be zero or more." });
+    if (price < 0) {
+      send(res, 422, { ok: false, message: "Product price must be zero or more." });
       return;
     }
-    if (compareAtPrice && compareAtPrice <= price) {
-      send(res, 422, { ok: false, message: "Before price must be higher than the now price." });
-      return;
-    }
-    const offerFlag = Boolean(payload.offerFlag || offerText || (compareAtPrice && compareAtPrice > price));
     const hasOfferText = await columnExists("products", "offer_text");
     const hasCompareAtPrice = await columnExists("products", "compare_at_price");
+    const hasOfferFlag = await columnExists("products", "offer_flag");
     const fields = [
       ["business_id", businessId],
       ["category_id", categoryId],
@@ -75,11 +70,13 @@ module.exports = async function handler(req, res) {
       ["price", price]
     ];
     if (hasCompareAtPrice) {
-      fields.push(["compare_at_price", compareAtPrice]);
+      fields.push(["compare_at_price", 0]);
     }
-    fields.push(["offer_flag", offerFlag]);
+    if (hasOfferFlag) {
+      fields.push(["offer_flag", false]);
+    }
     if (hasOfferText) {
-      fields.push(["offer_text", offerText]);
+      fields.push(["offer_text", ""]);
     }
     fields.push(
       ["stock", Math.max(0, Math.trunc(number(payload.stock)))],

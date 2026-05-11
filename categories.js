@@ -265,15 +265,12 @@ function normalizeProductRecord(product = {}) {
   const name = String(product.name || product.productName || "Product").trim();
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
-  const beforePrice = Number(product.beforePrice ?? product.compareAtPrice ?? product.compare_at_price ?? product.productBeforePrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
   const description = String(product.description || product.productDescription || product.details || "").trim();
-  const rawOffer = product.offerText || product.productOffer || product.offer || "";
-  const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
-  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer || (beforePrice && beforePrice > price));
 
   return {
     ...product,
+    itemType: "product",
     businessId,
     sellerId: product.sellerId || businessId,
     storeId: product.storeId || businessId,
@@ -289,13 +286,13 @@ function normalizeProductRecord(product = {}) {
     productImage: product.productImage || image,
     price,
     productPrice: price,
-    beforePrice,
-    compareAtPrice: beforePrice,
-    productBeforePrice: beforePrice,
+    beforePrice: 0,
+    compareAtPrice: 0,
+    productBeforePrice: 0,
     stock,
     productStock: stock,
-    offerFlag,
-    productOffer,
+    offerFlag: false,
+    productOffer: "",
     description,
     productDescription: description
   };
@@ -341,8 +338,6 @@ function offerMessage(product) {
     store?.storeName ? `Seller: ${store.storeName}` : "",
     product.productCategory ? `Category: ${product.productCategory}` : "",
     product.description ? `Details: ${product.description}` : "",
-    product.productOffer ? `Offer: ${product.productOffer}` : "",
-    product.beforePrice ? `Before: ${currency(product.beforePrice)}` : "",
     `Now: ${currency(product.productPrice)}`
   ].filter(Boolean).join(" | ");
 }
@@ -501,6 +496,7 @@ function sellerOffers() {
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
   return cachedOffers.map((offer) => ({
     ...offer,
+    itemType: "offer",
     id: String(offer.id || offer.publicId || offer.public_id || ""),
     storeId: String(offer.storeId || offer.sellerId || offer.businessId || ""),
     storeName: offer.storeName || offer.businessName || "",
@@ -606,7 +602,6 @@ function productImageSeed(product) {
     product.brand,
     product.productDescription,
     product.description,
-    product.productOffer,
     product.productCategory,
     product.categoryName,
     product.storeName
@@ -704,7 +699,6 @@ function productSearchText(product, store) {
     product.categoryName,
     product.description,
     product.productDescription,
-    product.productOffer,
     product.offerTitle,
     product.sku,
     product.brand,
@@ -949,26 +943,10 @@ function visibleProducts() {
 
 function catalogOffers() {
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
-  const productOffers = sellerProducts()
-    .filter((product) => approvedStoreIds.has(product.storeId) && (product.productOffer || product.offerFlag))
-    .map((product) => ({
-      id: `product-offer-${product.id}`,
-      storeId: product.storeId,
-      storeName: product.storeName,
-      title: product.productName,
-      note: product.productOffer,
-      details: product.description || "",
-      category: product.productCategory || "",
-      price: product.productPrice,
-      beforePrice: product.beforePrice,
-      nowPrice: product.productPrice,
-      expires: "Store offer",
-      image: productImageSource(product),
-      productId: product.id
-    }));
   const standaloneOffers = sellerOffers()
     .filter((offer) => approvedStoreIds.has(offer.storeId))
     .map((offer) => ({
+      itemType: "offer",
       id: offer.id,
       storeId: offer.storeId,
       storeName: offer.storeName,
@@ -981,9 +959,9 @@ function catalogOffers() {
       nowPrice: offer.nowPrice,
       expires: offer.expires || offer.offerExpiry || "Active offer",
       image: offerImageSource(offer),
-      productId: offer.productId || ""
+      productId: ""
     }));
-  return [...productOffers, ...standaloneOffers].filter((offer, index, list) =>
+  return standaloneOffers.filter((offer, index, list) =>
     list.findIndex((item) => item.id === offer.id) === index
   );
 }
@@ -1292,7 +1270,7 @@ async function createLocalOrderFromStore(storeId) {
         unitPrice: product.productPrice,
         total: productLineTotal(product, item.quantity),
         lineTotal: productLineTotal(product, item.quantity),
-        offer: product.productOffer || "",
+        offer: "",
         paidQuantity: paidQuantityForProduct(product, item.quantity)
       };
     })
@@ -1404,8 +1382,6 @@ function productCartToastMessage(product, quantity) {
     store?.storeName ? `Seller: ${store.storeName}` : "",
     product.productCategory ? `Category: ${product.productCategory}` : "",
     product.description ? `Details: ${product.description}` : "",
-    product.productOffer ? `Offer: ${product.productOffer}` : "",
-    product.beforePrice ? `Before: ${currency(product.beforePrice)}` : "",
     `Now: ${currency(product.productPrice)}`,
     `Cart quantity: ${quantity}`
   ].filter(Boolean).join(" | ");
@@ -1519,11 +1495,8 @@ async function addToCart(productId) {
   await saveCartItemToBackend(productId, nextQuantity);
   savePreviewState();
   renderCartSummary();
-  const hasOfferDetails = Boolean(product.productOffer || product.offerFlag || (product.beforePrice && product.beforePrice > product.productPrice));
-  const toastMessage = hasOfferDetails
-    ? productCartToastMessage(product, nextQuantity)
-    : `${product.productName} added to cart.${product.description ? ` ${product.description}` : ""}`;
-  showToast(toastMessage, hasOfferDetails ? "info" : "success", hasOfferDetails ? offerToastDuration(toastMessage) : 3200);
+  const toastMessage = `${product.productName} added to cart.${product.description ? ` ${product.description}` : ""}`;
+  showToast(toastMessage, "success", 3200);
 }
 
 function renderTypeFilters() {
@@ -1584,6 +1557,7 @@ function renderCategoryFilters() {
 
 function renderDeals() {
   const container = document.getElementById("dealGrid");
+  if (!container) return;
   const list = visibleOffers();
 
   if (!list.length) {
@@ -1960,8 +1934,7 @@ function renderProducts() {
     return;
   }
   const list = visibleProducts();
-  const offerProducts = list.filter((product) => product.productOffer || product.offerFlag);
-  const regularProducts = list.filter((product) => !(product.productOffer || product.offerFlag));
+  const regularProducts = list;
   summary.textContent =
     state.focusedStoreId === "all"
       ? `${list.length} products`
@@ -1985,20 +1958,6 @@ function renderProducts() {
 
     if (state.focusedBusinessCategory === "all") {
       container.innerHTML = `
-        ${offerProducts.length ? `
-          <section class="business-offers-first">
-            <div class="section-head shelf-head">
-              <div>
-                <p class="eyebrow">Offers</p>
-                <h3>Deals from this business</h3>
-              </div>
-              <span class="summary-chip">${offerProducts.length} offer${offerProducts.length === 1 ? "" : "s"}</span>
-            </div>
-            <div class="product-grid product-grid--shelf">
-              ${offerProducts.map((product) => productCardHtml(product)).join("")}
-            </div>
-          </section>
-        ` : ""}
         ${grouped.size ? `
           <div class="category-card-grid">
             ${[...grouped.entries()].map(([category, products]) => {
@@ -2076,12 +2035,6 @@ function bindCategoryCardActions(container) {
 }
 
 function bindProductCardActions(container) {
-  container.querySelectorAll("[data-product-offer-card]").forEach((card) => {
-    const productId = card.dataset.productOfferCard;
-    if (!productId) return;
-    bindHoldToast(card, () => offerMessage(getProduct(productId)));
-  });
-
   container.querySelectorAll("[data-add-product], [data-shop-add-product]").forEach((button) => {
     const productId = button.dataset.addProduct || button.dataset.shopAddProduct;
     button.addEventListener("click", async () => {
@@ -2256,14 +2209,12 @@ function initImageViewer() {
 
 function productCardHtml(product) {
   const store = getStore(product.storeId);
-  const isOffer = Boolean(product.productOffer || product.offerFlag || (product.beforePrice && product.beforePrice > product.productPrice));
-  const badge = isOffer ? "HOT DEAL" : "New";
   const details = product.description || product.productDescription || "";
   return `
-    <article class="product-card supermarket-product-card ${isOffer ? "is-offer-product" : ""}" data-product-offer-card="${isOffer ? product.id : ""}">
+    <article class="product-card supermarket-product-card" data-product-card="${product.id}">
       <div class="product-visual">
         ${cardImageHtml(productImageSource(product), product.productName, [product.productName, details, product.productCategory].filter(Boolean).join(" "))}
-        <span class="product-card-badge">${badge}</span>
+        <span class="product-card-badge">Product</span>
       </div>
       <div class="product-head">
         <div>
@@ -2273,10 +2224,8 @@ function productCardHtml(product) {
       </div>
       ${details ? `<p class="product-detail-label">${escapeHtml(details)}</p>` : ""}
       <div class="product-price-row">
-        ${product.beforePrice ? `<span class="product-price-before">${currency(product.beforePrice)}</span>` : ""}
         <strong class="product-price">${currency(product.productPrice)}</strong>
       </div>
-      ${product.productOffer ? `<p class="product-offer-label">${product.productOffer}</p>` : isOffer ? '<p class="product-offer-label">Price offer</p>' : ""}
       <div class="product-card-actions">
         <button class="button button-primary button-small" data-add-product="${product.id}" type="button">Add</button>
         <button class="button button-outline button-small" data-view-product="${product.id}" type="button">View</button>
@@ -2321,8 +2270,6 @@ function shopModeProductGroups(selectedStore) {
   const standaloneOffers = sellerOffers()
     .filter((offer) =>
       offer.storeId === selectedStore.id &&
-      !offer.productId &&
-      !String(offer.id || "").startsWith("product-offer-") &&
       state.focusedBusinessCategory === "all"
     )
     .map((offer) => ({
@@ -2332,15 +2279,14 @@ function shopModeProductGroups(selectedStore) {
       image: offerImageSource(offer)
     }))
     .filter((offer) => offerMatchesSearch(offer, selectedStore, state.shopQuery));
-  const offerMatches = matches.filter((product) => product.productOffer || product.offerFlag);
   return {
     query,
     matches,
     standaloneOffers,
-    offerMatches,
-    offerCount: offerMatches.length + standaloneOffers.length,
+    offerMatches: [],
+    offerCount: standaloneOffers.length,
     totalCount: matches.length + standaloneOffers.length,
-    regularMatches: matches.filter((product) => !(product.productOffer || product.offerFlag))
+    regularMatches: matches
   };
 }
 
@@ -2371,7 +2317,6 @@ function shopModeResultsHtml(selectedStore, groups = shopModeProductGroups(selec
           <span class="summary-chip">${groups.offerCount} deal${groups.offerCount === 1 ? "" : "s"}</span>
         </div>
         <div class="product-grid product-grid--shelf">
-          ${groups.offerMatches.map((product) => productCardHtml(product)).join("")}
           ${groups.standaloneOffers.map((offer) => standaloneOfferCardHtml(offer)).join("")}
         </div>
       </section>
@@ -2494,7 +2439,6 @@ function renderMarket() {
 
   renderTypeFilters();
   renderCategoryFilters();
-  renderDeals();
   renderStores();
   renderProducts();
   renderCartSummary();
@@ -2505,7 +2449,6 @@ function renderMarket() {
 function updateMarketplaceViewShell() {
   const browseControlsSection = document.getElementById("browseControlsSection");
   const filters = document.querySelector(".filter-stack")?.closest(".hero, .card, article");
-  const offersSection = document.getElementById("offersSection");
   const marketSection = document.getElementById("marketBrowserSection");
   const productSection = document.getElementById("productBrowserSection");
   const marketTitle = marketSection?.querySelector(".section-title");
@@ -2518,7 +2461,6 @@ function updateMarketplaceViewShell() {
   const selectedStore = getStore(state.focusedStoreId);
 
   browseControlsSection?.classList.add("is-hidden");
-  offersSection?.classList.add("is-hidden");
   filters?.classList.add("is-hidden");
   marketSection?.classList.toggle("is-hidden", state.focusedStoreId !== "all");
   productSection?.classList.toggle("is-hidden", state.focusedStoreId === "all");

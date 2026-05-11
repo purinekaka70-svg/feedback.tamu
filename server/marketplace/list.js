@@ -44,12 +44,6 @@ function selectColumn(columns, name, fallback = "''") {
   return columns[name] ? name : `${fallback} as ${name}`;
 }
 
-function actualOfferText(...values) {
-  return values
-    .map((value) => String(value || "").trim())
-    .find((value) => value && !/^(offer|store offer|special offer)$/i.test(value)) || "";
-}
-
 module.exports = async function handler(req, res) {
   if (!method(req, res, "GET")) return;
   try {
@@ -174,10 +168,9 @@ module.exports = async function handler(req, res) {
       const categoryName = row.category_name || row.category_id || "Other";
       const stockCount = Number(row.stock || 0);
       const stock = stockCount <= 0 ? "Out of stock" : stockCount <= 5 ? "Limited stock" : "In stock";
-      const offerText = actualOfferText(row.offer_text, row.offer_note, row.offer);
       const price = Number(row.price || 0);
-      const beforePrice = Number(row.compare_at_price || 0);
       return [{
+        itemType: "product",
         id: String(row.id),
         businessId: String(row.business_id),
         sellerId: String(row.business_id),
@@ -194,15 +187,15 @@ module.exports = async function handler(req, res) {
         productImage: row.image || "",
         price,
         productPrice: price,
-        beforePrice,
-        compareAtPrice: beforePrice,
-        productBeforePrice: beforePrice,
+        beforePrice: 0,
+        compareAtPrice: 0,
+        productBeforePrice: 0,
         stock,
         stockCount,
         productStock: stock,
-        offerFlag: Boolean(row.offer_flag || offerText || (beforePrice && beforePrice > price)),
-        productOffer: offerText,
-        offerText,
+        offerFlag: false,
+        productOffer: "",
+        offerText: "",
         description: row.description || "",
         productDescription: row.description || "",
         createdAt: row.created_at || ""
@@ -252,27 +245,7 @@ module.exports = async function handler(req, res) {
       locations.get(business.locationId).businessCount += 1;
     });
 
-    const offers = products.filter((product) => product.offerFlag).map((product) => ({
-      id: `product-offer-${product.id}`,
-      storeId: product.storeId,
-      sellerId: product.storeId,
-      businessId: product.storeId,
-      storeName: product.storeName,
-      title: product.productName,
-      offerTitle: product.productName,
-      note: product.productOffer,
-      offerNote: product.productOffer,
-      expires: "Store offer",
-      offerExpiry: "Store offer",
-      image: product.productImage,
-      offerImage: product.productImage,
-      price: product.productPrice,
-      beforePrice: product.beforePrice,
-      nowPrice: product.productPrice,
-      offerBeforePrice: product.beforePrice,
-      offerNowPrice: product.productPrice,
-      productId: product.id
-    }));
+    const offers = [];
     const hasSellerOffers = await tableExists("seller_offers");
     const sellerOfferColumns = hasSellerOffers
       ? await safeColumns("seller_offers", ["offer_before_price", "offer_now_price"])
@@ -291,6 +264,7 @@ module.exports = async function handler(req, res) {
       const business = businessById[String(row.seller_public_id)];
       if (!business) return;
       offers.push({
+        itemType: "offer",
         id: row.public_id,
         storeId: String(row.seller_public_id),
         sellerId: String(row.seller_public_id),
