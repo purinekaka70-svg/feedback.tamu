@@ -21,6 +21,10 @@
     ]);
   }
 
+  function isHttpOrigin() {
+    return location.protocol === "https:" || location.protocol === "http:";
+  }
+
   function cleanExternalId(value) {
     return String(value || "").trim().toLowerCase().slice(0, 128);
   }
@@ -70,6 +74,9 @@
   }
 
   async function config() {
+    if (!isHttpOrigin()) {
+      return { appId: DEFAULT_APP_ID };
+    }
     try {
       const response = await fetch("./api/onesignal/config.php", { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
@@ -233,6 +240,7 @@
   }
 
   async function identifyFromSession() {
+    if (!isHttpOrigin()) return;
     const response = await fetch("./api/auth/session.php", { cache: "no-store" }).catch(() => null);
     const payload = response ? await response.json().catch(() => ({})) : {};
     const session = payload?.session || {};
@@ -268,6 +276,9 @@
   }
 
   function notificationsSupported(OneSignal) {
+    if (!isHttpOrigin()) {
+      return false;
+    }
     if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
       return false;
     }
@@ -621,6 +632,8 @@
     const subscription = OneSignal?.User?.PushSubscription || {};
     return {
       sdkReady: Boolean(OneSignal),
+      origin: location.origin,
+      protocol: location.protocol,
       secureContext: window.isSecureContext,
       supported: notificationsSupported(OneSignal),
       permission: window.Notification?.permission || "unsupported",
