@@ -2,12 +2,13 @@
   const STORAGE_KEY = "tamu_onesignal_external_id";
   const CUSTOMER_KEY = "tamu_onesignal_customer_id";
   const NOTIFICATIONS_ALLOWED_KEY = "tamu_notifications_allowed";
+  const WORKER_RELOAD_KEY = "tamu_onesignal_worker_reload";
   const DEFAULT_APP_ID = "7c0a3b0d-53b6-4b67-9b42-266f49bfabcc";
   const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-repair-output";
+  const SCRIPT_VERSION = "20260512-worker-control-reload";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -366,6 +367,19 @@
     }
   }
 
+  function reloadOnceForServiceWorkerControl() {
+    if (!isHttpOrigin() || !navigator.serviceWorker || navigator.serviceWorker.controller) return false;
+    try {
+      if (window.sessionStorage.getItem(WORKER_RELOAD_KEY) === "1") return false;
+      window.sessionStorage.setItem(WORKER_RELOAD_KEY, "1");
+    } catch {
+      return false;
+    }
+    lastServiceWorkerError = "Reloading once so the OneSignal service worker can control this page.";
+    window.setTimeout(() => window.location.reload(), 400);
+    return true;
+  }
+
   async function syncOneSignalPermission(OneSignal) {
     if (!OneSignal || notificationsDenied()) return false;
     if (oneSignalPermissionGranted(OneSignal)) return true;
@@ -402,9 +416,11 @@
     if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
     if (notificationsEnabled(OneSignal)) return true;
     await ensureOneSignalServiceWorker();
+    if (reloadOnceForServiceWorkerControl()) return false;
     await syncOneSignalPermission(OneSignal);
     if (notificationsGranted(OneSignal)) {
       await ensureOneSignalServiceWorker();
+      if (reloadOnceForServiceWorkerControl()) return false;
       await optInNotifications(OneSignal);
     }
     if (!(await waitForSubscription(OneSignal, 9000)) && notificationsGranted(OneSignal)) {
@@ -698,6 +714,7 @@
       serviceWorkerReady: Boolean(await waitForServiceWorker()),
       serviceWorkerController: Boolean(navigator.serviceWorker?.controller),
       serviceWorkerRegistrations: registrations.map((registration) => registration.scope),
+      needsServiceWorkerReload: Boolean(navigator.serviceWorker?.ready && !navigator.serviceWorker?.controller),
       rememberedAllowed: notificationsAllowedRemembered(),
       optedIn: subscription.optedIn,
       subscriptionId: subscription.id || "",
