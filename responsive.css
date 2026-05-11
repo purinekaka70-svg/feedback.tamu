@@ -1567,3 +1567,107 @@ input[type="search"]:focus,
   min-height: 40px;
   align-self: stretch;
 }
+
+/* Marketplace cards: keep the same content, but present category/product tiles horizontally. */
+#productBrowserSection .category-card-grid,
+#productBrowserSection .product-grid,
+#productBrowserSection .product-grid--shelf,
+#productBrowserSection .product-row-scroll {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 224px), 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  overflow: visible !important;
+}
+
+#productBrowserSection .category-market-card,
+#productBrowserSection .supermarket-product-card {
+  display: grid !important;
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto auto auto !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  min-height: 118px !important;
+  padding: 8px !important;
+  gap: 6px 9px !important;
+}
+
+#productBrowserSection .category-card-image,
+#productBrowserSection .supermarket-product-card .product-visual {
+  grid-column: 1 !important;
+  grid-row: 1 / -1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 102px !important;
+  border-radius: 8px !important;
+}
+
+#productBrowserSection .category-card-copy,
+#productBrowserSection .supermarket-product-card .product-head,
+#productBrowserSection .supermarket-product-card .product-detail-label,
+#productBrowserSection .supermarket-product-card .product-price-row,
+#productBrowserSection .supermarket-product-card .product-offer-label,
+#productBrowserSection .supermarket-product-card .product-card-actions {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+}
+
+#productBrowserSection .category-card-copy {
+  align-self: center !important;
+}
+
+#productBrowserSection .category-open-button {
+  grid-column: 2 !important;
+  width: 100% !important;
+  align-self: end !important;
+}
+
+#productBrowserSection .supermarket-product-card .product-head h3,
+#productBrowserSection .category-card-copy strong {
+  min-height: 0 !important;
+  font-size: 0.82rem !important;
+  line-height: 1.14 !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+#productBrowserSection .supermarket-product-card .tiny,
+#productBrowserSection .supermarket-product-card .product-detail-label,
+#productBrowserSection .supermarket-product-card .product-offer-label {
+  min-height: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+#productBrowserSection .product-price-row,
+#productBrowserSection .offer-price-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: baseline !important;
+  gap: 3px 6px !important;
+}
+
+#productBrowserSection .product-card-actions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  align-self: end !important;
+}
+
+#productBrowserSection .deal-card.shop-standalone-offer-card {
+  min-height: 118px !important;
+}
+
+@media (max-width: 380px) {
+  #productBrowserSection .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf,
+  #productBrowserSection .product-row-scroll {
+    grid-template-columns: 1fr !important;
+  }
+
+  #productBrowserSection .category-market-card,
+  #productBrowserSection .supermarket-product-card {
+    grid-template-columns: 86px minmax(0, 1fr) !important;
+  }
+}

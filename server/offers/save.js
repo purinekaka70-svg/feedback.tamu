@@ -1,6 +1,6 @@
 const { requireRole } = require("../_lib/auth");
 const { query } = require("../_lib/db");
-const { body, method, send, text } = require("../_lib/http");
+const { body, method, number, send, text } = require("../_lib/http");
 const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
@@ -10,6 +10,8 @@ function publicId(value) {
 async function ensureOfferColumns() {
   await query("alter table seller_offers add column if not exists offer_title text not null default ''");
   await query("alter table seller_offers add column if not exists offer_note text not null default ''");
+  await query("alter table seller_offers add column if not exists offer_before_price numeric(12, 2) not null default 0");
+  await query("alter table seller_offers add column if not exists offer_now_price numeric(12, 2) not null default 0");
   await query("alter table seller_offers add column if not exists offer_expiry text not null default ''");
   await query("alter table seller_offers add column if not exists offer_image text not null default ''");
 }
@@ -35,23 +37,41 @@ module.exports = async function handler(req, res) {
       }
     }
     await ensureOfferColumns().catch(() => {});
+    const beforePrice = number(payload.beforePrice || payload.offerBeforePrice || payload.before_price || payload.offer_before_price);
+    const nowPrice = number(payload.nowPrice || payload.offerNowPrice || payload.now_price || payload.offer_now_price);
+    if (beforePrice < 0 || nowPrice < 0) {
+      send(res, 422, { ok: false, message: "Offer prices must be zero or more." });
+      return;
+    }
+    if (!beforePrice || !nowPrice) {
+      send(res, 422, { ok: false, message: "Before and now offer prices are required." });
+      return;
+    }
+    if (beforePrice <= nowPrice) {
+      send(res, 422, { ok: false, message: "Offer before price must be higher than the now price." });
+      return;
+    }
     const params = [
       id,
       String(sellerId),
       text(payload.storeName, 150),
       text(payload.title || payload.offerTitle, 150),
       text(payload.note || payload.offerNote, 500),
+      beforePrice,
+      nowPrice,
       text(payload.expires || payload.offerExpiry, 80),
       text(payload.image || payload.offerImage, 230400)
     ];
     await query(
-      `insert into seller_offers (public_id, seller_public_id, store_name, offer_title, offer_note, offer_expiry, offer_image)
-       values ($1,$2,$3,$4,$5,$6,$7)
+      `insert into seller_offers (public_id, seller_public_id, store_name, offer_title, offer_note, offer_before_price, offer_now_price, offer_expiry, offer_image)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        on conflict (public_id) do update set
          seller_public_id=excluded.seller_public_id,
          store_name=excluded.store_name,
          offer_title=excluded.offer_title,
          offer_note=excluded.offer_note,
+         offer_before_price=excluded.offer_before_price,
+         offer_now_price=excluded.offer_now_price,
          offer_expiry=excluded.offer_expiry,
          offer_image=excluded.offer_image`,
       params

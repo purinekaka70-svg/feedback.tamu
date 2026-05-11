@@ -30,6 +30,7 @@ async function columnExists(table, column) {
 
 async function ensureProductDetailColumns() {
   await query("alter table products add column if not exists offer_text text not null default ''");
+  await query("alter table products add column if not exists compare_at_price numeric(12, 2) not null default 0");
   await query("alter table products add column if not exists description text not null default ''");
 }
 
@@ -53,42 +54,54 @@ module.exports = async function handler(req, res) {
     await ensureProductDetailColumns().catch(() => {});
     const offerText = text(payload.productOffer || payload.offerText || payload.offer, 500);
     const descriptionText = text(payload.description || payload.productDescription || payload.details, 800);
-    const params = [
-      businessId,
-      categoryId,
-      text(payload.name, 150),
-      text(payload.image, 230400),
-      number(payload.price),
-      Boolean(payload.offerFlag),
-      offerText,
-      Math.max(0, Math.trunc(number(payload.stock))),
-      descriptionText
-    ];
+    const price = number(payload.price);
+    const compareAtPrice = number(payload.beforePrice || payload.compareAtPrice || payload.productBeforePrice || payload.compare_at_price);
+    if (price < 0 || compareAtPrice < 0) {
+      send(res, 422, { ok: false, message: "Product prices must be zero or more." });
+      return;
+    }
+    if (compareAtPrice && compareAtPrice <= price) {
+      send(res, 422, { ok: false, message: "Before price must be higher than the now price." });
+      return;
+    }
+    const offerFlag = Boolean(payload.offerFlag || offerText || (compareAtPrice && compareAtPrice > price));
     const hasOfferText = await columnExists("products", "offer_text");
+    const hasCompareAtPrice = await columnExists("products", "compare_at_price");
+    const fields = [
+      ["business_id", businessId],
+      ["category_id", categoryId],
+      ["name", text(payload.name, 150)],
+      ["image", text(payload.image, 230400)],
+      ["price", price]
+    ];
+    if (hasCompareAtPrice) {
+      fields.push(["compare_at_price", compareAtPrice]);
+    }
+    fields.push(["offer_flag", offerFlag]);
+    if (hasOfferText) {
+      fields.push(["offer_text", offerText]);
+    }
+    fields.push(
+      ["stock", Math.max(0, Math.trunc(number(payload.stock)))],
+      ["description", descriptionText]
+    );
+    const columns = fields.map(([column]) => column);
+    const params = fields.map(([, value]) => value);
     let rows;
     if (payload.id && /^\d+$/.test(String(payload.id))) {
       const id = Number(payload.id);
-      rows = hasOfferText
-        ? await query(
-            `update products set business_id=$1, category_id=$2, name=$3, image=$4, price=$5, offer_flag=$6, offer_text=$7, stock=$8, description=$9
-              where id=$10 ${session.role === "seller" ? "and business_id=$1" : ""} returning id`,
-            [...params, id]
-          )
-        : await query(
-            `update products set business_id=$1, category_id=$2, name=$3, image=$4, price=$5, offer_flag=$6, stock=$7, description=$8
-              where id=$9 ${session.role === "seller" ? "and business_id=$1" : ""} returning id`,
-            [params[0], params[1], params[2], params[3], params[4], params[5], params[7], params[8], id]
-          );
+      const setClause = columns.map((column, index) => `${column}=$${index + 1}`).join(", ");
+      rows = await query(
+        `update products set ${setClause}
+          where id=$${params.length + 1} ${session.role === "seller" ? "and business_id=$1" : ""} returning id`,
+        [...params, id]
+      );
     } else {
-      rows = hasOfferText
-        ? await query(
-            "insert into products (business_id, category_id, name, image, price, offer_flag, offer_text, stock, description) values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id",
-            params
-          )
-        : await query(
-            "insert into products (business_id, category_id, name, image, price, offer_flag, stock, description) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id",
-            [params[0], params[1], params[2], params[3], params[4], params[5], params[7], params[8]]
-          );
+      const placeholders = params.map((_, index) => `$${index + 1}`).join(",");
+      rows = await query(
+        `insert into products (${columns.join(", ")}) values (${placeholders}) returning id`,
+        params
+      );
     }
     if (payload.id && !rows.length) {
       send(res, 403, { ok: false, message: "Product was not found for your business." });

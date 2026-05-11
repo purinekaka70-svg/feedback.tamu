@@ -8,6 +8,9 @@ alter table products
   add column if not exists offer_text text not null default '';
 
 alter table products
+  add column if not exists compare_at_price numeric(12, 2) not null default 0;
+
+alter table products
   add column if not exists description text not null default '';
 
 alter table seller_offers
@@ -15,6 +18,12 @@ alter table seller_offers
 
 alter table seller_offers
   add column if not exists offer_note text not null default '';
+
+alter table seller_offers
+  add column if not exists offer_before_price numeric(12, 2) not null default 0;
+
+alter table seller_offers
+  add column if not exists offer_now_price numeric(12, 2) not null default 0;
 
 alter table seller_offers
   add column if not exists offer_expiry text not null default '';

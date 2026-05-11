@@ -260,11 +260,12 @@ function normalizeProductRecord(product = {}) {
   const name = String(product.name || product.productName || "Product").trim();
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
+  const beforePrice = Number(product.beforePrice ?? product.compareAtPrice ?? product.compare_at_price ?? product.productBeforePrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
   const description = String(product.description || product.productDescription || product.details || "").trim();
   const rawOffer = product.offerText || product.productOffer || product.offer || "";
   const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
-  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer);
+  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer || (beforePrice && beforePrice > price));
 
   return {
     ...product,
@@ -283,6 +284,9 @@ function normalizeProductRecord(product = {}) {
     productImage: product.productImage || image,
     price,
     productPrice: price,
+    beforePrice,
+    compareAtPrice: beforePrice,
+    productBeforePrice: beforePrice,
     stock,
     productStock: stock,
     offerFlag,
@@ -333,7 +337,8 @@ function offerMessage(product) {
     product.productCategory ? `Category: ${product.productCategory}` : "",
     product.description ? `Details: ${product.description}` : "",
     product.productOffer ? `Offer: ${product.productOffer}` : "",
-    `Price: ${currency(product.productPrice)}`
+    product.beforePrice ? `Before: ${currency(product.beforePrice)}` : "",
+    `Now: ${currency(product.productPrice)}`
   ].filter(Boolean).join(" | ");
 }
 
@@ -346,9 +351,22 @@ function offerCardMessage(offer) {
     offer.category ? `Category: ${offer.category}` : "",
     offer.details && offer.details !== offer.note ? `Details: ${offer.details}` : "",
     offer.note ? `Offer details: ${offer.note}` : "",
-    offer.price ? `Price: ${currency(offer.price)}` : "",
+    offer.beforePrice ? `Before: ${currency(offer.beforePrice)}` : "",
+    offer.nowPrice ? `Now: ${currency(offer.nowPrice)}` : offer.price ? `Price: ${currency(offer.price)}` : "",
     offer.expires ? `Ends: ${offer.expires}` : ""
   ].filter(Boolean).join(" | ");
+}
+
+function offerPriceRowHtml(offer) {
+  const before = Number(offer?.beforePrice || 0);
+  const now = Number(offer?.nowPrice || offer?.price || 0);
+  if (!before && !now) return "";
+  return `
+    <div class="offer-price-row">
+      ${before ? `<span class="product-price-before">${currency(before)}</span>` : ""}
+      ${now ? `<strong class="product-price">${currency(now)}</strong>` : ""}
+    </div>
+  `;
 }
 
 function offerToastDuration(message) {
@@ -478,10 +496,15 @@ function sellerOffers() {
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
   return cachedOffers.map((offer) => ({
     ...offer,
+    id: String(offer.id || offer.publicId || offer.public_id || ""),
     storeId: String(offer.storeId || offer.sellerId || offer.businessId || ""),
+    storeName: offer.storeName || offer.businessName || "",
     title: offer.title || offer.offerTitle || "",
     note: offer.note || offer.offerNote || "",
-    image: offer.image || offer.offerImage || ""
+    expires: offer.expires || offer.offerExpiry || "Active offer",
+    image: offer.image || offer.offerImage || "",
+    beforePrice: Number(offer.beforePrice ?? offer.offerBeforePrice ?? offer.before_price ?? offer.offer_before_price) || 0,
+    nowPrice: Number(offer.nowPrice ?? offer.offerNowPrice ?? offer.now_price ?? offer.offer_now_price ?? offer.price) || 0
   })).filter((offer) => approvedStoreIds.has(offer.storeId));
 }
 
@@ -652,6 +675,36 @@ function productMatchesSearch(product, store, query) {
   }
 
   const text = productSearchText(product, store);
+  return terms.every((term) => text.includes(term));
+}
+
+function offerSearchText(offer, store) {
+  return normalizeSearchValue([
+    offer.title,
+    offer.offerTitle,
+    offer.note,
+    offer.offerNote,
+    offer.details,
+    offer.category,
+    offer.expires,
+    offer.offerExpiry,
+    offer.beforePrice,
+    offer.nowPrice,
+    offer.price,
+    store?.storeName,
+    store?.businessType,
+    store?.location,
+    store?.county
+  ].filter((value) => value !== undefined && value !== null).join(" "));
+}
+
+function offerMatchesSearch(offer, store, query) {
+  const terms = searchTerms(query);
+  if (!terms.length) {
+    return true;
+  }
+
+  const text = offerSearchText(offer, store);
   return terms.every((term) => text.includes(term));
 }
 
@@ -847,7 +900,7 @@ function visibleProducts() {
 function catalogOffers() {
   const approvedStoreIds = new Set(approvedStores().map((store) => store.id));
   const productOffers = sellerProducts()
-    .filter((product) => approvedStoreIds.has(product.storeId) && product.productOffer)
+    .filter((product) => approvedStoreIds.has(product.storeId) && (product.productOffer || product.offerFlag))
     .map((product) => ({
       id: `product-offer-${product.id}`,
       storeId: product.storeId,
@@ -857,6 +910,8 @@ function catalogOffers() {
       details: product.description || "",
       category: product.productCategory || "",
       price: product.productPrice,
+      beforePrice: product.beforePrice,
+      nowPrice: product.productPrice,
       expires: "Store offer",
       image: productImageSource(product),
       productId: product.id
@@ -871,7 +926,9 @@ function catalogOffers() {
       note: offer.note,
       details: offer.note,
       category: "",
-      price: "",
+      price: offer.nowPrice || "",
+      beforePrice: offer.beforePrice,
+      nowPrice: offer.nowPrice,
       expires: offer.expires || offer.offerExpiry || "Active offer",
       image: offerImageSource(offer),
       productId: offer.productId || ""
@@ -1298,7 +1355,8 @@ function productCartToastMessage(product, quantity) {
     product.productCategory ? `Category: ${product.productCategory}` : "",
     product.description ? `Details: ${product.description}` : "",
     product.productOffer ? `Offer: ${product.productOffer}` : "",
-    `Price: ${currency(product.productPrice)}`,
+    product.beforePrice ? `Before: ${currency(product.beforePrice)}` : "",
+    `Now: ${currency(product.productPrice)}`,
     `Cart quantity: ${quantity}`
   ].filter(Boolean).join(" | ");
 }
@@ -1411,10 +1469,11 @@ async function addToCart(productId) {
   await saveCartItemToBackend(productId, nextQuantity);
   savePreviewState();
   renderCartSummary();
-  const toastMessage = product.productOffer
+  const hasOfferDetails = Boolean(product.productOffer || product.offerFlag || (product.beforePrice && product.beforePrice > product.productPrice));
+  const toastMessage = hasOfferDetails
     ? productCartToastMessage(product, nextQuantity)
     : `${product.productName} added to cart.${product.description ? ` ${product.description}` : ""}`;
-  showToast(toastMessage, product.productOffer ? "info" : "success", product.productOffer ? offerToastDuration(toastMessage) : 3200);
+  showToast(toastMessage, hasOfferDetails ? "info" : "success", hasOfferDetails ? offerToastDuration(toastMessage) : 3200);
 }
 
 function renderTypeFilters() {
@@ -1503,6 +1562,7 @@ function renderDeals() {
               <span class="status-pill status-pill--timed">${offer.expires}</span>
             </div>
             <p>${offer.note}</p>
+            ${offerPriceRowHtml(offer)}
             ${button}
           </div>
         </article>
@@ -1810,7 +1870,7 @@ function renderProducts() {
   if (isShopMode && selectedStore) {
     const groups = shopModeProductGroups(selectedStore);
 
-    summary.textContent = shopModeSummaryText(selectedStore, groups.matches);
+    summary.textContent = shopModeSummaryText(selectedStore, groups);
     container.innerHTML = `
       <section class="shop-mode-panel">
         <div class="shop-mode-head">
@@ -1835,6 +1895,7 @@ function renderProducts() {
       </div>
     `;
     bindProductCardActions(container);
+    bindStandaloneOfferCards(container, groups.standaloneOffers);
     bindShopModeActions(container);
     if (shouldFocusShopSearch) {
       shouldFocusShopSearch = false;
@@ -1847,8 +1908,8 @@ function renderProducts() {
     return;
   }
   const list = visibleProducts();
-  const offerProducts = list.filter((product) => product.productOffer);
-  const regularProducts = list.filter((product) => !product.productOffer);
+  const offerProducts = list.filter((product) => product.productOffer || product.offerFlag);
+  const regularProducts = list.filter((product) => !(product.productOffer || product.offerFlag));
   summary.textContent =
     state.focusedStoreId === "all"
       ? `${list.length} products`
@@ -2043,6 +2104,17 @@ function bindShopModeActions(container) {
         return;
       }
 
+      const offerButton = event.target.closest("[data-view-standalone-offer]");
+      if (offerButton) {
+        event.preventDefault();
+        const offer = sellerOffers().find((item) => String(item.id) === String(offerButton.dataset.viewStandaloneOffer));
+        const message = offerCardMessage(offer);
+        if (message) {
+          showToast(message, "info", offerToastDuration(message));
+        }
+        return;
+      }
+
       const orderButton = event.target.closest("[data-shop-place-order]");
       if (orderButton) {
         await createLocalOrderFromStore(orderButton.dataset.shopPlaceOrder);
@@ -2130,7 +2202,7 @@ function initImageViewer() {
 
 function productCardHtml(product) {
   const store = getStore(product.storeId);
-  const isOffer = Boolean(product.productOffer);
+  const isOffer = Boolean(product.productOffer || product.offerFlag || (product.beforePrice && product.beforePrice > product.productPrice));
   const badge = isOffer ? "HOT DEAL" : "New";
   const details = product.description || product.productDescription || "";
   return `
@@ -2146,11 +2218,36 @@ function productCardHtml(product) {
         </div>
       </div>
       ${details ? `<p class="product-detail-label">${escapeHtml(details)}</p>` : ""}
-      <strong class="product-price">${currency(product.productPrice)}</strong>
-      ${product.productOffer ? `<p class="product-offer-label">${product.productOffer}</p>` : ""}
+      <div class="product-price-row">
+        ${product.beforePrice ? `<span class="product-price-before">${currency(product.beforePrice)}</span>` : ""}
+        <strong class="product-price">${currency(product.productPrice)}</strong>
+      </div>
+      ${product.productOffer ? `<p class="product-offer-label">${product.productOffer}</p>` : isOffer ? '<p class="product-offer-label">Price offer</p>' : ""}
       <div class="product-card-actions">
         <button class="button button-primary button-small" data-add-product="${product.id}" type="button">Add</button>
         <button class="button button-outline button-small" data-view-product="${product.id}" type="button">View</button>
+      </div>
+    </article>
+  `;
+}
+
+function standaloneOfferCardHtml(offer) {
+  return `
+    <article class="deal-card shop-standalone-offer-card" data-shop-standalone-offer="${offer.id}">
+      <div class="deal-visual">
+        ${cardImageHtml(offerImageSource(offer), offer.title || "Store offer", [offer.title, offer.note].filter(Boolean).join(" "))}
+      </div>
+      <div class="deal-copy">
+        <div class="deal-head">
+          <div>
+            <h4>${escapeHtml(offer.title || "Store offer")}</h4>
+            <p>${escapeHtml(offer.storeName || "Approved seller")}</p>
+          </div>
+          <span class="status-pill status-pill--timed">${escapeHtml(offer.expires || "Active offer")}</span>
+        </div>
+        ${offer.note ? `<p>${escapeHtml(offer.note)}</p>` : ""}
+        ${offerPriceRowHtml(offer)}
+        <button class="button button-outline button-small" data-view-standalone-offer="${offer.id}" type="button">View offer</button>
       </div>
     </article>
   `;
@@ -2164,37 +2261,57 @@ function shopModeProductGroups(selectedStore) {
     }
     return productMatchesSearch(product, selectedStore, state.shopQuery);
   });
+  const standaloneOffers = sellerOffers()
+    .filter((offer) =>
+      offer.storeId === selectedStore.id &&
+      !offer.productId &&
+      !String(offer.id || "").startsWith("product-offer-")
+    )
+    .map((offer) => ({
+      ...offer,
+      expires: offer.expires || offer.offerExpiry || "Active offer",
+      details: offer.details || offer.note || "",
+      image: offerImageSource(offer)
+    }))
+    .filter((offer) => offerMatchesSearch(offer, selectedStore, state.shopQuery));
+  const offerMatches = matches.filter((product) => product.productOffer || product.offerFlag);
   return {
     query,
     matches,
-    offerMatches: matches.filter((product) => product.productOffer),
-    regularMatches: matches.filter((product) => !product.productOffer)
+    standaloneOffers,
+    offerMatches,
+    offerCount: offerMatches.length + standaloneOffers.length,
+    totalCount: matches.length + standaloneOffers.length,
+    regularMatches: matches.filter((product) => !(product.productOffer || product.offerFlag))
   };
 }
 
-function shopModeSummaryText(selectedStore, matches) {
-  return `${matches.length} item${matches.length === 1 ? "" : "s"} in ${selectedStore.storeName}`;
+function shopModeSummaryText(selectedStore, groups) {
+  const productCount = groups.matches.length;
+  const offerCount = groups.standaloneOffers.length;
+  return `${productCount} product${productCount === 1 ? "" : "s"}${offerCount ? ` + ${offerCount} store offer${offerCount === 1 ? "" : "s"}` : ""} in ${selectedStore.storeName}`;
 }
 
 function shopModeResultsLabel(groups) {
   return groups.query
-    ? `${groups.matches.length} result${groups.matches.length === 1 ? "" : "s"} for "${escapeHtml(state.shopQuery)}"`
-    : "Type a product name to filter this store.";
+    ? `${groups.totalCount} result${groups.totalCount === 1 ? "" : "s"} for "${escapeHtml(state.shopQuery)}"`
+    : "Showing all products and offers from this business.";
 }
 
 function shopModeResultsHtml(selectedStore, groups = shopModeProductGroups(selectedStore)) {
   return `
-    ${groups.offerMatches.length ? `
+    ${groups.offerCount ? `
       <section class="business-offers-first">
         <div class="section-head shelf-head">
           <div>
             <p class="eyebrow">Offers</p>
             <h3>Promotions</h3>
           </div>
-          <span class="summary-chip">${groups.offerMatches.length} deal${groups.offerMatches.length === 1 ? "" : "s"}</span>
+          <span class="summary-chip">${groups.offerCount} deal${groups.offerCount === 1 ? "" : "s"}</span>
         </div>
         <div class="product-grid product-grid--shelf">
           ${groups.offerMatches.map((product) => productCardHtml(product)).join("")}
+          ${groups.standaloneOffers.map((offer) => standaloneOfferCardHtml(offer)).join("")}
         </div>
       </section>
     ` : ""}
@@ -2212,7 +2329,7 @@ function shopModeResultsHtml(selectedStore, groups = shopModeProductGroups(selec
         </div>
       </section>
     ` : ""}
-    ${!groups.matches.length ? `
+    ${!groups.totalCount ? `
       <div class="card empty-shop-result">
         <strong>No matching products in this business.</strong>
         <p class="tiny">Try another word or clear the search to see everything from this seller.</p>
@@ -2226,7 +2343,7 @@ function renderShopModeResults(container, selectedStore) {
   const groups = shopModeProductGroups(selectedStore);
   const summary = document.getElementById("productCountSummary");
   if (summary) {
-    summary.textContent = shopModeSummaryText(selectedStore, groups.matches);
+    summary.textContent = shopModeSummaryText(selectedStore, groups);
   }
   const label = container.querySelector("[data-shop-result-label]");
   if (label) {
@@ -2236,7 +2353,16 @@ function renderShopModeResults(container, selectedStore) {
   if (results) {
     results.innerHTML = shopModeResultsHtml(selectedStore, groups);
     bindProductCardActions(results);
+    bindStandaloneOfferCards(results, groups.standaloneOffers);
   }
+}
+
+function bindStandaloneOfferCards(container, list = []) {
+  container.querySelectorAll("[data-shop-standalone-offer]").forEach((card) => {
+    const offer = list.find((item) => String(item.id) === String(card.dataset.shopStandaloneOffer))
+      || sellerOffers().find((item) => String(item.id) === String(card.dataset.shopStandaloneOffer));
+    bindHoldToast(card, () => offerCardMessage(offer));
+  });
 }
 
 function renderCartSummary() {

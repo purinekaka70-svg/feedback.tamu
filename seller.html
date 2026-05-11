@@ -324,7 +324,7 @@
 
               <div class="field-grid">
                 <label class="field">
-                  <span class="field-label">Price (KSh)</span>
+                  <span class="field-label">Now Price (KSh)</span>
                   <input class="input" name="productPrice" type="number" min="0" step="0.01" placeholder="120" required />
                 </label>
 
@@ -337,6 +337,11 @@
                   </select>
                 </label>
               </div>
+
+              <label class="field">
+                <span class="field-label">Before Price (KSh, optional)</span>
+                <input class="input" name="productBeforePrice" type="number" min="0" step="0.01" placeholder="150" />
+              </label>
 
               <label class="field">
                 <span class="field-label">Special Offer</span>
@@ -387,6 +392,18 @@
                 <span class="field-label">Offer Description</span>
                 <textarea class="input input-textarea" name="offerNote" rows="3" placeholder="Details about the offer" required></textarea>
               </label>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Before Price (KSh)</span>
+                  <input class="input" name="offerBeforePrice" type="number" min="0" step="0.01" placeholder="1500" required />
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Now Price (KSh)</span>
+                  <input class="input" name="offerNowPrice" type="number" min="0" step="0.01" placeholder="999" required />
+                </label>
+              </div>
 
               <label class="field">
                 <span class="field-label">Expiry Date/Time</span>

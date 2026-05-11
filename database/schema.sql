@@ -66,6 +66,7 @@ CREATE TABLE products (
     category_id INT,
     name VARCHAR(150),
     price DECIMAL(10,2),
+    compare_at_price DECIMAL(10,2) DEFAULT 0.00,
     image LONGTEXT,
     offer_flag BOOLEAN DEFAULT FALSE,
     offer_text TEXT NULL,
@@ -168,6 +169,8 @@ CREATE TABLE seller_offers (
     store_name VARCHAR(160),
     offer_title VARCHAR(180),
     offer_note TEXT,
+    offer_before_price DECIMAL(10,2) DEFAULT 0.00,
+    offer_now_price DECIMAL(10,2) DEFAULT 0.00,
     offer_expiry VARCHAR(120),
     offer_image LONGTEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -83,11 +83,12 @@ function normalizeProductRecord(product = {}) {
   const name = String(product.name || product.productName || "Product").trim();
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
+  const beforePrice = Number(product.beforePrice ?? product.compareAtPrice ?? product.compare_at_price ?? product.productBeforePrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
   const description = String(product.description || product.productDescription || product.details || "").trim();
   const rawOffer = product.offerText || product.productOffer || product.offer || "";
   const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
-  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer);
+  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer || (beforePrice && beforePrice > price));
 
   return {
     ...product,
@@ -106,6 +107,9 @@ function normalizeProductRecord(product = {}) {
     productImage: product.productImage || image,
     price,
     productPrice: price,
+    beforePrice,
+    compareAtPrice: beforePrice,
+    productBeforePrice: beforePrice,
     stock,
     productStock: stock,
     offerFlag,
@@ -1236,6 +1240,7 @@ function renderCart() {
           <p>${store.storeName}</p>
           <p class="tiny">${product.productCategory || "Product"}${product.description ? ` | ${product.description}` : ""}</p>
           ${product.productOffer ? `<p class="tiny">Offer: ${product.productOffer}</p>` : ""}
+          ${product.beforePrice ? `<p class="tiny cart-price-before">Before ${currency(product.beforePrice)}</p>` : ""}
           <p>${currency(product.productPrice)} each | Total ${currency(productLineTotal(product, item.quantity))}</p>
           ${isBogoOffer(product) ? `<p class="tiny">Buy one get one free applied: ${item.quantity} item(s), pay for ${paidQuantityForProduct(product, item.quantity)}.</p>` : ""}
           <div class="button-row">

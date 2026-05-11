@@ -1686,6 +1686,23 @@ button {
   white-space: nowrap;
 }
 
+.product-price-row,
+.offer-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 7px;
+  min-width: 0;
+}
+
+.product-price-before {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-decoration: line-through;
+  white-space: nowrap;
+}
+
 .product-offer-label {
   min-height: 1.1em;
   overflow: hidden;

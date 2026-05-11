@@ -175,6 +175,8 @@ module.exports = async function handler(req, res) {
       const stockCount = Number(row.stock || 0);
       const stock = stockCount <= 0 ? "Out of stock" : stockCount <= 5 ? "Limited stock" : "In stock";
       const offerText = actualOfferText(row.offer_text, row.offer_note, row.offer);
+      const price = Number(row.price || 0);
+      const beforePrice = Number(row.compare_at_price || 0);
       return [{
         id: String(row.id),
         businessId: String(row.business_id),
@@ -190,12 +192,15 @@ module.exports = async function handler(req, res) {
         productName: row.name,
         image: row.image || "",
         productImage: row.image || "",
-        price: Number(row.price || 0),
-        productPrice: Number(row.price || 0),
+        price,
+        productPrice: price,
+        beforePrice,
+        compareAtPrice: beforePrice,
+        productBeforePrice: beforePrice,
         stock,
         stockCount,
         productStock: stock,
-        offerFlag: Boolean(row.offer_flag || offerText),
+        offerFlag: Boolean(row.offer_flag || offerText || (beforePrice && beforePrice > price)),
         productOffer: offerText,
         offerText,
         description: row.description || "",
@@ -261,11 +266,26 @@ module.exports = async function handler(req, res) {
       offerExpiry: "Store offer",
       image: product.productImage,
       offerImage: product.productImage,
+      price: product.productPrice,
+      beforePrice: product.beforePrice,
+      nowPrice: product.productPrice,
+      offerBeforePrice: product.beforePrice,
+      offerNowPrice: product.productPrice,
       productId: product.id
     }));
     const hasSellerOffers = await tableExists("seller_offers");
+    const sellerOfferColumns = hasSellerOffers
+      ? await safeColumns("seller_offers", ["offer_before_price", "offer_now_price"])
+      : {};
     const sellerOffers = hasSellerOffers
-      ? await query("select public_id, seller_public_id, store_name, offer_title, offer_note, offer_expiry, offer_image, created_at from seller_offers order by created_at desc")
+      ? await query(
+          `select public_id, seller_public_id, store_name, offer_title, offer_note,
+                  ${selectColumn(sellerOfferColumns, "offer_before_price", "0")},
+                  ${selectColumn(sellerOfferColumns, "offer_now_price", "0")},
+                  offer_expiry, offer_image, created_at
+             from seller_offers
+            order by created_at desc`
+        )
       : [];
     sellerOffers.forEach((row) => {
       const business = businessById[String(row.seller_public_id)];
@@ -280,6 +300,11 @@ module.exports = async function handler(req, res) {
         offerTitle: row.offer_title,
         note: row.offer_note,
         offerNote: row.offer_note,
+        beforePrice: Number(row.offer_before_price || 0),
+        offerBeforePrice: Number(row.offer_before_price || 0),
+        nowPrice: Number(row.offer_now_price || 0),
+        offerNowPrice: Number(row.offer_now_price || 0),
+        price: Number(row.offer_now_price || 0),
         expires: row.offer_expiry,
         offerExpiry: row.offer_expiry,
         image: row.offer_image || "",

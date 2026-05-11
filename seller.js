@@ -66,11 +66,12 @@ function normalizeProductRecord(product = {}) {
   const name = String(product.name || product.productName || "Product").trim();
   const image = product.image || product.productImage || "";
   const price = Number(product.price ?? product.productPrice) || 0;
+  const beforePrice = Number(product.beforePrice ?? product.compareAtPrice ?? product.compare_at_price ?? product.productBeforePrice) || 0;
   const stock = String(product.stock || product.productStock || "In stock").trim();
   const description = String(product.description || product.productDescription || product.details || "").trim();
   const rawOffer = product.offerText || product.productOffer || product.offer || "";
   const productOffer = /^(offer|store offer|special offer)$/i.test(String(rawOffer).trim()) ? "" : rawOffer;
-  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer);
+  const offerFlag = Boolean(product.offerFlag || product.isOffer || productOffer || (beforePrice && beforePrice > price));
 
   return {
     ...product,
@@ -89,6 +90,9 @@ function normalizeProductRecord(product = {}) {
     productImage: product.productImage || image,
     price,
     productPrice: price,
+    beforePrice,
+    compareAtPrice: beforePrice,
+    productBeforePrice: beforePrice,
     stock,
     productStock: stock,
     offerFlag,
@@ -607,7 +611,9 @@ function offers() {
     offerTitle: offer.offerTitle || offer.title || offer.productName || "Offer",
     offerNote: offer.offerNote || offer.note || offer.productOffer || "Store offer",
     offerExpiry: offer.offerExpiry || offer.expires || "Active offer",
-    offerImage: offer.offerImage || offer.image || offer.productImage || ""
+    offerImage: offer.offerImage || offer.image || offer.productImage || "",
+    beforePrice: Number(offer.beforePrice ?? offer.offerBeforePrice ?? offer.before_price ?? offer.offer_before_price) || 0,
+    nowPrice: Number(offer.nowPrice ?? offer.offerNowPrice ?? offer.now_price ?? offer.offer_now_price) || 0
   }));
 }
 
@@ -806,14 +812,14 @@ function renderProducts() {
       <article class="list-card seller-catalog-card">
         <div class="seller-product-media">
           ${product.productImage ? `<img src="${product.productImage}" alt="${product.productName}" loading="lazy" decoding="async" width="300" height="300">` : product.productCategory}
-          <span class="seller-catalog-badge">${product.productOffer ? "Offer" : "New"}</span>
+          <span class="seller-catalog-badge">${product.productOffer || product.offerFlag ? "Offer" : "New"}</span>
         </div>
         <div class="seller-catalog-copy">
           <strong>${product.productName}</strong>
           <p class="tiny">${product.productCategory} | ${product.productStock}</p>
           ${product.description ? `<p class="tiny">${escapeHtml(product.description)}</p>` : ""}
-          <span class="seller-catalog-price">${currency(product.productPrice)}</span>
-          ${product.productOffer ? `<p class="tiny seller-catalog-tag">${product.productOffer}</p>` : '<p class="tiny seller-catalog-tag">Everyday item</p>'}
+          <span class="seller-catalog-price">${product.beforePrice ? `<s>${currency(product.beforePrice)}</s> ` : ""}${currency(product.productPrice)}</span>
+          ${product.productOffer ? `<p class="tiny seller-catalog-tag">${product.productOffer}</p>` : product.offerFlag ? '<p class="tiny seller-catalog-tag">Price offer</p>' : '<p class="tiny seller-catalog-tag">Everyday item</p>'}
         </div>
         <div class="button-row">
           <button class="button button-outline button-small" data-edit-product="${product.id}" type="button">Edit</button>
@@ -832,6 +838,7 @@ function renderProducts() {
       document.querySelector('[name="productName"]').value = product.productName;
       renderSmartCategorySelect("productCategorySelect", "productCategorySearch", product.productCategory);
       document.querySelector('[name="productPrice"]').value = product.productPrice;
+      document.querySelector('[name="productBeforePrice"]').value = product.beforePrice || "";
       document.querySelector('[name="productStock"]').value = product.productStock;
       document.querySelector('[name="productDeal"]').value = product.productOffer || "";
       document.querySelector('[name="productDescription"]').value = product.description || product.productDescription || "";
@@ -920,6 +927,7 @@ function renderOffers() {
         <div class="seller-catalog-copy">
           <strong>${offer.offerTitle}</strong>
           <p class="tiny">${offer.offerNote}</p>
+          ${(offer.beforePrice || offer.nowPrice) ? `<p class="tiny seller-catalog-tag">Before ${offer.beforePrice ? currency(offer.beforePrice) : "N/A"} | Now ${offer.nowPrice ? currency(offer.nowPrice) : "N/A"}</p>` : ""}
           <span class="status-pill status-pill--pending">${offer.offerExpiry}</span>
         </div>
         <div class="button-row">
@@ -938,6 +946,8 @@ function renderOffers() {
       document.getElementById("offerId").value = offer.id;
       document.querySelector('[name="offerTitle"]').value = offer.offerTitle;
       document.querySelector('[name="offerNote"]').value = offer.offerNote;
+      document.querySelector('[name="offerBeforePrice"]').value = offer.beforePrice || "";
+      document.querySelector('[name="offerNowPrice"]').value = offer.nowPrice || "";
       document.querySelector('[name="offerExpiry"]').value = offer.offerExpiry;
       document.querySelector('[name="offerImageUrl"]').value = offer.offerImage || "";
       document.getElementById("saveOfferBtn").textContent = "Update Offer";
@@ -1646,6 +1656,13 @@ async function buildProductPayload(formData) {
   if (!Number.isFinite(price) || price < 0) {
     return { ok: false, message: "Enter a valid product price." };
   }
+  const beforePrice = Number(formData.get("productBeforePrice")) || 0;
+  if (!Number.isFinite(beforePrice) || beforePrice < 0) {
+    return { ok: false, message: "Enter a valid before price." };
+  }
+  if (beforePrice && beforePrice <= price) {
+    return { ok: false, message: "Before price must be higher than the now price." };
+  }
 
   const productId = String(formData.get("productId")).trim();
   const existingProduct = products().find((product) => product.id === productId);
@@ -1688,9 +1705,12 @@ async function buildProductPayload(formData) {
       productCategory,
       price,
       productPrice: price,
+      beforePrice,
+      compareAtPrice: beforePrice,
+      productBeforePrice: beforePrice,
       stock: productStock,
       productStock,
-      offerFlag: Boolean(productOffer),
+      offerFlag: Boolean(productOffer || (beforePrice && beforePrice > price)),
       productOffer,
       description: productDescription,
       productDescription,
@@ -1710,6 +1730,17 @@ async function buildOfferPayload(formData) {
   }
   const offerId = String(formData.get("offerId")).trim();
   const existingOffer = offers().find((offer) => offer.id === offerId);
+  const beforePrice = Number(formData.get("offerBeforePrice")) || 0;
+  const nowPrice = Number(formData.get("offerNowPrice")) || 0;
+  if (!Number.isFinite(beforePrice) || beforePrice < 0 || !Number.isFinite(nowPrice) || nowPrice < 0) {
+    return { ok: false, message: "Enter valid offer prices." };
+  }
+  if (!beforePrice || !nowPrice) {
+    return { ok: false, message: "Enter both before and now offer prices." };
+  }
+  if (beforePrice <= nowPrice) {
+    return { ok: false, message: "Offer before price must be higher than the now price." };
+  }
   let uploadedImage = "";
   try {
     uploadedImage = await optimizeImageFile(formData.get("offerImageFile"), "offer");
@@ -1727,6 +1758,10 @@ async function buildOfferPayload(formData) {
       storeName: seller.storeName,
       offerTitle: String(formData.get("offerTitle")).trim(),
       offerNote: String(formData.get("offerNote")).trim(),
+      beforePrice,
+      nowPrice,
+      offerBeforePrice: beforePrice,
+      offerNowPrice: nowPrice,
       offerExpiry: String(formData.get("offerExpiry")).trim(),
       offerImage,
       updatedAt: new Date().toISOString(),
@@ -1929,6 +1964,9 @@ function bindForms() {
       name: nextProduct.productName,
       image: nextProduct.productImage,
       price: nextProduct.productPrice,
+      beforePrice: nextProduct.beforePrice,
+      compareAtPrice: nextProduct.compareAtPrice,
+      productBeforePrice: nextProduct.productBeforePrice,
       productOffer: nextProduct.productOffer,
       offerText: nextProduct.productOffer,
       offerFlag: nextProduct.offerFlag,
