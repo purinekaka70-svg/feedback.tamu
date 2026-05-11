@@ -128,7 +128,6 @@ const state = {
   cart: []
 };
 let shopSearchRenderTimer = null;
-let shouldFocusShopSearch = false;
 
 function cartSessionId() {
   let id = window.localStorage.getItem(STORAGE_KEYS.cartSession);
@@ -2029,7 +2028,6 @@ function renderStores() {
       state.focusedBusinessCategory = "all";
       state.focusedBusinessCategoryId = "";
       state.shopQuery = "";
-      shouldFocusShopSearch = true;
       savePreviewState();
       renderMarket();
       document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2059,6 +2057,7 @@ function renderProducts() {
   container.classList.toggle("is-shop-mode", Boolean(isShopMode && selectedStore));
   if (isShopMode && selectedStore) {
     const groups = shopModeProductGroups(selectedStore);
+    const isShopSearchOpen = Boolean(state.shopQuery);
 
     summary.textContent = shopModeSummaryText(selectedStore, groups);
     container.innerHTML = `
@@ -2069,9 +2068,12 @@ function renderProducts() {
             <h3>${selectedStore.storeName}</h3>
             <p class="tiny">${selectedStore.location || selectedStore.county || "Selected business"} | Search this store only</p>
           </div>
-          <button class="button button-primary button-small" data-shop-place-order="${selectedStore.id}" type="button">Place Order</button>
+          <div class="shop-mode-actions">
+            <button class="button button-outline button-small shop-search-toggle" data-shop-search-toggle="${selectedStore.id}" type="button" aria-label="Search this store" aria-expanded="${isShopSearchOpen ? "true" : "false"}" title="Search"></button>
+            <button class="button button-primary button-small" data-shop-place-order="${selectedStore.id}" type="button">Place Order</button>
+          </div>
         </div>
-        <label class="field shop-mode-search">
+        <label class="field shop-mode-search${isShopSearchOpen ? " is-open" : ""}" data-shop-search-panel="${selectedStore.id}">
           <span class="field-label">What do you want to buy?</span>
           <span class="shop-search-row">
             <input class="input shop-here-input" data-shop-search="${selectedStore.id}" type="search" value="${escapeAttribute(state.shopQuery)}" placeholder="Search rice, sugar, phone, drinks..." />
@@ -2087,14 +2089,6 @@ function renderProducts() {
     bindProductCardActions(container);
     bindStandaloneOfferCards(container, groups.standaloneOffers);
     bindShopModeActions(container);
-    if (shouldFocusShopSearch) {
-      shouldFocusShopSearch = false;
-      window.setTimeout(() => {
-        const input = container.querySelector(`[data-shop-search="${state.activeShopStoreId}"]`);
-        input?.focus();
-        input?.setSelectionRange(input.value.length, input.value.length);
-      }, 0);
-    }
     return;
   }
   const list = visibleProducts();
@@ -2276,6 +2270,21 @@ function bindShopModeActions(container) {
   if (!container.dataset.shopModeDelegated) {
     container.dataset.shopModeDelegated = "true";
     container.addEventListener("click", async (event) => {
+      const searchToggle = event.target.closest("[data-shop-search-toggle]");
+      if (searchToggle) {
+        event.preventDefault();
+        const storeId = searchToggle.dataset.shopSearchToggle;
+        const panel = container.querySelector(`[data-shop-search-panel="${storeId}"]`);
+        const input = container.querySelector(`[data-shop-search="${storeId}"]`);
+        panel?.classList.add("is-open");
+        searchToggle.setAttribute("aria-expanded", "true");
+        window.setTimeout(() => {
+          input?.focus({ preventScroll: true });
+          input?.setSelectionRange(input.value.length, input.value.length);
+        }, 0);
+        return;
+      }
+
       const clearButton = event.target.closest("[data-shop-search-clear]");
       if (clearButton) {
         event.preventDefault();

@@ -1316,9 +1316,73 @@ button {
   white-space: nowrap;
 }
 
+.shop-mode-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.shop-search-toggle {
+  position: relative;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--accent-strong);
+}
+
+.shop-search-toggle::before,
+.shop-search-toggle::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.shop-search-toggle::before {
+  top: 8px;
+  left: 8px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+
+.shop-search-toggle::after {
+  top: 22px;
+  left: 21px;
+  width: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+
+.shop-search-toggle[aria-expanded="true"] {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: rgba(21, 128, 61, 0.28);
+}
+
 .shop-mode-search .tiny {
   display: block;
   overflow-wrap: anywhere;
+}
+
+.shop-mode-search:not(.is-open) {
+  gap: 0;
+}
+
+.shop-mode-search:not(.is-open) .field-label,
+.shop-mode-search:not(.is-open) .shop-search-row {
+  display: none !important;
+}
+
+.shop-mode-search.is-open .shop-search-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
 }
 
 .shop-here-results {
@@ -2245,6 +2309,10 @@ body.is-image-viewing {
     display: grid;
   }
 
+  .shop-mode-actions {
+    justify-content: flex-start;
+  }
+
   .deal-card {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2627,11 +2695,19 @@ body.is-image-viewing {
   }
 
   .shop-search-row {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
   }
 
   .shop-search-row .button {
-    width: 100% !important;
-    min-width: 0 !important;
+    width: auto !important;
+    min-width: max-content !important;
+    padding-inline: 10px !important;
+  }
+
+  .shop-search-toggle {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
   }
 }
