@@ -80,6 +80,11 @@ const businessTypeImagePools = {
   ]
 };
 const categoryImagePools = {
+  dairy: [
+    "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=900&q=72",
+    "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=72"
+  ],
   grocery: [
     "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=72",
     "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=900&q=72",
@@ -196,7 +201,7 @@ async function saveCartItemToBackend(productId, quantity) {
     productName: product.productName,
     storeName: product.storeName || getStore(product.storeId)?.storeName || "",
     unitPrice: product.productPrice,
-    image: product.productImage,
+    image: productImageSource(product),
     quantity
   });
   notifyRealtime("cart", "cart-updated");
@@ -580,13 +585,59 @@ function fallbackBusinessImageFor(store) {
 
 function catalogImagePoolForText(value) {
   const text = normalizeSearchValue(value);
-  if (/\b(milk|dairy|yoghurt|yogurt|cheese|cream|brookside|mala)\b/.test(text)) return categoryImagePools.fresh;
+  if (/\b(milk|dairy|yoghurt|yogurt|cheese|cream|brookside|fresha|tuzo|daima|ilara|kinangop|mala|mtindi)\b/.test(text)) return categoryImagePools.dairy;
+  if (/\b(dress|dresses|cloth|clothes|fashion|shirt|t\s*shirt|shoe|sneaker|trouser|jean|skirt|wear|boutique|uniform)\b/.test(text)) return businessTypeImagePools.clothes;
+  if (/\b(phone|laptop|computer|charger|earphone|headphone|tv|television|radio|speaker|electronic|gadget)\b/.test(text)) return businessTypeImagePools.electronics;
+  if (/\b(makeup|cosmetic|beauty|cream|lotion|perfume|salon|lipstick|hair)\b/.test(text)) return businessTypeImagePools.cosmetics;
+  if (/\b(medicine|pharmacy|chemist|drug|tablet|capsule|syrup|first\s*aid)\b/.test(text)) return businessTypeImagePools.pharmacy;
+  if (/\b(tool|hardware|paint|cement|nail|screw|plumb|pipe|build)\b/.test(text)) return businessTypeImagePools.hardware;
   if (/\b(soda|juice|water|drink|beverage|tea|coffee)\b/.test(text)) return categoryImagePools.beverage;
   if (/\b(rice|sugar|flour|unga|maize|oil|grocery|food|cereal)\b/.test(text)) return categoryImagePools.grocery;
   if (/\b(soap|detergent|clean|tissue|toilet|household)\b/.test(text)) return categoryImagePools.household;
   if (/\b(snack|biscuit|sweet|cake|crisps|chocolate)\b/.test(text)) return categoryImagePools.snack;
   if (/\b(bulk|wholesale|carton|box|crate|dozen)\b/.test(text)) return categoryImagePools.wholesale;
   return fallbackLocationImages;
+}
+
+function productImageSeed(product) {
+  return [
+    product.productName,
+    product.name,
+    product.brand,
+    product.productDescription,
+    product.description,
+    product.productOffer,
+    product.productCategory,
+    product.categoryName,
+    product.storeName
+  ].filter(Boolean).join(" ");
+}
+
+function specificCatalogImageForText(value) {
+  const pool = catalogImagePoolForText(value);
+  return pool === fallbackLocationImages ? "" : fallbackImageFor(value, pool);
+}
+
+function sellerImageMatchesProduct(src, product) {
+  if (!src) return false;
+  if (/^(data:image|blob:)/i.test(String(src))) {
+    return true;
+  }
+  const seed = productImageSeed(product);
+  if (!specificCatalogImageForText(seed)) {
+    return true;
+  }
+  let decodedSrc = String(src);
+  try {
+    decodedSrc = decodeURIComponent(decodedSrc);
+  } catch (error) {
+    decodedSrc = String(src);
+  }
+  const urlText = normalizeSearchValue(decodedSrc);
+  const productTerms = searchTerms(seed)
+    .filter((term) => term.length > 2)
+    .filter((term) => !["the", "and", "for", "new", "offer", "product", "item", "retail", "supermarket"].includes(term));
+  return productTerms.some((term) => urlText.includes(term));
 }
 
 function categoryImageForStore(storeId, categoryName) {
@@ -602,15 +653,13 @@ function categoryImageForStore(storeId, categoryName) {
 }
 
 function productImageSource(product) {
+  const seed = productImageSeed(product);
+  const smartProductImage = specificCatalogImageForText(seed);
+  if (product.productImage && sellerImageMatchesProduct(product.productImage, product)) return product.productImage;
+  if (smartProductImage) return smartProductImage;
   if (product.productImage) return product.productImage;
   const categoryImage = categoryImageForStore(product.storeId, product.productCategory);
   if (categoryImage) return categoryImage;
-  const seed = [
-    product.productName,
-    product.description,
-    product.productCategory,
-    product.storeName
-  ].filter(Boolean).join(" ");
   return fallbackImageFor(seed, catalogImagePoolForText(seed));
 }
 
@@ -741,10 +790,11 @@ function storeMatchesSearch(store, products, query) {
 }
 
 function cardImageHtml(src, alt, fallbackSeed = "market image") {
-  const image = src || fallbackImageFor(fallbackSeed);
+  const fallbackImage = fallbackImageFor(fallbackSeed, catalogImagePoolForText(fallbackSeed));
+  const image = src || fallbackImage;
   const safeImage = escapeAttribute(image);
   const safeAlt = escapeAttribute(alt || "Marketplace image");
-  const fallback = escapeAttribute(fallbackImageFor(fallbackSeed));
+  const fallback = escapeAttribute(fallbackImage);
   return `
     <img src="${safeImage}" alt="${safeAlt}" loading="lazy" decoding="async" data-fallback-src="${fallback}" data-view-image data-image-title="${safeAlt}">
     <button class="image-view-button" type="button" data-view-image data-image-src="${safeImage}" data-image-title="${safeAlt}" aria-label="View ${safeAlt} image">View</button>
@@ -2043,7 +2093,7 @@ function bindProductCardActions(container) {
     button.addEventListener("click", () => {
       const product = getProduct(button.dataset.viewProduct);
       if (!product) return;
-      openImageViewer(product.productImage || fallbackImageFor(product.productName || product.productCategory), product.productName);
+      openImageViewer(productImageSource(product), product.productName);
     });
   });
 }
