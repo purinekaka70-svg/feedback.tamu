@@ -2,6 +2,14 @@ const { claims } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { method, send, text } = require("../_lib/http");
 
+function phoneDigits(value) {
+  return String(value || "").replace(/\D/g, "").slice(-12);
+}
+
+function phoneTail(value) {
+  return String(value || "").replace(/\D/g, "").slice(-9);
+}
+
 function publicOrder(row, items = [], routes = []) {
   const businessPayments = row.business_payments || [];
   const rawStatus = String(row.status || "pending_payment").toLowerCase();
@@ -75,6 +83,8 @@ module.exports = async function handler(req, res) {
     const session = claims(req);
     const businessId = Number(url.searchParams.get("businessId") || (session?.role === "seller" ? session.businessId : 0) || 0);
     const phone = text(url.searchParams.get("phone"), 40);
+    const normalizedPhone = phoneDigits(phone);
+    const normalizedPhoneTail = phoneTail(phone);
     const params = [];
     let sql = "select distinct o.* from orders o";
     if (businessId) {
@@ -89,12 +99,15 @@ module.exports = async function handler(req, res) {
       sql += " join order_items oi on oi.order_id = o.id where (oi.business_id = $1 or oi.store_public_id = $2)";
       params.push(businessId, String(businessId));
     } else if (session?.role !== "admin") {
-      if (!phone) {
+      if (!normalizedPhone) {
         send(res, 200, { ok: true, orders: [] });
         return;
       }
-      sql += " where o.customer_phone = $1";
-      params.push(phone);
+      sql += ` where (
+        right(regexp_replace(coalesce(o.customer_phone, ''), '\\D', '', 'g'), 12) = $1
+        or right(regexp_replace(coalesce(o.customer_phone, ''), '\\D', '', 'g'), 9) = $2
+      )`;
+      params.push(normalizedPhone, normalizedPhoneTail);
     }
     sql += " order by o.created_at desc";
     const orders = await query(sql, params);

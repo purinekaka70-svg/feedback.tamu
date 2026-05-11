@@ -228,7 +228,9 @@ async function loadOrders() {
     }
     const res = await fetch(`./api/orders/list.php?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' });
     const data = await res.json();
-    cachedOrders = res.ok && data.ok ? (data.orders || []) : [];
+    cachedOrders = res.ok && data.ok
+      ? (data.orders || []).filter((order) => sameCustomerPhone(phone, order.phone || order.customerPhone))
+      : [];
   } catch (error) {
     cachedOrders = [];
   }
@@ -398,6 +400,17 @@ function formatOrderTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function phoneDigits(value, length = 12) {
+  return String(value || "").replace(/\D/g, "").slice(-length);
+}
+
+function sameCustomerPhone(left, right) {
+  const leftDigits = phoneDigits(left);
+  const rightDigits = phoneDigits(right);
+  if (!leftDigits || !rightDigits) return false;
+  return leftDigits === rightDigits || phoneDigits(left, 9) === phoneDigits(right, 9);
 }
 
 function formatDistance(distanceKm) {
