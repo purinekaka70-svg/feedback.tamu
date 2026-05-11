@@ -1725,17 +1725,6 @@ button {
   -webkit-line-clamp: 3;
 }
 
-.product-card-meta {
-  margin: 0;
-  overflow: hidden;
-  color: #94a3b8;
-  font-size: 0.58rem;
-  font-weight: 800;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .product-card-badge {
   position: absolute;
   top: 6px;

@@ -1865,3 +1865,148 @@ input[type="search"]:focus,
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Final compact marketplace tile pass: small cards, normal wrapping, no text squeezed into letters. */
+#productBrowserSection .category-card-grid,
+#productBrowserSection .product-grid,
+#productBrowserSection .product-grid--shelf,
+#productBrowserSection .product-row-scroll {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(142px, 168px)) !important;
+  justify-content: start !important;
+  gap: 10px !important;
+  overflow: visible !important;
+  padding: 2px 0 10px !important;
+}
+
+#productBrowserSection .category-market-card,
+#productBrowserSection .supermarket-product-card,
+#productBrowserSection .deal-card,
+#productBrowserSection .deal-card.shop-standalone-offer-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+  max-width: 168px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 6px !important;
+  gap: 4px !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+
+#productBrowserSection .category-card-image,
+#productBrowserSection .supermarket-product-card .product-visual,
+#productBrowserSection .deal-visual {
+  width: 100% !important;
+  height: 92px !important;
+  min-height: 92px !important;
+  aspect-ratio: auto !important;
+  border-radius: 8px !important;
+}
+
+#productBrowserSection .supermarket-product-card .product-head h3,
+#productBrowserSection .category-card-copy strong,
+#productBrowserSection .deal-head h4 {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  font-size: 0.74rem !important;
+  line-height: 1.18 !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+#productBrowserSection .supermarket-product-card .tiny,
+#productBrowserSection .supermarket-product-card .product-detail-label,
+#productBrowserSection .supermarket-product-card .product-offer-label,
+#productBrowserSection .deal-card p,
+#productBrowserSection .deal-card .status-pill {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+#productBrowserSection .supermarket-product-card .tiny,
+#productBrowserSection .product-detail-label,
+#productBrowserSection .product-offer-label,
+#productBrowserSection .deal-card p {
+  display: block !important;
+  overflow: hidden !important;
+  font-size: 0.6rem !important;
+  line-height: 1.25 !important;
+  text-overflow: ellipsis !important;
+}
+
+#productBrowserSection .supermarket-product-card .tiny,
+#productBrowserSection .product-offer-label,
+#productBrowserSection .deal-card p {
+  white-space: nowrap !important;
+}
+
+#productBrowserSection .product-detail-label {
+  white-space: normal !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+#productBrowserSection .supermarket-product-card .product-price {
+  font-size: 0.84rem !important;
+}
+
+#productBrowserSection .deal-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 4px !important;
+}
+
+#productBrowserSection .deal-card .status-pill {
+  display: inline-flex !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  min-height: 22px !important;
+  padding: 2px 7px !important;
+  font-size: 0.58rem !important;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+}
+
+#productBrowserSection .product-card-actions,
+#productBrowserSection .deal-card .button {
+  align-self: end !important;
+}
+
+#productBrowserSection .product-card-actions .button,
+#productBrowserSection .deal-card .button {
+  min-height: 27px !important;
+  padding: 0 5px !important;
+  border-radius: 7px !important;
+  font-size: 0.64rem !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 640px) {
+  #productBrowserSection .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf,
+  #productBrowserSection .product-row-scroll {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    justify-content: stretch !important;
+    gap: 8px !important;
+  }
+
+  #productBrowserSection .category-market-card,
+  #productBrowserSection .supermarket-product-card,
+  #productBrowserSection .deal-card,
+  #productBrowserSection .deal-card.shop-standalone-offer-card {
+    max-width: none !important;
+  }
+}
+
+@media (max-width: 330px) {
+  #productBrowserSection .category-card-grid,
+  #productBrowserSection .product-grid,
+  #productBrowserSection .product-grid--shelf,
+  #productBrowserSection .product-row-scroll {
+    grid-template-columns: 1fr !important;
+  }
+}
