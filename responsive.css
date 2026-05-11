@@ -5564,3 +5564,68 @@ body:not(.seller-dashboard-active) .seller-menu-overlay {
     color: #ffffff !important;
   }
 }
+
+/* Ultimate phone/tablet guard: public page menus must never require a hidden drawer. */
+@media (max-width: 980px) {
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar,
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar.reveal,
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar.is-visible {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 10px !important;
+    padding-right: 12px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar > .topbar-actions,
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar .topbar-actions {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    gap: 7px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar > .topbar-actions > *,
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar .topbar-actions .button {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 40px !important;
+    justify-content: center !important;
+    padding: 0 10px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere !important;
+    text-align: center !important;
+  }
+}
