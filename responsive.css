@@ -2067,3 +2067,278 @@ input[type="search"]:focus,
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Authoritative compact responsive card system. */
+.store-grid,
+.deal-grid,
+.product-grid,
+.product-grid--shelf,
+.category-card-grid,
+.dashboard-grid,
+.feature-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.store-card,
+.location-card,
+.business-directory-card,
+.category-market-card,
+.deal-card,
+.product-card,
+.supermarket-product-card,
+.action-card,
+.feature-card,
+.market-photo-card {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  padding: 8px !important;
+  gap: 6px !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+  overflow: hidden !important;
+}
+
+.store-card:hover,
+.location-card:hover,
+.business-directory-card:hover,
+.category-market-card:hover,
+.deal-card:hover,
+.product-card:hover,
+.supermarket-product-card:hover,
+.action-card:hover,
+.feature-card:hover,
+.market-photo-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(21, 128, 61, 0.22) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1) !important;
+}
+
+.location-card,
+.business-directory-card,
+.category-market-card,
+.supermarket-product-card,
+.deal-card,
+.deal-card.shop-standalone-offer-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+.location-card-media,
+.business-logo,
+.category-card-image,
+.product-visual,
+.deal-visual,
+.market-photo-card img {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 4 / 3 !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: #f8fafc !important;
+}
+
+.location-card-media img,
+.business-logo img,
+.category-card-image img,
+.product-visual img,
+.deal-visual img,
+.market-photo-card img {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  object-fit: contain !important;
+  background: #f8fafc !important;
+}
+
+.compact-card-body,
+.category-card-copy,
+.deal-copy,
+.supermarket-product-card .product-head {
+  min-width: 0 !important;
+  gap: 4px !important;
+}
+
+.compact-card-body h3,
+.business-directory-card h3,
+.category-card-copy strong,
+.supermarket-product-card .product-head h3,
+.deal-head h4,
+.action-card h3,
+.feature-card h2,
+.market-photo-card strong {
+  display: -webkit-box !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  color: #111827 !important;
+  font-size: 0.82rem !important;
+  font-weight: 900 !important;
+  line-height: 1.16 !important;
+  letter-spacing: 0 !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.compact-card-body p,
+.business-meta-row,
+.market-type-badge,
+.category-card-copy span,
+.supermarket-product-card .tiny,
+.product-detail-label,
+.product-offer-label,
+.deal-card p,
+.market-photo-card span,
+.action-card p,
+.feature-card p {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: #64748b !important;
+  font-size: 0.66rem !important;
+  line-height: 1.22 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+.product-detail-label {
+  display: -webkit-box !important;
+  white-space: normal !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.product-price,
+.supermarket-product-card .product-price {
+  color: #f04424 !important;
+  font-size: 0.92rem !important;
+  font-weight: 950 !important;
+  line-height: 1.08 !important;
+}
+
+.product-price-before {
+  color: #94a3b8 !important;
+  font-size: 0.62rem !important;
+}
+
+.product-card-badge,
+.status-pill,
+.summary-chip,
+.market-type-badge {
+  min-height: 20px !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  font-size: 0.6rem !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.product-card-actions,
+.compact-card-footer,
+.business-card-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+  align-self: end !important;
+}
+
+.category-open-button,
+.deal-card .button,
+.product-card-actions .button,
+.compact-card-footer .button,
+.business-card-actions .button,
+.business-open-button,
+.shop-here-button,
+.business-cart-button {
+  min-height: 28px !important;
+  padding: 0 7px !important;
+  border-radius: 6px !important;
+  font-size: 0.68rem !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+#productBrowserSection #productGrid.is-shop-mode,
+#productBrowserSection #productGrid.is-shop-mode > [data-shop-results],
+#productBrowserSection #productGrid.is-shop-mode .business-offers-first,
+#productBrowserSection #productGrid.is-shop-mode .standard-products-section {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+}
+
+@media (min-width: 700px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid,
+  .dashboard-grid,
+  .feature-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1100px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-grid,
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 330px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-grid,
+  .feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
