@@ -7,7 +7,7 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-sw-diagnostics";
+  const SCRIPT_VERSION = "20260512-repair-output";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -708,10 +708,19 @@
     };
   }
   async function repairPushState() {
-    const OneSignal = await getOneSignal();
-    await ensureOneSignalServiceWorker();
-    await requestOneSignalSubscription(OneSignal).catch(() => false);
-    return debugPushState(false);
+    const startedAt = Date.now();
+    const OneSignal = await withTimeout(getOneSignal(), 8000, null);
+    await withTimeout(ensureOneSignalServiceWorker(), 9000, false);
+    await withTimeout(requestOneSignalSubscription(OneSignal).catch(() => false), 15000, false);
+    const state = await debugPushState(false);
+    state.repairDurationMs = Date.now() - startedAt;
+    try {
+      console.table(state);
+      console.log(JSON.stringify(state, null, 2));
+    } catch {
+      // Console output is only a debugging helper.
+    }
+    return state;
   }
   window.tamuPushDebug = debugPushState;
   window.tamuPushRepair = repairPushState;
