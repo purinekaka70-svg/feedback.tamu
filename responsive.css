@@ -5396,3 +5396,171 @@ body:not(.seller-dashboard-active) .seller-menu-overlay {
     overflow-wrap: anywhere !important;
   }
 }
+
+/* Phone public nav: keep header links visible on every non-dashboard page. */
+@media (max-width: 760px) {
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 10px !important;
+    padding-right: 12px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar .brand-block {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar .brand,
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar .brand-tagline {
+    overflow-wrap: anywhere !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar .topbar-actions,
+  body.seller-auth-only:not(.seller-dashboard-active) .topbar .topbar-actions,
+  body.admin-auth-only:not(.admin-dashboard-active) .topbar .topbar-actions,
+  body.employee-auth-only:not(.employee-dashboard-active) .topbar .topbar-actions {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    gap: 7px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar .topbar-actions .button,
+  body.seller-auth-only:not(.seller-dashboard-active) .topbar .topbar-actions .button,
+  body.admin-auth-only:not(.admin-dashboard-active) .topbar .topbar-actions .button,
+  body.employee-auth-only:not(.employee-dashboard-active) .topbar .topbar-actions .button {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 40px !important;
+    justify-content: center !important;
+    padding: 0 10px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere !important;
+    text-align: center !important;
+  }
+}
+
+/* Seller mobile drawer: keep the menu panel above the dim overlay and make it tappable. */
+@media (max-width: 979px) {
+  body.seller-dashboard-active .seller-workspace-bar {
+    overflow: visible !important;
+  }
+
+  body.seller-dashboard-active.seller-menu-open .seller-workspace-bar {
+    z-index: 3900 !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-toggle {
+    position: fixed !important;
+    top: 10px !important;
+    right: 10px !important;
+    z-index: 4300 !important;
+    display: inline-grid !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 4000 !important;
+    display: block !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    background: rgba(15, 23, 42, 0) !important;
+    transition: opacity 180ms ease, background-color 180ms ease, visibility 180ms ease !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay.is-open {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    background: rgba(15, 23, 42, 0.58) !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: 0 !important;
+    z-index: 4200 !important;
+    display: grid !important;
+    align-content: start !important;
+    gap: 9px !important;
+    width: min(86vw, 320px) !important;
+    max-width: calc(100vw - 26px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 72px 12px 16px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border: 1px solid rgba(21, 128, 61, 0.16) !important;
+    border-radius: 0 16px 16px 0 !important;
+    background: #ffffff !important;
+    box-shadow: 18px 0 44px rgba(15, 23, 42, 0.3) !important;
+    transform: translate3d(-112%, 0, 0) !important;
+    opacity: 1 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: transform 210ms ease, visibility 210ms ease !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav.is-open {
+    transform: translate3d(0, 0, 0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav .button {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 46px !important;
+    justify-content: flex-start !important;
+    padding-inline: 14px !important;
+    color: var(--ink) !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav .button-primary {
+    color: #ffffff !important;
+  }
+}

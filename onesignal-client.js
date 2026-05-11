@@ -6,8 +6,8 @@
   const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
-  const READY_TIMEOUT_MS = 20000;
-  const CLICK_READY_TIMEOUT_MS = 1800;
+  const READY_TIMEOUT_MS = 12000;
+  const CLICK_READY_TIMEOUT_MS = 10000;
   let lastInitError = "";
 
   function sleep(ms) {
@@ -94,7 +94,8 @@
       await OneSignal.init({
         appId: payload.appId,
         safari_web_id: SAFARI_WEB_ID,
-        serviceWorkerPath: "OneSignalSDKWorker.js",
+        serviceWorkerPath: "/OneSignalSDKWorker.js",
+        serviceWorkerUpdaterPath: "/OneSignalSDKUpdaterWorker.js",
         serviceWorkerParam: { scope: "/" },
         allowLocalhostAsSecureOrigin: location.hostname === "localhost" || location.hostname === "127.0.0.1",
         notifyButton: {
@@ -323,16 +324,23 @@
 
   async function requestOneSignalSubscription(OneSignal) {
     if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
+    if (notificationsEnabled(OneSignal)) return true;
     if (!notificationsGranted(OneSignal) && OneSignal?.Slidedown?.promptPush) {
-      await withTimeout(OneSignal.Slidedown.promptPush({ force: true }).catch(() => false), 2500, false);
+      await withTimeout(OneSignal.Slidedown.promptPush({ force: true }).catch((error) => {
+        lastInitError = String(error?.message || error || "OneSignal prompt failed").slice(0, 180);
+        return false;
+      }), 3500, false);
     }
     if (!notificationsGranted(OneSignal) && OneSignal?.Notifications?.requestPermission) {
-      await withTimeout(OneSignal.Notifications.requestPermission().catch(() => false), 6000, false);
+      await withTimeout(OneSignal.Notifications.requestPermission().catch((error) => {
+        lastInitError = String(error?.message || error || "Permission prompt failed").slice(0, 180);
+        return false;
+      }), 6500, false);
     }
     if (notificationsGranted(OneSignal)) {
       await optInNotifications(OneSignal);
     }
-    return waitForSubscription(OneSignal, 18000);
+    return waitForSubscription(OneSignal, 9000);
   }
 
   async function waitForSubscription(OneSignal, timeoutMs = 6000) {
@@ -425,7 +433,7 @@
     const permission = await requestBrowserPermissionImmediately();
     if (permission === "granted") {
       rememberNotificationsAllowed();
-      button.textContent = "Subscribing...";
+      button.textContent = "Connecting...";
       const OneSignal = await getOneSignal();
       if (await completeOneSignalSubscription(OneSignal)) {
         await showTestNotification(true);
@@ -493,14 +501,15 @@
     };
     button.addEventListener("click", async () => {
       button.disabled = true;
-      button.textContent = "Enabling...";
+      button.textContent = "Connecting...";
       if (await finishNativePermission(button)) {
         return;
       }
 
       const OneSignal = await getOneSignalFast();
       if (!OneSignal) {
-        button.textContent = lastInitError ? "Reload page" : "Enable notifications";
+        appToast("Notifications unavailable", lastInitError || "OneSignal did not load. Check your connection and try again.", "warn");
+        button.textContent = lastInitError ? "Reload page" : "Try again";
         button.disabled = false;
         return;
       }
@@ -511,7 +520,7 @@
         return;
       }
       try {
-        button.textContent = "Enabling...";
+        button.textContent = "Subscribing...";
         await requestOneSignalSubscription(OneSignal);
       } catch {
         button.textContent = "Enable notifications";

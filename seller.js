@@ -2153,7 +2153,10 @@ function bindActions() {
   document.getElementById("sellerPanelLogoutBtn").addEventListener("click", logoutSeller);
 
   document.getElementById("sellerWorkspaceToggle").addEventListener("click", toggleSellerMenu);
-  document.getElementById("sellerMenuOverlay").addEventListener("click", closeSellerMenu);
+  const sellerMenuOverlay = document.getElementById("sellerMenuOverlay");
+  sellerMenuOverlay.addEventListener("click", closeSellerMenu);
+  sellerMenuOverlay.addEventListener("pointerdown", closeSellerMenu);
+  sellerMenuOverlay.addEventListener("touchstart", closeSellerMenu, { passive: true });
   document.getElementById("sellerWorkspaceNav")?.addEventListener("click", (event) => {
     event.stopPropagation();
   });
