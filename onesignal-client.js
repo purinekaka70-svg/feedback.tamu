@@ -6,6 +6,7 @@
   const SAFARI_WEB_ID = "web.onesignal.auto.399b8e00-4d8c-471a-9e28-27f67ae2986b";
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
+  const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -89,6 +90,10 @@
   }
 
   async function initOneSignal() {
+    if (!isHttpOrigin()) {
+      lastInitError = "Open the live HTTPS site to enable push notifications.";
+      return null;
+    }
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     const payloadPromise = config().catch(() => ({ appId: DEFAULT_APP_ID }));
 
@@ -177,6 +182,7 @@
   }
 
   function warmOneSignalSdk() {
+    if (!isHttpOrigin()) return;
     loadOneSignalSdk().catch(() => false);
   }
 
@@ -497,6 +503,11 @@
   }
 
   async function subscribeWithOneSignal(button) {
+    if (!isHttpOrigin()) {
+      button.textContent = "Open live site";
+      window.location.href = LIVE_SITE_URL;
+      return true;
+    }
     button.textContent = "Opening OneSignal...";
     const OneSignal = await getOneSignalFast();
     if (!OneSignal) {
@@ -529,10 +540,15 @@
     const button = document.createElement("button");
     button.id = "enableNotificationsButton";
     button.type = "button";
-    button.textContent = "Enable notifications";
+    button.textContent = isHttpOrigin() ? "Enable notifications" : "Open live site";
     button.setAttribute("aria-label", "Enable push notifications");
     const updateButton = async () => {
       if (!button.isConnected) return;
+      if (!isHttpOrigin()) {
+        button.disabled = false;
+        button.textContent = "Open live site";
+        return;
+      }
       const OneSignal = await Promise.race([
         window.tamuOneSignalReady,
         new Promise((resolve) => window.setTimeout(() => resolve(null), 3500))
@@ -564,6 +580,12 @@
       button.textContent = "Enable notifications";
     };
     button.addEventListener("click", async () => {
+      if (!isHttpOrigin()) {
+        button.disabled = false;
+        button.textContent = "Open live site";
+        window.location.href = LIVE_SITE_URL;
+        return;
+      }
       button.disabled = true;
       button.textContent = "Enabling notifications...";
       try {
