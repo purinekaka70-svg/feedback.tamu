@@ -2018,3 +2018,52 @@ input[type="search"]:focus,
     max-width: none !important;
   }
 }
+
+/* Shop Here must use the full phone width; otherwise offers collapse into a narrow column. */
+#productBrowserSection #productGrid.is-shop-mode {
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-content: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+#productBrowserSection #productGrid.is-shop-mode > .shop-mode-panel,
+#productBrowserSection #productGrid.is-shop-mode > [data-shop-results] {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results],
+#productBrowserSection #productGrid.is-shop-mode .business-offers-first,
+#productBrowserSection #productGrid.is-shop-mode .standard-products-section {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  justify-content: stretch !important;
+  gap: 8px !important;
+}
+
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .supermarket-product-card,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .deal-card,
+#productBrowserSection #productGrid.is-shop-mode [data-shop-results] .deal-card.shop-standalone-offer-card {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+@media (max-width: 340px) {
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+    grid-template-columns: 1fr !important;
+  }
+}

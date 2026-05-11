@@ -1911,12 +1911,14 @@ function renderProducts() {
       summary.textContent = "Choose a business";
     }
     if (container) {
+      container.classList.remove("is-shop-mode");
       container.innerHTML = "";
     }
     return;
   }
   const selectedStore = getStore(state.focusedStoreId);
   const isShopMode = state.activeShopStoreId === state.focusedStoreId;
+  container.classList.toggle("is-shop-mode", Boolean(isShopMode && selectedStore));
   if (isShopMode && selectedStore) {
     const groups = shopModeProductGroups(selectedStore);
 
