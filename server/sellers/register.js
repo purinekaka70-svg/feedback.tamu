@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const { getPool } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit } = require("../_lib/security");
 
 async function tableColumns(client, table) {
@@ -121,6 +122,8 @@ module.exports = async function handler(req, res) {
       fields.values
     );
     await client.query("commit");
+    await touchRealtime("marketplace", "seller-registered");
+    await touchRealtime("users", "seller-user-created");
     send(res, 201, {
       ok: true,
       message: "Successfully registered. Please wait for admin approval.",

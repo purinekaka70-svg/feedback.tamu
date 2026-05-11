@@ -1,6 +1,7 @@
 const { requireRole } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
@@ -76,6 +77,7 @@ module.exports = async function handler(req, res) {
          offer_image=excluded.offer_image`,
       params
     );
+    await touchRealtime("marketplace", "offer-saved");
     send(res, 201, { ok: true, offer: { id } });
   } catch (error) {
     console.error("Offer save failed:", String(error?.message || error).slice(0, 180));

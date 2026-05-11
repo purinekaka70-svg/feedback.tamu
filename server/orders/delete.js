@@ -1,6 +1,7 @@
 const { claims } = require("../_lib/auth");
 const { getPool } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit, requireSameOrigin } = require("../_lib/security");
 
 async function tableExists(client, table) {
@@ -98,6 +99,8 @@ module.exports = async function handler(req, res) {
     }
     await client.query("delete from orders where id = $1", [order.id]);
     await client.query("commit");
+    await touchRealtime("orders", "order-deleted");
+    await touchRealtime("payments", "order-payments-deleted");
     send(res, 200, { ok: true });
   } catch (error) {
     await client?.query("rollback").catch(() => {});

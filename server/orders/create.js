@@ -2,6 +2,7 @@ const { getPool } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
 const { customerExternalId, sendPushToBusinessIds, sendPushToExternalIds, sendPushToRole, settlePushes } = require("../_lib/notifications");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit } = require("../_lib/security");
 
 function publicId(value) {
@@ -306,6 +307,10 @@ module.exports = async function handler(req, res) {
       await client.query("delete from cart where session_id = $1", [text(payload.sessionId, 120)]);
     }
     await client.query("commit");
+    await touchRealtime("orders", "order-created");
+    if (payload.sessionId) {
+      await touchRealtime("cart", "cart-cleared-after-order");
+    }
     const businessIds = [...new Set(items.map((item) => item.businessId || item.storeId).filter(Boolean))];
     const orderNotification = {
       title: "New order placed",

@@ -252,6 +252,95 @@ create unique index if not exists employees_firebase_uid_unique
   on employees (firebase_uid)
   where firebase_uid is not null and firebase_uid <> '';
 
+create table if not exists app_realtime_events (
+  id bigserial primary key,
+  channel text not null,
+  reason text not null default 'mutation',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists app_realtime_events_channel_id_idx
+  on app_realtime_events (channel, id desc);
+
+create or replace function app_realtime_touch()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  event_channel text;
+begin
+  event_channel := case TG_TABLE_NAME
+    when 'orders' then 'orders'
+    when 'order_items' then 'orders'
+    when 'order_route_breakdown' then 'orders'
+    when 'deliveries' then 'orders'
+    when 'payments' then 'payments'
+    when 'users' then 'users'
+    when 'employees' then 'users'
+    else 'marketplace'
+  end;
+
+  insert into app_realtime_events (channel, reason)
+  values (event_channel, lower(TG_OP) || ':' || TG_TABLE_NAME);
+
+  if TG_OP = 'DELETE' then
+    return OLD;
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists businesses_realtime_touch on businesses;
+create trigger businesses_realtime_touch
+after insert or update or delete on businesses
+for each row execute function app_realtime_touch();
+
+drop trigger if exists categories_realtime_touch on categories;
+create trigger categories_realtime_touch
+after insert or update or delete on categories
+for each row execute function app_realtime_touch();
+
+drop trigger if exists products_realtime_touch on products;
+create trigger products_realtime_touch
+after insert or update or delete on products
+for each row execute function app_realtime_touch();
+
+drop trigger if exists seller_offers_realtime_touch on seller_offers;
+create trigger seller_offers_realtime_touch
+after insert or update or delete on seller_offers
+for each row execute function app_realtime_touch();
+
+drop trigger if exists orders_realtime_touch on orders;
+create trigger orders_realtime_touch
+after insert or update or delete on orders
+for each row execute function app_realtime_touch();
+
+drop trigger if exists order_items_realtime_touch on order_items;
+create trigger order_items_realtime_touch
+after insert or update or delete on order_items
+for each row execute function app_realtime_touch();
+
+drop trigger if exists payments_realtime_touch on payments;
+create trigger payments_realtime_touch
+after insert or update or delete on payments
+for each row execute function app_realtime_touch();
+
+drop trigger if exists deliveries_realtime_touch on deliveries;
+create trigger deliveries_realtime_touch
+after insert or update or delete on deliveries
+for each row execute function app_realtime_touch();
+
+drop trigger if exists users_realtime_touch on users;
+create trigger users_realtime_touch
+after insert or update or delete on users
+for each row execute function app_realtime_touch();
+
+drop trigger if exists employees_realtime_touch on employees;
+create trigger employees_realtime_touch
+after insert or update or delete on employees
+for each row execute function app_realtime_touch();
+
 update businesses
 set subscription_started_at = coalesce(subscription_started_at, now()),
     subscription_expires_at = coalesce(subscription_expires_at, now() + interval '1 month'),

@@ -3,6 +3,7 @@ const { getPool, query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { normalizeStatus } = require("../_lib/market");
 const { customerExternalId, sendPushToExternalIds, settlePushes } = require("../_lib/notifications");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit, requireSameOrigin } = require("../_lib/security");
 
 function compactError(error) {
@@ -116,6 +117,10 @@ module.exports = async function handler(req, res) {
           })
         ], "Order paid customer notification");
       }
+    }
+    await touchRealtime("orders", "order-updated");
+    if (paymentStatus) {
+      await touchRealtime("payments", "payment-updated");
     }
     send(res, 200, { ok: true });
   } catch {

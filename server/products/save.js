@@ -1,6 +1,7 @@
 const { requireRole } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, number, send, text } = require("../_lib/http");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit } = require("../_lib/security");
 
 async function resolveCategoryId(businessId, payload) {
@@ -104,6 +105,7 @@ module.exports = async function handler(req, res) {
       send(res, 403, { ok: false, message: "Product was not found for your business." });
       return;
     }
+    await touchRealtime("marketplace", payload.id ? "product-updated" : "product-created");
     send(res, 201, { ok: true, product: { id: rows[0]?.id || payload.id } });
   } catch {
     send(res, 500, { ok: false, message: "Failed to save product." });

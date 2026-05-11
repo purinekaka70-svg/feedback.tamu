@@ -2,6 +2,7 @@ const { requireRole } = require("../_lib/auth");
 const { query, tableColumns } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
 const { normalizeStatus, sellerFromBusiness } = require("../_lib/market");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit } = require("../_lib/security");
 
 async function ensureBusinessSubscriptionColumns() {
@@ -65,6 +66,7 @@ module.exports = async function handler(req, res) {
           returning id, user_id`,
         [id]
       );
+      await touchRealtime("marketplace", "business-subscription-expired");
       send(res, 200, { ok: true, seller: { id, status: "expired" }, updated: Boolean(rows[0]) });
       return;
     }
@@ -91,6 +93,8 @@ module.exports = async function handler(req, res) {
     if (rows[0]?.user_id) {
       await query("update users set status = $2 where id = $1", [rows[0].user_id, status === "approved" ? "approved" : status]);
     }
+    await touchRealtime("marketplace", `business-${status}`);
+    await touchRealtime("users", "business-user-status");
     send(res, 200, { ok: true, seller: { id, status } });
   } catch (error) {
     send(res, 500, {

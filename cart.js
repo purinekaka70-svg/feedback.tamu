@@ -1617,7 +1617,7 @@ function bindRealtimeUpdates() {
   };
   if (window.TamuRealtime?.subscribe) {
     window.TamuRealtime.subscribe("orders", refreshCartPage, { visibleMs: 6000, hiddenMs: 22000 });
-    window.TamuRealtime.subscribe("marketplace", refreshCartPage, { poll: false });
+    window.TamuRealtime.subscribe("marketplace", refreshCartPage, { visibleMs: 7000, hiddenMs: 25000 });
     window.TamuRealtime.subscribe("cart", refreshCartPage, { poll: false });
     return;
   }

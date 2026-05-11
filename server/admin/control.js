@@ -1,6 +1,7 @@
 const { requireRole } = require("../_lib/auth");
 const { query, tableExists } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { touchRealtime } = require("../_lib/realtime");
 const { rateLimit } = require("../_lib/security");
 
 const TABLES = {
@@ -68,6 +69,13 @@ async function deleteLocation(id) {
   await query("update businesses set location_name = '' where lower(location_name) = lower($1)", [id]).catch(() => {});
 }
 
+function realtimeChannelFor(type) {
+  if (["order", "orders"].includes(type)) return "orders";
+  if (["payment", "payments"].includes(type)) return "payments";
+  if (["user", "users", "employee", "employees"].includes(type)) return "users";
+  return "marketplace";
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   if (!rateLimit(req, res, "admin-control", { limit: 80, windowMs: 10 * 60 * 1000 })) return;
@@ -94,11 +102,13 @@ module.exports = async function handler(req, res) {
       } else {
         await query(`delete from ${table} where id = $1`, [Number(id)]);
       }
+      await touchRealtime(realtimeChannelFor(type), `admin-${type}-deleted`);
       send(res, 200, { ok: true });
       return;
     }
     if (action === "status") {
       await query(`update ${table} set status = $2 where id = $1`, [Number(id), text(payload.status, 40)]);
+      await touchRealtime(realtimeChannelFor(type), `admin-${type}-status`);
       send(res, 200, { ok: true });
       return;
     }

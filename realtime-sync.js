@@ -1,15 +1,21 @@
 (function () {
   const CHANNEL_NAME = "tamu_realtime_updates";
   const STORAGE_KEY = "tamu_realtime_event";
+  const STATE_ENDPOINT = "./api/realtime/state.php";
   const DEFAULT_VISIBLE_MS = 4000;
   const DEFAULT_HIDDEN_MS = 20000;
-  const DEFAULT_DEBOUNCE_MS = 350;
+  const DEFAULT_DEBOUNCE_MS = 250;
+  const STATE_TIMEOUT_MS = 5500;
   const subscribers = new Map();
   const timers = new Map();
   const running = new Map();
   const pending = new Map();
   const lastEventIds = new Set();
+  const versions = new Map();
   const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(CHANNEL_NAME) : null;
+  let stateTimer = null;
+  let stateRunning = false;
+  let stateFailures = 0;
 
   function now() {
     return Date.now();
@@ -22,13 +28,27 @@
     return subscribers.get(channelName);
   }
 
-  function nextDelay(entries) {
+  function activePollingChannels() {
+    return [...subscribers.entries()]
+      .filter(([, entries]) => entries.some((entry) => entry.poll !== false && !(entry.paused && entry.paused())))
+      .map(([channelName]) => channelName);
+  }
+
+  function entriesDelay(entries) {
     const fallback = document.hidden ? DEFAULT_HIDDEN_MS : DEFAULT_VISIBLE_MS;
     return entries.reduce((delay, entry) => {
-      if (entry.poll === false) return delay;
+      if (entry.poll === false || (entry.paused && entry.paused())) return delay;
       const value = document.hidden ? entry.hiddenMs : entry.visibleMs;
       return Math.min(delay, value || fallback);
     }, fallback);
+  }
+
+  function stateDelay() {
+    const channels = activePollingChannels();
+    if (!channels.length) return DEFAULT_VISIBLE_MS;
+    return channels.reduce((delay, channelName) => {
+      return Math.min(delay, entriesDelay(safeArray(channelName)));
+    }, document.hidden ? DEFAULT_HIDDEN_MS : DEFAULT_VISIBLE_MS);
   }
 
   async function run(channelName, reason) {
@@ -66,14 +86,84 @@
   function poll(channelName) {
     const entries = safeArray(channelName);
     if (!entries.length) return;
-    schedule(channelName, "poll", 0);
+    schedule(channelName, "fallback-poll", 0);
     window.clearTimeout(timers.get(channelName));
-    timers.set(channelName, window.setTimeout(() => poll(channelName), nextDelay(entries)));
+    timers.set(channelName, window.setTimeout(() => poll(channelName), entriesDelay(entries)));
   }
 
-  function startPoller(channelName) {
+  function startLegacyPoller(channelName) {
     if (timers.has(channelName)) return;
-    timers.set(channelName, window.setTimeout(() => poll(channelName), nextDelay(safeArray(channelName))));
+    timers.set(channelName, window.setTimeout(() => poll(channelName), entriesDelay(safeArray(channelName))));
+  }
+
+  function stopLegacyPoller(channelName) {
+    window.clearTimeout(timers.get(channelName));
+    timers.delete(channelName);
+  }
+
+  async function fetchState() {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeout = controller ? window.setTimeout(() => controller.abort(), STATE_TIMEOUT_MS) : null;
+    try {
+      const response = await window.fetch(STATE_ENDPOINT, {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: controller?.signal
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok || !data.channels) {
+        throw new Error(data.message || `Realtime state failed (${response.status})`);
+      }
+      const active = new Set(activePollingChannels());
+      Object.entries(data.channels).forEach(([channelName, value]) => {
+        const nextVersion = String(value?.version ?? "0");
+        const previousVersion = versions.get(channelName);
+        versions.set(channelName, nextVersion);
+        if (!active.has(channelName)) return;
+        if (previousVersion === undefined || previousVersion !== nextVersion) {
+          schedule(channelName, previousVersion === undefined ? "database-initial" : "database-change", 0);
+        }
+      });
+      return true;
+    } finally {
+      if (timeout) {
+        window.clearTimeout(timeout);
+      }
+    }
+  }
+
+  function queueStatePoll(delay = stateDelay()) {
+    if (stateTimer || !activePollingChannels().length) return;
+    stateTimer = window.setTimeout(pollState, Math.max(0, delay));
+  }
+
+  async function pollState() {
+    stateTimer = null;
+    const active = activePollingChannels();
+    if (!active.length) return;
+    if (stateRunning) {
+      queueStatePoll(750);
+      return;
+    }
+    stateRunning = true;
+    try {
+      const ok = await fetchState();
+      if (ok) {
+        stateFailures = 0;
+        active.forEach(stopLegacyPoller);
+      }
+    } catch (error) {
+      stateFailures += 1;
+      if (stateFailures >= 2) {
+        active.forEach(startLegacyPoller);
+      }
+      if (stateFailures <= 3 || stateFailures % 10 === 0) {
+        console.warn("Realtime state check failed:", String(error?.message || error).slice(0, 160));
+      }
+    } finally {
+      stateRunning = false;
+      queueStatePoll(stateFailures >= 2 ? Math.min(stateDelay(), 8000) : stateDelay());
+    }
   }
 
   function deliver(event) {
@@ -94,6 +184,7 @@
       at: now()
     };
     deliver(event);
+    queueStatePoll(0);
     try {
       channel?.postMessage(event);
     } catch {
@@ -113,13 +204,13 @@
     const entry = {
       handler,
       poll: options.poll !== false,
-      visibleMs: Math.max(1500, Number(options.visibleMs || DEFAULT_VISIBLE_MS)),
+      visibleMs: Math.max(1800, Number(options.visibleMs || DEFAULT_VISIBLE_MS)),
       hiddenMs: Math.max(8000, Number(options.hiddenMs || DEFAULT_HIDDEN_MS)),
       paused: typeof options.paused === "function" ? options.paused : null
     };
     safeArray(channelName).push(entry);
     if (entry.poll) {
-      startPoller(channelName);
+      queueStatePoll(0);
     }
     if (options.immediate) {
       schedule(channelName, "initial", 0);
@@ -127,6 +218,9 @@
     return () => {
       const entries = safeArray(channelName).filter((item) => item !== entry);
       subscribers.set(channelName, entries);
+      if (!entries.length) {
+        stopLegacyPoller(channelName);
+      }
     };
   }
 
@@ -140,15 +234,13 @@
     }
   });
   document.addEventListener("visibilitychange", () => {
-    subscribers.forEach((entries, channelName) => {
-      if (!entries.length) return;
-      window.clearTimeout(timers.get(channelName));
-      timers.delete(channelName);
-      startPoller(channelName);
+    activePollingChannels().forEach((channelName) => {
+      stopLegacyPoller(channelName);
       if (!document.hidden) {
         schedule(channelName, "visible", 0);
       }
     });
+    queueStatePoll(0);
   });
 
   window.TamuRealtime = {

@@ -26,6 +26,7 @@ const routes = {
   "onesignal/config": () => require("../server/onesignal/config"),
   "products/delete": () => require("../server/products/delete"),
   "products/save": () => require("../server/products/save"),
+  "realtime/state": () => require("../server/realtime/state"),
   "sellers/login": () => require("../server/sellers/login"),
   "sellers/register": () => require("../server/sellers/register"),
   "sellers/update": () => require("../server/sellers/update"),

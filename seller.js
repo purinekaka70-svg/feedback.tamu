@@ -2230,7 +2230,7 @@ function bindLiveOrderUpdates() {
   };
   if (window.TamuRealtime?.subscribe) {
     window.TamuRealtime.subscribe("orders", refresh, { visibleMs: 5000, hiddenMs: 20000 });
-    window.TamuRealtime.subscribe("marketplace", refresh, { poll: false });
+    window.TamuRealtime.subscribe("marketplace", refresh, { visibleMs: 7000, hiddenMs: 25000 });
     return;
   }
   window.setInterval(refresh, 12000);

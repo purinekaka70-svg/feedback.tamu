@@ -1,6 +1,7 @@
 const { requireRole } = require("../_lib/auth");
 const { query } = require("../_lib/db");
 const { body, method, send, text } = require("../_lib/http");
+const { touchRealtime } = require("../_lib/realtime");
 
 async function paymentColumnUpdate(payload) {
   const rows = await query(
@@ -73,6 +74,7 @@ module.exports = async function handler(req, res) {
         returning id`,
       params
     );
+    await touchRealtime("marketplace", "seller-updated");
     send(res, 200, { ok: true, seller: { id: rows[0]?.id || businessId } });
   } catch {
     send(res, 500, { ok: false, message: "Failed to update seller profile." });
