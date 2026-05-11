@@ -8,7 +8,7 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-default-worker-path";
+  const SCRIPT_VERSION = "20260512-hide-enabled-button";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -325,7 +325,7 @@
       clearNotificationsAllowed();
       return false;
     }
-    if (notificationsEnabled(OneSignal)) {
+    if (notificationsGranted(OneSignal) || notificationsAllowedRemembered() || notificationsEnabled(OneSignal)) {
       rememberNotificationsAllowed();
       return true;
     }
@@ -525,10 +525,11 @@
       if (await completeOneSignalSubscription(OneSignal)) {
         await showTestNotification(true);
         appToast("Push notifications enabled", "This device is subscribed for Tamu Express alerts.", "success");
-        removeEnableButton(button);
-        return true;
+      } else {
+        completeOneSignalSubscription(OneSignal).catch(() => false);
       }
-      appToast("Almost done", "Permission is allowed, but the push subscription did not finish. Tap Enable notifications again.", "warn");
+      removeEnableButton(button);
+      return true;
     }
     return false;
   }
@@ -542,12 +543,10 @@
       if (await completeOneSignalSubscription(OneSignal)) {
         await showTestNotification(true);
         appToast("Push notifications enabled", "This device is subscribed for Tamu Express alerts.", "success");
-        removeEnableButton(button);
-        return true;
+      } else {
+        completeOneSignalSubscription(OneSignal).catch(() => false);
       }
-      appToast("Permission allowed", "Browser permission is on, but push setup still needs one more try.", "warn");
-      button.textContent = "Finish notifications";
-      button.disabled = false;
+      removeEnableButton(button);
       return true;
     }
     if (permission === "denied") {
