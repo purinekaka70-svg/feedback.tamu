@@ -5185,3 +5185,68 @@ body.home-page .market-photo-track img {
     transform: scale(0.98) !important;
   }
 }
+
+/* Public pages use simple visible navigation. Only dashboard-owned menus may show. */
+.topbar-menu-toggle,
+.topbar-menu-overlay,
+.topbar-mobile-drawer {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body:not(.seller-dashboard-active) .seller-menu-toggle,
+body:not(.seller-dashboard-active) .seller-menu-overlay {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 760px) {
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar {
+    padding-right: 12px !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar > .topbar-actions {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 0 4px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    transition: none !important;
+    scrollbar-width: none !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar > .topbar-actions::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-dashboard-active) .topbar > .topbar-actions .button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    min-height: 36px !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+  }
+}
