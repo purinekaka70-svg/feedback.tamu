@@ -90,6 +90,12 @@ function countyFromText(value) {
   return KENYA_COUNTIES.find((county) => normalized.includes(county)) || "";
 }
 
+function isAllCounties(value) {
+  return ["all", "allcounties", "countrywide", "national"].includes(
+    String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "")
+  );
+}
+
 function employeeCounty() {
   return currentEmployee?.county
     || currentEmployee?.location
@@ -107,6 +113,13 @@ async function firebaseIdToken() {
 }
 
 function orderCountyValues(order) {
+  const storeIds = new Set(asArray(order.items).flatMap((item) => [item.storeId, item.businessId, item.sellerId]).filter(Boolean).map(String));
+  const matchingBusinesses = applications().filter((business) =>
+    storeIds.has(String(business.id || ""))
+    || storeIds.has(String(business.businessId || ""))
+    || storeIds.has(String(business.email || ""))
+    || asArray(order.items).some((item) => String(item.storeName || "").toLowerCase() === String(business.storeName || business.name || "").toLowerCase())
+  );
   return [
     order.county,
     order.buyerCounty,
@@ -114,11 +127,13 @@ function orderCountyValues(order) {
     order.buyerLocation,
     order.storeName,
     ...asArray(order.stores),
-    ...asArray(order.items).flatMap((item) => [item.county, item.storeCounty, item.storeName])
+    ...asArray(order.items).flatMap((item) => [item.county, item.storeCounty, item.storeLocation, item.location, item.storeName]),
+    ...matchingBusinesses.flatMap((business) => [business.county, business.location, business.locationName, business.locationId, business.storeName, business.name])
   ].filter(Boolean);
 }
 
 function orderMatchesEmployeeCounty(order) {
+  if (isAllCounties(employeeCounty())) return true;
   const target = normalizeCounty(countyFromText(employeeCounty()) || employeeCounty());
   if (!target) return false;
   return orderCountyValues(order).some((value) => {
@@ -480,6 +495,8 @@ function normalizeOrderItem(item = {}) {
     businessId,
     sellerId: item.sellerId || businessId,
     storeId: item.storeId || businessId,
+    storeCounty: item.storeCounty || item.county || item.location || "",
+    storeLocation: item.storeLocation || item.storeCounty || item.location || "",
     categoryId: item.categoryId || "",
     name,
     productName: item.productName || name,
@@ -530,7 +547,7 @@ function normalizeOrder(order) {
 function orders() {
   const normalized = cachedEmployeeOrders.map(normalizeOrder);
   const matched = normalized.filter(orderMatchesEmployeeCounty);
-  return matched.length ? matched : normalized;
+  return matched;
 }
 
 function saveOrders(nextOrders) {

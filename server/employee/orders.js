@@ -1,4 +1,4 @@
-const { query, tableExists } = require("../_lib/db");
+const { query, tableColumns, tableExists } = require("../_lib/db");
 const { employeeAccessMessage, employeeFromRequest } = require("../_lib/firebase-admin");
 const { body, method, send, text } = require("../_lib/http");
 const { rateLimit } = require("../_lib/security");
@@ -85,6 +85,7 @@ async function loadOrders() {
     tableExists("payments").catch(() => false),
     tableExists("businesses").catch(() => false)
   ]);
+  const businessColumns = hasBusinesses ? await tableColumns("businesses").catch(() => new Set()) : new Set();
 
   const items = hasItems
     ? await query("select * from order_items where order_id = any($1::bigint[]) order by id asc", [ids]).catch(() => [])
@@ -95,23 +96,32 @@ async function loadOrders() {
   const payments = hasPayments
     ? await query("select * from payments where order_public_id = any($1::text[]) order by id asc", [publicIds]).catch(() => [])
     : [];
-  const businessIds = [...new Set(items.map((item) => Number(item.business_id || 0)).filter(Boolean))];
+  const businessIds = [...new Set(items.map((item) => Number(item.business_id || item.store_public_id || 0)).filter(Boolean))];
+  const businessLocationSelect = [
+    businessColumns.has("location_name") ? "location_name" : "null::text as location_name",
+    businessColumns.has("location") ? "location" : "null::text as location",
+    businessColumns.has("county") ? "county" : "null::text as county",
+    businessColumns.has("county_name") ? "county_name" : "null::text as county_name",
+    businessColumns.has("store_name") ? "store_name" : "null::text as store_name"
+  ].join(", ");
   const businesses = hasBusinesses && businessIds.length
-    ? await query("select id, name, location_name from businesses where id = any($1::bigint[])", [businessIds]).catch(() => [])
+    ? await query(`select id, name, ${businessLocationSelect} from businesses where id = any($1::bigint[])`, [businessIds]).catch(() => [])
     : [];
   const businessById = new Map(businesses.map((business) => [Number(business.id), business]));
 
   const itemsByOrder = new Map();
   items.forEach((item) => {
-    const business = businessById.get(Number(item.business_id || 0));
+    const business = businessById.get(Number(item.business_id || item.store_public_id || 0));
+    const storeCounty = business?.location_name || business?.location || business?.county || business?.county_name || "";
     const list = itemsByOrder.get(item.order_id) || [];
     list.push({
       productId: item.product_public_id || "",
       productName: item.product_name || "",
       storeId: item.store_public_id || String(item.business_id || ""),
       businessId: String(item.business_id || item.store_public_id || ""),
-      storeName: item.store_name || business?.name || "",
-      storeCounty: business?.location_name || "",
+      storeName: item.store_name || business?.store_name || business?.name || "",
+      storeCounty,
+      storeLocation: storeCounty,
       quantity: Number(item.quantity || 0),
       unitPrice: Number(item.unit_price || 0),
       lineTotal: Number(item.line_total || 0)
@@ -201,7 +211,7 @@ module.exports = async function handler(req, res) {
           : countyFromText(allowedCounty) || allowedCounty;
       const allRows = await loadOrders();
       const matchedRows = allRows.filter((row) => orderMatchesCounty(row, county));
-      const rows = matchedRows.length || !county ? matchedRows : allRows;
+      const rows = matchedRows;
       send(res, 200, { ok: true, orders: rows.map((row) => ({
         id: row.public_id || String(row.id),
         publicId: row.public_id || String(row.id),
