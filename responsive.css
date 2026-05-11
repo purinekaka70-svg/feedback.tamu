@@ -1568,40 +1568,51 @@ input[type="search"]:focus,
   align-self: stretch;
 }
 
-/* Marketplace cards: keep the same content, but present category/product tiles horizontally. */
+/* Marketplace cards: keep each card's original design, but lay cards out left-to-right. */
 #productBrowserSection .category-card-grid,
 #productBrowserSection .product-grid,
 #productBrowserSection .product-grid--shelf,
 #productBrowserSection .product-row-scroll {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 224px), 1fr)) !important;
-  gap: 10px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  grid-template-columns: none !important;
+  gap: 14px !important;
   align-items: stretch !important;
-  overflow: visible !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 4px 2px 14px !important;
+  scroll-padding-inline: 2px !important;
+  scroll-snap-type: x proximity !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 #productBrowserSection .category-market-card,
 #productBrowserSection .supermarket-product-card {
   display: grid !important;
-  grid-template-columns: 92px minmax(0, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto auto auto auto auto !important;
-  align-items: stretch !important;
-  width: 100% !important;
+  flex: 0 0 clamp(206px, 58vw, 238px) !important;
+  width: clamp(206px, 58vw, 238px) !important;
   min-width: 0 !important;
-  max-width: 100% !important;
-  min-height: 118px !important;
-  padding: 8px !important;
-  gap: 6px 9px !important;
+  max-width: clamp(206px, 58vw, 238px) !important;
+  min-height: 0 !important;
+  padding: 10px !important;
+  gap: 8px !important;
+  scroll-snap-align: start !important;
 }
 
 #productBrowserSection .category-card-image,
 #productBrowserSection .supermarket-product-card .product-visual {
-  grid-column: 1 !important;
-  grid-row: 1 / -1 !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
   width: 100% !important;
-  height: 100% !important;
-  min-height: 102px !important;
-  border-radius: 8px !important;
+  height: 132px !important;
+  min-height: 132px !important;
+  border-radius: 10px !important;
 }
 
 #productBrowserSection .category-card-copy,
@@ -1610,16 +1621,16 @@ input[type="search"]:focus,
 #productBrowserSection .supermarket-product-card .product-price-row,
 #productBrowserSection .supermarket-product-card .product-offer-label,
 #productBrowserSection .supermarket-product-card .product-card-actions {
-  grid-column: 2 !important;
+  grid-column: auto !important;
   min-width: 0 !important;
 }
 
 #productBrowserSection .category-card-copy {
-  align-self: center !important;
+  align-self: stretch !important;
 }
 
 #productBrowserSection .category-open-button {
-  grid-column: 2 !important;
+  grid-column: auto !important;
   width: 100% !important;
   align-self: end !important;
 }
@@ -1663,11 +1674,14 @@ input[type="search"]:focus,
   #productBrowserSection .product-grid,
   #productBrowserSection .product-grid--shelf,
   #productBrowserSection .product-row-scroll {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: none !important;
   }
 
   #productBrowserSection .category-market-card,
   #productBrowserSection .supermarket-product-card {
-    grid-template-columns: 86px minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    flex-basis: min(82vw, 218px) !important;
+    width: min(82vw, 218px) !important;
+    max-width: min(82vw, 218px) !important;
   }
 }
