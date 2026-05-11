@@ -8,7 +8,7 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-onesignal-button-reload";
+  const SCRIPT_VERSION = "20260512-force-worker-reload";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -367,16 +367,16 @@
     }
   }
 
-  function reloadOnceForServiceWorkerControl() {
+  function reloadOnceForServiceWorkerControl(force = false) {
     if (!isHttpOrigin() || !navigator.serviceWorker || navigator.serviceWorker.controller) return false;
     try {
-      if (window.sessionStorage.getItem(WORKER_RELOAD_KEY) === SCRIPT_VERSION) return false;
+      if (!force && window.sessionStorage.getItem(WORKER_RELOAD_KEY) === SCRIPT_VERSION) return false;
       window.sessionStorage.setItem(WORKER_RELOAD_KEY, SCRIPT_VERSION);
     } catch {
-      return false;
+      if (!force) return false;
     }
     lastServiceWorkerError = "Reloading once so the OneSignal service worker can control this page.";
-    window.setTimeout(() => window.location.reload(), 400);
+    window.setTimeout(() => window.location.replace(window.location.href), 500);
     return true;
   }
 
@@ -738,7 +738,7 @@
       // Console output is only a debugging helper.
     }
     if (state.needsServiceWorkerReload) {
-      reloadOnceForServiceWorkerControl();
+      state.reloadForced = reloadOnceForServiceWorkerControl(true);
     }
     return state;
   }
