@@ -80,3 +80,113 @@ body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-da
     text-align: center !important;
   }
 }
+
+@media (max-width: 979px) {
+  body.seller-dashboard-active.seller-menu-open {
+    overflow: hidden !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 6000 !important;
+    display: block !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    background: rgba(15, 23, 42, 0) !important;
+    transition: opacity 180ms ease, background-color 180ms ease, visibility 180ms ease !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay.is-open {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    background: rgba(15, 23, 42, 0.56) !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-bar,
+  body.seller-dashboard-active.seller-menu-open .seller-workspace-bar {
+    position: sticky !important;
+    top: 6px !important;
+    z-index: 7000 !important;
+    overflow: visible !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-toggle {
+    position: fixed !important;
+    top: 10px !important;
+    right: 10px !important;
+    z-index: 7400 !important;
+    display: inline-grid !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: 0 !important;
+    z-index: 7300 !important;
+    display: grid !important;
+    align-content: start !important;
+    gap: 9px !important;
+    width: min(86vw, 320px) !important;
+    max-width: calc(100vw - 26px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 72px 12px 16px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border: 1px solid rgba(21, 128, 61, 0.18) !important;
+    border-radius: 0 16px 16px 0 !important;
+    background: #ffffff !important;
+    box-shadow: 18px 0 44px rgba(15, 23, 42, 0.3) !important;
+    transform: translate3d(-112%, 0, 0) !important;
+    opacity: 1 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: transform 210ms ease, visibility 210ms ease !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav.is-open {
+    transform: translate3d(0, 0, 0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav::before {
+    content: "Business Menu" !important;
+    display: block !important;
+    margin: 2px 2px 4px !important;
+    color: #15803d !important;
+    font-size: 0.74rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav .button {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 46px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 0 14px !important;
+    border-radius: 12px !important;
+    color: #111827 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-align: left !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav .button-primary {
+    background: #16a34a !important;
+    border-color: #16a34a !important;
+    color: #ffffff !important;
+  }
+}
