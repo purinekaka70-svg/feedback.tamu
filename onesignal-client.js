@@ -342,6 +342,18 @@
     return withTimeout(navigator.serviceWorker.ready.then(() => true).catch(() => false), 5000, false);
   }
 
+  async function ensureOneSignalServiceWorker() {
+    if (!isHttpOrigin() || !navigator.serviceWorker?.register) return false;
+    try {
+      const registration = await navigator.serviceWorker.register("/OneSignalSDKWorker.js", { scope: "/" });
+      await registration.update().catch(() => {});
+      return Boolean(await waitForServiceWorker());
+    } catch (error) {
+      lastInitError = String(error?.message || error || "OneSignal service worker registration failed").slice(0, 180);
+      return false;
+    }
+  }
+
   async function syncOneSignalPermission(OneSignal) {
     if (!OneSignal || notificationsDenied()) return false;
     if (oneSignalPermissionGranted(OneSignal)) return true;
@@ -377,9 +389,10 @@
   async function requestOneSignalSubscription(OneSignal) {
     if (!notificationsSupported(OneSignal) || notificationsDenied()) return false;
     if (notificationsEnabled(OneSignal)) return true;
+    await ensureOneSignalServiceWorker();
     await syncOneSignalPermission(OneSignal);
     if (notificationsGranted(OneSignal)) {
-      await waitForServiceWorker();
+      await ensureOneSignalServiceWorker();
       await optInNotifications(OneSignal);
     }
     if (!(await waitForSubscription(OneSignal, 9000)) && notificationsGranted(OneSignal)) {
@@ -652,6 +665,9 @@
   async function debugPushState() {
     const OneSignal = await window.tamuOneSignalReady;
     const subscription = OneSignal?.User?.PushSubscription || {};
+    const registrations = navigator.serviceWorker?.getRegistrations
+      ? await navigator.serviceWorker.getRegistrations().catch(() => [])
+      : [];
     return {
       sdkReady: Boolean(OneSignal),
       origin: location.origin,
@@ -661,6 +677,8 @@
       permission: window.Notification?.permission || "unsupported",
       sdkPermission: OneSignal?.Notifications?.permission,
       serviceWorkerReady: Boolean(await waitForServiceWorker()),
+      serviceWorkerController: Boolean(navigator.serviceWorker?.controller),
+      serviceWorkerRegistrations: registrations.map((registration) => registration.scope),
       rememberedAllowed: notificationsAllowedRemembered(),
       optedIn: subscription.optedIn,
       subscriptionId: subscription.id || "",
