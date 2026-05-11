@@ -1431,10 +1431,20 @@ async function changePlacedOrder(orderId) {
 }
 
 async function deletePlacedOrder(orderId) {
+  if (!window.confirm("Delete this order? This removes it from your order history.")) {
+    return;
+  }
   const profile = buyerProfile();
+  const order = cachedOrders.find((entry) => String(entry.id || entry.publicId) === String(orderId));
+  const phone = String(profile.phone || order?.phone || order?.customerPhone || "").trim();
+  if (!phone) {
+    showToast("Enter the phone number used for this order before deleting it.", "warn");
+    document.getElementById("buyerPhoneInput")?.focus();
+    return;
+  }
   const response = await postJson(API_ENDPOINTS.deleteOrder, {
     id: orderId,
-    phone: profile.phone
+    phone
   });
 
   if (!response.ok || response.data?.ok === false) {
@@ -1446,6 +1456,7 @@ async function deletePlacedOrder(orderId) {
   }
 
   await loadOrders();
+  cachedOrders = cachedOrders.filter((entry) => String(entry.id || entry.publicId) !== String(orderId));
   renderPlacedOrders();
   notifyRealtime("orders", "order-deleted");
   showToast("Order deleted.", "success");
@@ -1672,7 +1683,17 @@ function bindEvents() {
 
     const deleteButton = event.target.closest("[data-delete-order]");
     if (deleteButton) {
-      await deletePlacedOrder(deleteButton.dataset.deleteOrder);
+      deleteButton.disabled = true;
+      const originalText = deleteButton.textContent;
+      deleteButton.textContent = "Deleting...";
+      try {
+        await deletePlacedOrder(deleteButton.dataset.deleteOrder);
+      } finally {
+        if (deleteButton.isConnected) {
+          deleteButton.disabled = false;
+          deleteButton.textContent = originalText;
+        }
+      }
     }
   });
 

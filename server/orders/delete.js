@@ -27,6 +27,14 @@ function compactError(error) {
     .slice(0, 260);
 }
 
+function phoneDigits(value) {
+  return String(value || "").replace(/\D/g, "").slice(-12);
+}
+
+function phoneTail(value) {
+  return String(value || "").replace(/\D/g, "").slice(-9);
+}
+
 module.exports = async function handler(req, res) {
   if (!method(req, res, "POST")) return;
   if (!rateLimit(req, res, "order-delete", { limit: 20, windowMs: 10 * 60 * 1000 })) return;
@@ -38,11 +46,13 @@ module.exports = async function handler(req, res) {
     const payload = await body(req);
     const id = text(payload.id, 120);
     const phone = text(payload.phone, 40);
+    const normalizedPhone = phoneDigits(phone);
+    const normalizedPhoneTail = phoneTail(phone);
     if (!id) {
       send(res, 422, { ok: false, message: "Order id is required." });
       return;
     }
-    if (!session?.role && !phone) {
+    if (!session?.role && !normalizedPhone) {
       send(res, 403, { ok: false, message: "Customer phone is required to delete this order." });
       return;
     }
@@ -76,8 +86,11 @@ module.exports = async function handler(req, res) {
         )`;
       }
     } else if (session?.role !== "admin") {
-      params.push(phone);
-      sql += " and customer_phone = $2";
+      params.push(normalizedPhone, normalizedPhoneTail);
+      sql += ` and (
+        right(regexp_replace(coalesce(customer_phone, ''), '\\D', '', 'g'), 12) = $2
+        or right(regexp_replace(coalesce(customer_phone, ''), '\\D', '', 'g'), 9) = $3
+      )`;
     }
     sql += " limit 1";
     const rows = await client.query(sql, params);
