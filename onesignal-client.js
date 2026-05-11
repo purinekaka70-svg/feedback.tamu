@@ -433,7 +433,7 @@
     const permission = await requestBrowserPermissionImmediately();
     if (permission === "granted") {
       rememberNotificationsAllowed();
-      button.textContent = "Connecting...";
+      button.textContent = "Enabling notifications...";
       const OneSignal = await getOneSignal();
       if (await completeOneSignalSubscription(OneSignal)) {
         await showTestNotification(true);
@@ -501,7 +501,7 @@
     };
     button.addEventListener("click", async () => {
       button.disabled = true;
-      button.textContent = "Connecting...";
+      button.textContent = "Enabling notifications...";
       if (await finishNativePermission(button)) {
         return;
       }
@@ -509,7 +509,7 @@
       const OneSignal = await getOneSignalFast();
       if (!OneSignal) {
         appToast("Notifications unavailable", lastInitError || "OneSignal did not load. Check your connection and try again.", "warn");
-        button.textContent = lastInitError ? "Reload page" : "Try again";
+        button.textContent = lastInitError ? "Reload page" : "Enable notifications";
         button.disabled = false;
         return;
       }
@@ -520,7 +520,7 @@
         return;
       }
       try {
-        button.textContent = "Subscribing...";
+        button.textContent = "Subscribing to OneSignal...";
         await requestOneSignalSubscription(OneSignal);
       } catch {
         button.textContent = "Enable notifications";
