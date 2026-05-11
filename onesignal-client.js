@@ -8,7 +8,7 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-reuse-initialized-sdk";
+  const SCRIPT_VERSION = "20260512-default-worker-path";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -125,9 +125,6 @@
         await OneSignal.init({
           appId: payload.appId,
           safari_web_id: SAFARI_WEB_ID,
-          serviceWorkerPath: "/OneSignalSDKWorker.js",
-          serviceWorkerUpdaterPath: "/OneSignalSDKUpdaterWorker.js",
-          serviceWorkerParam: { scope: "/" },
           allowLocalhostAsSecureOrigin: location.hostname === "localhost" || location.hostname === "127.0.0.1",
           notifyButton: {
             enable: true
