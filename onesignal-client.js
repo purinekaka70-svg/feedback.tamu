@@ -7,9 +7,11 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
+  const SCRIPT_VERSION = "20260512-sw-diagnostics";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
+  let lastServiceWorkerError = "";
 
   function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -339,17 +341,27 @@
 
   async function waitForServiceWorker() {
     if (!navigator.serviceWorker?.ready) return false;
-    return withTimeout(navigator.serviceWorker.ready.then(() => true).catch(() => false), 5000, false);
+    return withTimeout(navigator.serviceWorker.ready.then(() => true).catch(() => false), 12000, false);
   }
 
   async function ensureOneSignalServiceWorker() {
     if (!isHttpOrigin() || !navigator.serviceWorker?.register) return false;
     try {
-      const registration = await navigator.serviceWorker.register("/OneSignalSDKWorker.js", { scope: "/" });
-      await registration.update().catch(() => {});
-      return Boolean(await waitForServiceWorker());
+      lastServiceWorkerError = "";
+      const registration = await navigator.serviceWorker.register("/OneSignalSDKWorker.js", {
+        scope: "/",
+        updateViaCache: "none"
+      });
+      await registration.update().catch((error) => {
+        lastServiceWorkerError = String(error?.message || error || "OneSignal service worker update failed").slice(0, 180);
+      });
+      const ready = Boolean(await waitForServiceWorker());
+      if (!ready && !lastServiceWorkerError) {
+        lastServiceWorkerError = "OneSignal service worker registered but did not become ready yet.";
+      }
+      return ready || Boolean(registration);
     } catch (error) {
-      lastInitError = String(error?.message || error || "OneSignal service worker registration failed").slice(0, 180);
+      lastServiceWorkerError = String(error?.message || error || "OneSignal service worker registration failed").slice(0, 180);
       return false;
     }
   }
@@ -662,11 +674,11 @@
     const normalized = String(phone || "").replace(/[^\d+]/g, "").trim();
     return normalized ? `customer:${normalized}` : "";
   };
-  async function debugPushState() {
+  async function debugPushState(repair = true) {
     const OneSignal = await window.tamuOneSignalReady;
-    if (notificationsGranted(OneSignal) || notificationsAllowedRemembered()) {
+    if (repair && (notificationsGranted(OneSignal) || notificationsAllowedRemembered())) {
       await requestOneSignalSubscription(OneSignal).catch(() => false);
-    } else {
+    } else if (repair) {
       await ensureOneSignalServiceWorker();
     }
     const subscription = OneSignal?.User?.PushSubscription || {};
@@ -674,11 +686,13 @@
       ? await navigator.serviceWorker.getRegistrations().catch(() => [])
       : [];
     return {
+      scriptVersion: SCRIPT_VERSION,
       sdkReady: Boolean(OneSignal),
       origin: location.origin,
       protocol: location.protocol,
       secureContext: window.isSecureContext,
       supported: notificationsSupported(OneSignal),
+      serviceWorkerSupported: Boolean(navigator.serviceWorker?.register),
       permission: window.Notification?.permission || "unsupported",
       sdkPermission: OneSignal?.Notifications?.permission,
       serviceWorkerReady: Boolean(await waitForServiceWorker()),
@@ -689,10 +703,18 @@
       subscriptionId: subscription.id || "",
       token: subscription.token ? "present" : "",
       lastInitError,
+      lastServiceWorkerError,
       externalId: OneSignal?.User?.externalId || window.localStorage.getItem(STORAGE_KEY) || ""
     };
   }
+  async function repairPushState() {
+    const OneSignal = await getOneSignal();
+    await ensureOneSignalServiceWorker();
+    await requestOneSignalSubscription(OneSignal).catch(() => false);
+    return debugPushState(false);
+  }
   window.tamuPushDebug = debugPushState;
+  window.tamuPushRepair = repairPushState;
   window.tamupushDebug = debugPushState;
   window.tamupushdebug = debugPushState;
 
