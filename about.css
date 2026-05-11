@@ -171,6 +171,26 @@ button { cursor: pointer; }
   border-color: rgba(21, 128, 61, 0.2);
 }
 
+body .feature-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 22px;
+}
+
+body .feature-grid > .feature-card {
+  min-height: 260px;
+  padding: 32px;
+  border-radius: 26px;
+}
+
+body .feature-grid > .feature-card h2 {
+  font-size: clamp(2rem, 3.3vw, 3rem);
+}
+
+body .feature-grid > .feature-card p:not(.feature-eyebrow) {
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
 .step-number {
   display: inline-flex;
   align-items: center;
