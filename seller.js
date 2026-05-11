@@ -165,6 +165,27 @@ async function postJson(url, payload) {
   }
 }
 
+function genericServerStatusMessage(message) {
+  return /^server returned \d{3}\.?$/i.test(String(message || "").trim());
+}
+
+function sellerAuthErrorMessage(response, fallback) {
+  const rawMessage = String(response?.data?.message || "").trim();
+  if (rawMessage && !genericServerStatusMessage(rawMessage)) {
+    return rawMessage;
+  }
+  if (response?.status === 403) {
+    return "Your account is not approved by admin yet. Account pending for admin approval.";
+  }
+  if (response?.status === 409) {
+    return "This seller email is already registered. Login after admin approval.";
+  }
+  if (response?.status === 422) {
+    return "Check the form details and try again.";
+  }
+  return fallback;
+}
+
 function notifyRealtime(channel, reason) {
   window.TamuRealtime?.notify(channel, { reason, source: "seller" });
 }
@@ -1898,7 +1919,7 @@ function bindForms() {
     });
     if (!response.ok || response.data?.ok === false) {
       const details = response.data?.error ? ` ${response.data.error}` : "";
-      showToast(`${response.data?.message || `Registration failed (${response.status}).`}${details}`, "warn");
+      showToast(`${sellerAuthErrorMessage(response, "Registration failed. Try again.")}${details}`, "warn");
       return;
     }
     clearSellerRegistrationForm(event.currentTarget);
@@ -1922,10 +1943,7 @@ function bindForms() {
     const password = String(formData.get("password"));
     const response = await postJson('./api/sellers/login.php', { email, password });
     if (!response.ok || response.data?.ok === false) {
-      const rawMessage = String(response.data?.message || "").trim();
-      const message = response.status === 403
-        ? (/server returned 403/i.test(rawMessage) ? "" : rawMessage) || "Your account is not approved by admin yet. Account pending for admin approval."
-        : (rawMessage || "Invalid seller credentials.");
+      const message = sellerAuthErrorMessage(response, "Invalid seller credentials.");
       document.getElementById("loginStatus").textContent = message;
       showToast(message, response.status === 403 ? "warn" : "error");
       return;
