@@ -2057,11 +2057,8 @@ function bindCategoryCardActions(container) {
         return;
       }
       state.focusedBusinessCategory = button.dataset.openBusinessCategory;
-      if (state.focusedStoreId !== "all") {
-        state.activeShopStoreId = state.focusedStoreId;
-        state.shopQuery = "";
-        shouldFocusShopSearch = true;
-      }
+      state.activeShopStoreId = "";
+      state.shopQuery = "";
       savePreviewState();
       renderMarket();
       document.getElementById("productBrowserSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
