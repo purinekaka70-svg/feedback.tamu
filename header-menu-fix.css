@@ -190,3 +190,54 @@ body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-da
     color: #ffffff !important;
   }
 }
+
+body.about-page .feature-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 24px !important;
+  align-items: stretch !important;
+}
+
+body.about-page .feature-grid > .feature-card {
+  display: grid !important;
+  align-content: start !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+  min-height: 240px !important;
+  padding: 32px !important;
+  border-radius: 26px !important;
+  overflow: visible !important;
+}
+
+body.about-page .feature-grid > .feature-card .feature-eyebrow {
+  font-size: 0.8rem !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.14em !important;
+  white-space: normal !important;
+}
+
+body.about-page .feature-grid > .feature-card h2 {
+  font-size: clamp(2rem, 2.6vw, 2.75rem) !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.03em !important;
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+body.about-page .feature-grid > .feature-card p:not(.feature-eyebrow) {
+  font-size: 1.05rem !important;
+  line-height: 1.65 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 980px) {
+  body.about-page .feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.about-page .feature-grid > .feature-card {
+    min-height: 220px !important;
+    padding: 26px !important;
+  }
+}
