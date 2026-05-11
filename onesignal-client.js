@@ -8,11 +8,12 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-force-worker-reload";
+  const SCRIPT_VERSION = "20260512-force-onesignal-init";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
   let lastServiceWorkerError = "";
+  let oneSignalInitialized = false;
 
   function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -101,7 +102,11 @@
     const payloadPromise = config().catch(() => ({ appId: DEFAULT_APP_ID }));
 
     const setup = async (OneSignal) => {
-      if (OneSignal?.User?.PushSubscription) {
+      if (!OneSignal?.init) {
+        lastInitError = "OneSignal SDK init function is unavailable.";
+        return null;
+      }
+      if (oneSignalInitialized || OneSignal.__tamuInitialized === true) {
         return OneSignal;
       }
       const payload = await payloadPromise;
@@ -132,6 +137,12 @@
           }
         }
       });
+      oneSignalInitialized = true;
+      try {
+        OneSignal.__tamuInitialized = true;
+      } catch {
+        // Some SDK objects may be sealed.
+      }
       return OneSignal;
     };
 
