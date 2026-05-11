@@ -2342,3 +2342,165 @@ input[type="search"]:focus,
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Final mobile compaction: Kilimall/Jumia-style small marketplace cards. */
+@media (max-width: 640px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+  }
+
+  .dashboard-grid,
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .store-card,
+  .location-card,
+  .business-directory-card,
+  .category-market-card,
+  .deal-card,
+  .deal-card.shop-standalone-offer-card,
+  .product-card,
+  .supermarket-product-card,
+  .action-card,
+  .feature-card,
+  .market-photo-card {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    padding: 6px !important;
+    gap: 4px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .location-card-media,
+  .business-logo,
+  .category-card-image,
+  .product-visual,
+  .deal-visual,
+  .market-photo-card img {
+    aspect-ratio: 3 / 2 !important;
+    border-radius: 7px !important;
+  }
+
+  .compact-card-body,
+  .category-card-copy,
+  .deal-copy,
+  .supermarket-product-card .product-head {
+    gap: 3px !important;
+  }
+
+  .compact-card-body h3,
+  .business-directory-card h3,
+  .category-card-copy strong,
+  .supermarket-product-card .product-head h3,
+  .deal-head h4,
+  .action-card h3,
+  .feature-card h2,
+  .market-photo-card strong {
+    font-size: 0.74rem !important;
+    line-height: 1.12 !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  .compact-card-body p,
+  .business-meta-row,
+  .market-type-badge,
+  .category-card-copy span,
+  .supermarket-product-card .tiny,
+  .product-detail-label,
+  .product-offer-label,
+  .deal-card p,
+  .market-photo-card span,
+  .action-card p,
+  .feature-card p {
+    font-size: 0.58rem !important;
+    line-height: 1.16 !important;
+  }
+
+  .product-detail-label {
+    -webkit-line-clamp: 1 !important;
+  }
+
+  .product-price,
+  .supermarket-product-card .product-price {
+    font-size: 0.8rem !important;
+    line-height: 1.04 !important;
+  }
+
+  .product-card-badge,
+  .status-pill,
+  .summary-chip,
+  .market-type-badge {
+    min-height: 16px !important;
+    padding: 1px 5px !important;
+    font-size: 0.52rem !important;
+  }
+
+  .product-card-actions,
+  .compact-card-footer,
+  .business-card-actions {
+    gap: 4px !important;
+  }
+
+  .category-open-button,
+  .deal-card .button,
+  .product-card-actions .button,
+  .compact-card-footer .button,
+  .business-card-actions .button,
+  .business-open-button,
+  .shop-here-button,
+  .business-cart-button {
+    min-height: 24px !important;
+    padding: 0 5px !important;
+    border-radius: 5px !important;
+    font-size: 0.58rem !important;
+    line-height: 1 !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1099px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 9px !important;
+  }
+}
+
+@media (min-width: 1100px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 330px) {
+  .store-grid,
+  .deal-grid,
+  .product-grid,
+  .product-grid--shelf,
+  .category-card-grid,
+  .dashboard-grid,
+  .feature-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid,
+  #productBrowserSection #productGrid.is-shop-mode [data-shop-results] .product-grid--shelf {
+    grid-template-columns: 1fr !important;
+  }
+}
