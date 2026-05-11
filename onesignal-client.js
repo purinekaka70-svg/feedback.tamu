@@ -8,7 +8,7 @@
   const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
   const TEST_NOTIFICATION_KEY = "tamu_onesignal_test_notification";
   const LIVE_SITE_URL = "https://feedback-tamu.vercel.app/";
-  const SCRIPT_VERSION = "20260512-worker-control-reload";
+  const SCRIPT_VERSION = "20260512-onesignal-button-reload";
   const READY_TIMEOUT_MS = 12000;
   const CLICK_READY_TIMEOUT_MS = 6500;
   let lastInitError = "";
@@ -114,7 +114,7 @@
         serviceWorkerParam: { scope: "/" },
         allowLocalhostAsSecureOrigin: location.hostname === "localhost" || location.hostname === "127.0.0.1",
         notifyButton: {
-          enable: false
+          enable: true
         },
         promptOptions: {
           slidedown: {
@@ -370,8 +370,8 @@
   function reloadOnceForServiceWorkerControl() {
     if (!isHttpOrigin() || !navigator.serviceWorker || navigator.serviceWorker.controller) return false;
     try {
-      if (window.sessionStorage.getItem(WORKER_RELOAD_KEY) === "1") return false;
-      window.sessionStorage.setItem(WORKER_RELOAD_KEY, "1");
+      if (window.sessionStorage.getItem(WORKER_RELOAD_KEY) === SCRIPT_VERSION) return false;
+      window.sessionStorage.setItem(WORKER_RELOAD_KEY, SCRIPT_VERSION);
     } catch {
       return false;
     }
@@ -736,6 +736,9 @@
       console.log(JSON.stringify(state, null, 2));
     } catch {
       // Console output is only a debugging helper.
+    }
+    if (state.needsServiceWorkerReload) {
+      reloadOnceForServiceWorkerControl();
     }
     return state;
   }
