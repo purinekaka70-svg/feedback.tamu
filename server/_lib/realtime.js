@@ -23,6 +23,7 @@ async function ensureRealtimeTable() {
       created_at timestamptz not null default now()
     )
   `);
+  await query("alter table app_realtime_events enable row level security");
   await query("create index if not exists app_realtime_events_channel_id_idx on app_realtime_events (channel, id desc)");
   ensured = true;
 }

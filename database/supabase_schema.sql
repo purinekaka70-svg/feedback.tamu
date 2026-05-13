@@ -259,6 +259,8 @@ create table if not exists app_realtime_events (
   created_at timestamptz not null default now()
 );
 
+alter table app_realtime_events enable row level security;
+
 create index if not exists app_realtime_events_channel_id_idx
   on app_realtime_events (channel, id desc);
 
