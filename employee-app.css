@@ -1,0 +1,177 @@
+/* Employee workspace layout, kept separate from the shared storefront styles. */
+.employee-app {
+  grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
+  gap: 18px;
+  width: min(100%, 1600px);
+  margin-inline: auto;
+  padding: 18px;
+}
+
+.employee-sidebar,
+.employee-workspace,
+.employee-panel,
+.employee-topbar,
+#employeeStats,
+.employee-panel .card {
+  min-width: 0;
+}
+
+.employee-sidebar {
+  overflow-x: hidden;
+}
+
+.sidebar-head > div {
+  min-width: 0;
+}
+
+.sidebar-head h2 {
+  overflow-wrap: anywhere;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+}
+
+.employee-workspace {
+  width: 100%;
+  gap: 16px;
+}
+
+.employee-topbar {
+  min-height: 132px;
+  padding: 22px 24px;
+  flex-wrap: wrap;
+}
+
+.employee-topbar h1 {
+  font-size: clamp(2.15rem, 3.7vw, 3.5rem);
+  line-height: 1;
+}
+
+.employee-topbar .topbar-actions {
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.employee-install-status {
+  flex: 1 0 100%;
+  margin: 0;
+  color: #526071;
+  font-size: .82rem;
+  text-align: right;
+}
+
+.employee-install-status:empty {
+  display: none;
+}
+
+#employeeStats.stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+#employeeStats .stat-card {
+  min-height: 112px;
+  padding: 18px;
+  overflow-wrap: anywhere;
+}
+
+#employeeStats .stat-card span {
+  line-height: 1.4;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.employee-panel[data-employee-panel="dashboard"] > .dashboard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch;
+}
+
+.employee-panel[data-employee-panel="dashboard"] > .dashboard-grid > .card,
+.employee-panel:not([data-employee-panel="dashboard"]) > .card {
+  width: 100%;
+  min-width: 0;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+
+.employee-panel .section-head {
+  min-width: 0;
+}
+
+.employee-panel .section-title {
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.08;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.employee-panel .item-list,
+.employee-panel .list-card,
+.employee-panel .notification-card,
+.employee-panel .mini-list-card {
+  width: 100%;
+  min-width: 0;
+}
+
+.employee-panel .list-card p,
+.employee-panel .notification-card p,
+.employee-panel .mini-list-card p {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  #employeeStats.stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .employee-app {
+    padding: 76px 14px 16px;
+  }
+
+  .employee-topbar {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .employee-topbar .topbar-actions {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .employee-install-status {
+    text-align: left;
+  }
+
+  .employee-panel[data-employee-panel="dashboard"] > .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #employeeStats.stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 9px !important;
+  }
+
+  #employeeStats .stat-card {
+    min-height: 96px;
+    padding: 14px;
+  }
+
+  .employee-topbar h1 {
+    font-size: clamp(2rem, 9vw, 2.8rem);
+  }
+
+  .employee-panel[data-employee-panel="dashboard"] > .dashboard-grid > .card,
+  .employee-panel:not([data-employee-panel="dashboard"]) > .card {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 340px) {
+  #employeeStats.stats-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

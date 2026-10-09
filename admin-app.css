@@ -1,0 +1,145 @@
+/* Admin app cards use a stable dashboard grid across desktop, tablet, and phone. */
+body.admin-dashboard-active .site-shell {
+  grid-template-rows: minmax(0, 1fr) !important;
+  min-height: 100dvh;
+  padding-top: 14px;
+}
+
+body.admin-dashboard-active .site-shell > .topbar,
+body.admin-dashboard-active .site-shell > .footer {
+  display: none !important;
+}
+
+body.admin-dashboard-active .content-shell {
+  align-self: start;
+  margin-top: 0;
+}
+
+body.admin-dashboard-active .admin-app-shell {
+  width: min(100%, 1600px);
+  max-width: 1600px;
+  grid-template-columns: minmax(225px, 260px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+body.admin-dashboard-active .admin-workspace,
+body.admin-dashboard-active .admin-panel,
+body.admin-dashboard-active .admin-sidebar,
+body.admin-dashboard-active .admin-panel > .card,
+body.admin-dashboard-active .admin-workspace > * {
+  min-width: 0;
+}
+
+body.admin-dashboard-active .admin-sidebar {
+  padding: 18px 12px;
+  border-radius: 18px;
+}
+
+body.admin-dashboard-active .admin-dashboard-hero {
+  min-height: 150px;
+  padding: 24px;
+  border-radius: 20px;
+}
+
+body.admin-dashboard-active #adminOverviewStats.stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+body.admin-dashboard-active .admin-panel[data-admin-panel="overview"] > .dashboard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  align-items: start;
+}
+
+body.admin-dashboard-active .admin-panel[data-admin-panel="overview"] > .dashboard-grid > .card,
+body.admin-dashboard-active .admin-panel > .card {
+  width: 100%;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+}
+
+body.admin-dashboard-active .admin-panel .section-title,
+body.admin-dashboard-active .admin-panel .section-head h2 {
+  line-height: 1.16;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+body.admin-dashboard-active .admin-panel .item-list,
+body.admin-dashboard-active .admin-panel .list-card,
+body.admin-dashboard-active .admin-panel .order-card {
+  width: 100%;
+  min-width: 0;
+}
+
+body.admin-dashboard-active .admin-panel .list-card p,
+body.admin-dashboard-active .admin-panel .order-card p {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  body.admin-dashboard-active .admin-app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.admin-dashboard-active .admin-sidebar {
+    position: relative;
+    top: auto;
+    grid-column: 1;
+    width: 100%;
+    min-height: 0;
+    max-height: none;
+    padding: 14px;
+  }
+
+  body.admin-dashboard-active .admin-side-nav {
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  }
+
+  body.admin-dashboard-active .admin-sidebar-foot {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  body.admin-dashboard-active .admin-app-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  body.admin-dashboard-active .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: min(88vw, 320px);
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    border-radius: 0 18px 18px 0;
+  }
+
+  body.admin-dashboard-active .admin-workspace {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  body.admin-dashboard-active #adminOverviewStats.stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.admin-dashboard-active .admin-panel[data-admin-panel="overview"] > .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body.admin-dashboard-active .admin-dashboard-hero {
+    min-height: 0;
+    padding: 18px;
+  }
+}

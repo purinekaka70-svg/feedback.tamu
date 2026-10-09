@@ -92,6 +92,55 @@
   }
 }
 
+/* Keep the admin sign-in header compact and usable on phone-sized screens. */
+body.admin-auth-only #adminLogoutButton {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  body.admin-auth-only .site-shell {
+    width: min(calc(100% - 20px), 560px) !important;
+    padding: 10px 0 20px !important;
+  }
+
+  body.admin-auth-only .topbar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 14px !important;
+  }
+
+  body.admin-auth-only .brand-block {
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    justify-items: start !important;
+    text-align: left !important;
+  }
+
+  body.admin-auth-only .topbar > .topbar-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  body.admin-auth-only .topbar > .topbar-actions .button {
+    min-width: 0 !important;
+    overflow-wrap: normal !important;
+    white-space: nowrap !important;
+  }
+
+  body.admin-auth-only .admin-login-view {
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 12px 0 24px !important;
+  }
+
+  body.admin-auth-only .admin-login-card {
+    max-width: 100% !important;
+  }
+}
+
 *,
 *::before,
 *::after {

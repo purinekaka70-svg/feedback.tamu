@@ -5711,3 +5711,58 @@ body:not(.seller-dashboard-active):not(.admin-dashboard-active):not(.employee-da
     text-align: center !important;
   }
 }
+/* Password visibility control used by login and registration forms. */
+.password-visibility-control {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+}
+
+.password-visibility-control > input[type="password"],
+.password-visibility-control > input[type="text"] {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding-right: 48px;
+}
+
+.password-visibility-toggle {
+  position: absolute;
+  right: 5px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #536358;
+  cursor: pointer;
+}
+
+.password-visibility-toggle:hover,
+.password-visibility-toggle:focus-visible {
+  background: rgba(22, 163, 74, .1);
+  color: #15803d;
+}
+
+.password-visibility-toggle:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 1px;
+}
+
+.password-visibility-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.password-visibility-toggle[aria-pressed="true"] .password-eye-slash {
+  display: none;
+}

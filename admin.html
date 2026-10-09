@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" href="./assets/tamu-icon-192.png">
+  <link rel="icon" type="image/png" href="./assets/tamu-logo-192.png?v=20261009-user-logo">
+  <link rel="apple-touch-icon" href="./assets/tamu-logo-192.png?v=20261009-user-logo">
   <title>Admin Portal | Tamu Express Market</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,10 +12,12 @@
     href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="./admin.css?v=20260512-header-menu">
-  <link rel="stylesheet" href="./responsive.css?v=20261009-commerce-cards">
+  <link rel="stylesheet" href="./admin.css?v=20261009-admin-mobile-auth-fix">
+  <link rel="stylesheet" href="./storefront-commerce.css">
+  <link rel="stylesheet" href="./responsive.css?v=20261009-password-visibility">
   <link rel="stylesheet" href="./notifications.css">
   <link rel="stylesheet" href="./header-menu-fix.css?v=20260512-login-center">
+  <link rel="stylesheet" href="./admin-app.css?v=20261009-admin-app-v2">
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script src="./onesignal-client.js?v=20260512-hide-enabled-button" defer></script>
 </head>
@@ -22,7 +25,7 @@
   <div class="site-shell">
     <header class="topbar panel reveal">
       <div class="brand-block">
-        <img class="brand-logo" src="./assets/tamu-icon-192.png" alt="Tamu Express logo">
+        <img class="brand-logo" src="./assets/tamu-logo-192.png?v=20261009-user-logo" alt="Tamu Express logo">
         <a href="./admin.html" class="brand">Tamu Express Admin</a>
         <p class="brand-tagline">Manage sellers, categories, orders, and marketplace operations.</p>
       </div>
@@ -39,7 +42,7 @@
       <section id="adminLoginView" class="admin-login-view reveal reveal-delay-1">
         <article class="card admin-login-card">
           <div class="portal-login-brand">
-            <img src="./assets/tamu-icon-192.png" alt="Tamu Express logo">
+            <img src="./assets/tamu-logo-192.png?v=20261009-user-logo" alt="Tamu Express logo">
             <div>
               <p class="eyebrow">Admin Portal</p>
               <h1>Control workspace.</h1>
@@ -58,7 +61,6 @@
             </label>
 
             <p class="tiny">Sign in with the admin account stored in the backend database.</p>
-            <button id="adminPasswordToggle" class="button button-ghost button-small" type="button">Show password</button>
             <button class="button button-primary" type="submit">Login</button>
             <p id="adminAccessStatus" class="tiny login-status"></p>
           </form>
@@ -316,7 +318,7 @@
 
   <script src="./realtime-sync.js"></script>
   <script src="./admin.js"></script>
-  <script src="./security-client.js"></script>
+  <script src="./security-client.js?v=20261009-password-visibility"></script>
 </body>
 </html>
 

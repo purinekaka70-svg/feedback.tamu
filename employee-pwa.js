@@ -1,35 +1,35 @@
 (() => {
   let installPrompt = null;
-  const button = document.getElementById("sellerInstallApp");
-  const status = document.getElementById("sellerInstallStatus");
+  const button = document.getElementById("employeeInstallApp");
+  const status = document.getElementById("employeeInstallStatus");
 
   function isInstalled() {
     return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
   }
 
-  function refreshInstallButton() {
+  function refreshButton() {
     if (!button) return;
-    const sellerSignedIn = document.body.classList.contains("seller-dashboard-active");
-    button.hidden = !sellerSignedIn || isInstalled();
-    if (!sellerSignedIn && status) status.textContent = "";
+    const signedIn = document.body.classList.contains("employee-dashboard-active");
+    button.hidden = !signedIn || isInstalled();
+    if (!signedIn && status) status.textContent = "";
   }
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     installPrompt = event;
-    refreshInstallButton();
+    refreshButton();
   });
 
   window.addEventListener("appinstalled", () => {
     installPrompt = null;
-    refreshInstallButton();
-    if (status) status.textContent = "Seller App installed on this device.";
+    refreshButton();
+    if (status) status.textContent = "Employee app installed on this device.";
   });
 
   button?.addEventListener("click", async () => {
-    if (!document.body.classList.contains("seller-dashboard-active")) return;
+    if (!document.body.classList.contains("employee-dashboard-active")) return;
     if (!installPrompt) {
-      if (status) status.textContent = "To install, open your browser menu and choose Install app or Add to Home Screen.";
+      if (status) status.textContent = "Open your browser menu and choose Install app or Add to Home Screen.";
       return;
     }
 
@@ -39,23 +39,23 @@
     const choice = await promptEvent.userChoice;
     if (status) {
       status.textContent = choice?.outcome === "accepted"
-        ? "Seller App is installing."
+        ? "Employee app is installing."
         : "Installation was cancelled. You can install it later from this button.";
     }
-    refreshInstallButton();
+    refreshButton();
   });
 
-  new MutationObserver(refreshInstallButton).observe(document.body, {
+  new MutationObserver(refreshButton).observe(document.body, {
     attributes: true,
     attributeFilter: ["class"]
   });
-  refreshInstallButton();
+  refreshButton();
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./seller-sw.js", { scope: "./" }).catch(() => {
-        if (status && document.body.classList.contains("seller-dashboard-active")) {
-          status.textContent = "The seller app can still be installed, but offline support is unavailable.";
+        if (status && document.body.classList.contains("employee-dashboard-active")) {
+          status.textContent = "The app can be installed, but offline support is unavailable.";
         }
       });
     }, { once: true });

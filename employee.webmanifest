@@ -1,0 +1,27 @@
+{
+  "id": "./employee.html",
+  "name": "Tamu Express Employee",
+  "short_name": "Tamu Delivery",
+  "description": "Manage Tamu Express delivery orders and routes.",
+  "start_url": "./employee.html",
+  "scope": "./",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "display": "standalone",
+  "background_color": "#f4f8f5",
+  "theme_color": "#15803d",
+  "icons": [
+    {
+      "src": "./assets/tamu-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/tamu-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
