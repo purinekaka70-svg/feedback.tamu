@@ -292,6 +292,60 @@ body.about-page .feature-grid > .feature-card p:not(.feature-eyebrow) {
   }
 }
 
+/* Give the seller sign-in page a full desktop canvas. */
+@media (min-width: 761px) {
+  body.seller-auth-only .site-shell {
+    width: min(calc(100% - 48px), 1200px) !important;
+    min-height: 100dvh !important;
+    margin-inline: auto !important;
+    padding: 20px 0 !important;
+  }
+
+  body.seller-auth-only .topbar {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 24px !important;
+    text-align: left !important;
+  }
+
+  body.seller-auth-only .brand-block {
+    flex: 1 1 360px !important;
+    min-width: 0 !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  body.seller-auth-only .topbar > .topbar-actions {
+    position: static !important;
+    inset: auto !important;
+    flex: 0 1 auto !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  body.seller-auth-only .content-shell {
+    width: 100% !important;
+    min-height: 0 !important;
+    flex: 1 1 auto !important;
+    padding: 28px 0 !important;
+  }
+}
+
 @media (max-width: 430px) {
   body.about-page .feature-grid > .feature-card {
     gap: 12px !important;
