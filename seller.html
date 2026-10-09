@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#16a34a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="./seller.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/tamu-icon-192.png">
   <link rel="icon" type="image/png" href="https://i.ibb.co/KzFZpw0V/Gemini-Generated-Image-bl807jbl807jbl80.png">
   <title>Seller Portal | Tamu Express Market</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -233,7 +238,7 @@
 
       <div id="sellerDashboard" class="is-hidden">
         <section class="seller-workspace-bar panel reveal reveal-delay-1">
-          <button id="sellerWorkspaceToggle" class="seller-menu-toggle" type="button" aria-label="Open seller menu" aria-expanded="false">
+          <button id="sellerWorkspaceToggle" class="seller-menu-toggle" type="button" aria-label="Open seller menu" aria-controls="sellerWorkspaceNav" aria-expanded="false">
             <span></span>
             <span></span>
             <span></span>
@@ -242,7 +247,7 @@
             <p class="eyebrow">Seller Workspace</p>
             <h2 id="sellerWelcomeTitle" class="section-title">Manage your store</h2>
           </div>
-          <nav id="sellerWorkspaceNav" class="seller-workspace-nav" aria-label="Seller dashboard">
+          <nav id="sellerWorkspaceNav" class="seller-workspace-nav" aria-label="Seller dashboard" tabindex="-1">
             <button class="button button-primary button-small" type="button" data-seller-view="overview">Dashboard</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="orders">Orders</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="products">Products</button>
@@ -642,6 +647,7 @@
   <script src="./realtime-sync.js"></script>
   <script src="./seller.js?v=20260512-seller-auth-clear-errors"></script>
   <script src="./security-client.js"></script>
+  <script src="./seller-pwa.js" defer></script>
 </body>
 </html>
 

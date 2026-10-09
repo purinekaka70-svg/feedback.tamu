@@ -1,0 +1,27 @@
+{
+  "id": "./seller.html",
+  "name": "Tamu Express Seller",
+  "short_name": "Tamu Seller",
+  "description": "Manage your Tamu Express store and orders.",
+  "start_url": "./seller.html",
+  "scope": "./",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "display": "standalone",
+  "background_color": "#f7faf7",
+  "theme_color": "#16a34a",
+  "icons": [
+    {
+      "src": "./assets/tamu-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/tamu-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

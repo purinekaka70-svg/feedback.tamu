@@ -111,6 +111,10 @@ alter table products add column if not exists offer_flag boolean not null defaul
 alter table products add column if not exists description text not null default '';
 alter table categories add column if not exists image text not null default '';
 
+create index if not exists products_business_created_idx on products (business_id, created_at desc);
+create index if not exists products_category_stock_idx on products (category_id, stock) where stock > 0;
+create index if not exists businesses_approved_location_idx on businesses (location_name, id) where status = 'approved';
+
 update products
 set offer_flag = false,
     offer_text = '',
@@ -165,6 +169,8 @@ create table if not exists cart (
 );
 
 create index if not exists cart_session_idx on cart (session_id);
+create unique index if not exists cart_session_product_store_unique
+  on cart (session_id, product_public_id, store_public_id);
 
 create table if not exists orders (
   id bigserial primary key,
@@ -202,6 +208,13 @@ create table if not exists order_items (
   line_total numeric(12, 2) not null default 0
 );
 
+alter table order_items add column if not exists business_id bigint references businesses(id) on delete set null;
+
+create index if not exists order_items_order_idx on order_items (order_id, id);
+create index if not exists order_items_business_order_idx on order_items (business_id, order_id);
+create index if not exists orders_customer_phone_created_idx on orders (customer_phone, created_at desc);
+create index if not exists orders_status_created_idx on orders (status, created_at desc);
+
 create table if not exists order_route_breakdown (
   id bigserial primary key,
   order_id bigint not null references orders(id) on delete cascade,
@@ -223,6 +236,10 @@ create table if not exists payments (
   status payment_status not null default 'pending',
   created_at timestamptz not null default now()
 );
+
+alter table payments add column if not exists business_id bigint references businesses(id) on delete set null;
+
+create index if not exists payments_order_public_idx on payments (order_public_id, id);
 
 create table if not exists deliveries (
   id bigserial primary key,
@@ -259,7 +276,54 @@ create table if not exists app_realtime_events (
   created_at timestamptz not null default now()
 );
 
+-- API access is server-side. Browser roles must not read commerce data directly.
+alter table users enable row level security;
+alter table businesses enable row level security;
+alter table categories enable row level security;
+alter table products enable row level security;
+alter table seller_offers enable row level security;
+alter table cart enable row level security;
+alter table orders enable row level security;
+alter table order_items enable row level security;
+alter table order_route_breakdown enable row level security;
+alter table payments enable row level security;
+alter table deliveries enable row level security;
+alter table employees enable row level security;
 alter table app_realtime_events enable row level security;
+
+-- Revoke browser access and grant the private server role where available.
+-- Conditional role checks also allow this schema to run on standard PostgreSQL.
+do $$
+declare
+  table_name text;
+begin
+  foreach table_name in array array[
+    'users', 'businesses', 'categories', 'products', 'seller_offers', 'cart',
+    'orders', 'order_items', 'order_route_breakdown', 'payments', 'deliveries',
+    'employees', 'app_realtime_events'
+  ] loop
+    if exists (select 1 from pg_roles where rolname = 'anon') then
+      execute format('revoke all on table public.%I from anon', table_name);
+    end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then
+      execute format('revoke all on table public.%I from authenticated', table_name);
+    end if;
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+      execute format('grant all on table public.%I to service_role', table_name);
+    end if;
+  end loop;
+
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on all sequences in schema public from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on all sequences in schema public from authenticated';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    execute 'grant usage, select, update on all sequences in schema public to service_role';
+  end if;
+end;
+$$;
 
 create index if not exists app_realtime_events_channel_id_idx
   on app_realtime_events (channel, id desc);
@@ -349,20 +413,6 @@ set subscription_started_at = coalesce(subscription_started_at, now()),
     subscription_status = 'active'
 where status = 'approved'
   and subscription_expires_at is null;
-
-insert into users (name, email, password, role, status)
-values (
-  'Admin',
-  'AdminTamuEpress@gmail.com',
-  crypt('Admin@Tamu@2025', gen_salt('bf')),
-  'admin',
-  'approved'
-)
-on conflict (email) do update set
-  name = excluded.name,
-  password = excluded.password,
-  role = excluded.role,
-  status = excluded.status;
 
 insert into categories (business_id, name, image)
 values
