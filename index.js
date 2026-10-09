@@ -112,5 +112,66 @@ function initAdminTrigger() {
   });
 }
 
+function initStorefrontSearch() {
+  const form = document.querySelector(".store-search");
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const query = String(new FormData(form).get("search") || "").trim();
+    const destination = new URL("./categories.html", window.location.href);
+    if (query) destination.searchParams.set("search", query);
+    window.location.href = destination.href;
+  });
+}
+
+function escapeMarkup(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[character]);
+}
+
+function initHomeMarketplace() {
+  const track = document.getElementById("homeMarketMarquee");
+  const status = document.getElementById("homeMarketStatus");
+  if (!track || !status) return;
+
+  const editorialItems = [
+    { name: "Fresh produce", category: "Everyday groceries", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=560&q=78" },
+    { name: "Pantry favourites", category: "Stock up locally", image: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=560&q=78" },
+    { name: "Made for your home", category: "Household essentials", image: "https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=560&q=78" },
+    { name: "Discover nearby shops", category: "Local businesses", image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=560&q=78" }
+  ];
+
+  function render(items, live) {
+    const displayItems = items.length ? items.slice(0, 12) : editorialItems;
+    const cards = displayItems.map((item) => {
+      const image = escapeMarkup(item.image || item.productImage || "");
+      const name = escapeMarkup(item.name || item.productName || "Marketplace find");
+      const category = escapeMarkup(item.categoryName || item.category || item.productCategory || item.businessName || "Local shop");
+      const price = Number(item.price ?? item.productPrice);
+      return `<a class="home-market-card" href="./categories.html" aria-label="Browse ${name} from the marketplace"><img src="${image}" alt="" loading="lazy"><span class="home-market-card-copy"><small>${category}</small><strong>${name}</strong>${live && Number.isFinite(price) && price > 0 ? `<b>KSh ${price.toLocaleString("en-KE")}</b>` : ""}</span></a>`;
+    }).join("");
+    track.innerHTML = cards + cards;
+    track.classList.toggle("home-market-track--editorial", !live);
+    status.textContent = live
+      ? `Showing ${displayItems.length} products from approved local sellers.`
+      : "A preview of what you can discover from local shops. Live product availability appears when the marketplace service is connected.";
+  }
+
+  render([], false);
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 8000);
+  fetch("./api/marketplace/list.php?limit=12", { cache: "no-store", signal: controller.signal })
+    .then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error("Marketplace unavailable");
+      const products = (data.products || []).filter((product) => product && (product.name || product.productName));
+      if (products.length) render(products, true);
+    })
+    .catch(() => {})
+    .finally(() => window.clearTimeout(timeout));
+}
+
 initReveal();
 initAdminTrigger();
+initStorefrontSearch();
+initHomeMarketplace();

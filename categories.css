@@ -20,6 +20,48 @@
   --max-width: 1180px;
 }
 
+/* Cleaner marketplace browsing layout */
+.marketplace-landing .site-shell { width: min(calc(100% - 32px), 1320px); gap: 24px; }
+.marketplace-landing .topbar { position: sticky; top: 10px; z-index: 20; backdrop-filter: blur(18px); }
+.marketplace-landing .hero {
+  min-height: 250px;
+  align-content: center;
+  padding: clamp(24px, 5vw, 56px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: radial-gradient(circle at 90% 10%, rgba(34, 197, 94, 0.14), transparent 35%), linear-gradient(135deg, #fff 0%, #effaf2 100%);
+}
+.marketplace-landing .section-head { align-items: end; gap: 16px; }
+@media (max-width: 640px) {
+  .marketplace-landing .site-shell { width: min(calc(100% - 20px), 1320px); gap: 16px; }
+  .marketplace-landing .topbar { top: 4px; }
+  .marketplace-landing .hero { min-height: 210px; padding: 22px; }
+}
+
+/* Marketplace storefront refresh using the Tamu Express green palette. */
+body.marketplace-landing { --accent:#16a34a; --accent-strong:#15803d; --accent-soft:#dcfce7; --ink:#17251b; --muted:#657469; --panel:#fff; --line:#dce9df; --line-strong:#c5ddcb; background:linear-gradient(180deg,#edf8ef 0%,#f7faf7 38%,#edf4ef 100%); }
+body.marketplace-landing .site-shell { width:min(calc(100% - 64px),1320px); padding:28px 0 46px; gap:24px; }
+body.marketplace-landing .topbar { position:sticky; top:12px; z-index:20; min-height:108px; border:1px solid #dce9df; border-radius:18px; background:rgba(255,255,255,.94); box-shadow:0 12px 34px rgba(22,101,52,.08); backdrop-filter:blur(16px); }
+body.marketplace-landing .brand { color:#15803d; }
+body.marketplace-landing .brand-tagline { color:#64746a; }
+body.marketplace-landing .content-shell { gap:22px; margin-top:8px; }
+body.marketplace-landing #marketBrowserSection { padding:26px; border:1px solid #dce9df; border-radius:20px; background:rgba(255,255,255,.88); box-shadow:0 16px 40px rgba(22,101,52,.07); }
+body.marketplace-landing #marketBrowserSection>.section-head { margin-bottom:20px; }
+body.marketplace-landing .section-title { color:#173a24; font-size:clamp(1.8rem,3vw,2.5rem); letter-spacing:-.035em; }
+body.marketplace-landing .eyebrow { color:#15803d; }
+body.marketplace-landing .location-search-field, body.marketplace-landing .business-search-field { max-width:520px; min-height:48px; border:1px solid #c5ddcb; border-radius:999px; background:#fff; box-shadow:0 6px 18px rgba(22,101,52,.05); }
+body.marketplace-landing .location-card, body.marketplace-landing .business-card, body.marketplace-landing .store-card, body.marketplace-landing .business-directory-card { overflow:hidden; border:1px solid #dce9df; border-radius:16px; background:#fff; box-shadow:0 10px 28px rgba(22,101,52,.07); }
+body.marketplace-landing .location-card:hover, body.marketplace-landing .business-card:hover, body.marketplace-landing .store-card:hover, body.marketplace-landing .business-directory-card:hover { border-color:#86c99a; box-shadow:0 18px 34px rgba(22,101,52,.13); }
+body.marketplace-landing .store-grid { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+body.marketplace-landing .location-empty-state { grid-column:1/-1; display:grid; justify-items:center; gap:10px; min-height:270px; padding:36px 22px; border:1px solid #dce9df; border-radius:18px; background:linear-gradient(145deg,#fff,#f1faf3); text-align:center; }
+body.marketplace-landing .marketplace-empty-icon { display:grid; place-items:center; width:52px; height:52px; border-radius:16px; color:#fff; background:#16a34a; font:700 1.6rem Georgia,serif; box-shadow:0 8px 18px rgba(22,163,74,.2); }
+body.marketplace-landing .marketplace-empty-state .eyebrow { margin:0; }
+body.marketplace-landing .marketplace-empty-state h3 { margin:0; color:#173a24; font-size:1.2rem; }
+body.marketplace-landing .marketplace-empty-copy { max-width:540px; margin:0 0 6px; color:#657469; font-size:.9rem; }
+body.marketplace-landing .footer { border:1px solid #dce9df; border-radius:16px; background:#fff; box-shadow:0 10px 28px rgba(22,101,52,.06); }
+body.marketplace-landing .floating-cart-link { background:#16a34a; box-shadow:0 12px 26px rgba(22,163,74,.25); }
+@media (max-width:760px) { body.marketplace-landing .site-shell { width:calc(100% - 28px); padding:12px 0 30px; gap:16px; } body.marketplace-landing .topbar { position:relative; top:auto; align-items:flex-start; padding:15px; } body.marketplace-landing #marketBrowserSection { padding:18px 14px; } body.marketplace-landing #marketBrowserSection>.section-head { align-items:flex-start; } }
+
 *,
 *::before,
 *::after {

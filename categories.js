@@ -1829,14 +1829,26 @@ function renderStores() {
 
   if (state.focusedLocation === "all") {
     if (!approvedStores().length) {
+      const message = marketLoadError
+        ? "The marketplace service is unavailable right now. Please try again shortly. If you manage this site, check the API dependencies and database connection."
+        : "No approved businesses are available yet. Check back soon or browse the homepage while local sellers get set up.";
       container.innerHTML = `
-        <div class="card location-empty-state">
-          <p>${marketLoadError || "No approved businesses are available yet."}</p>
+        <div class="card location-empty-state marketplace-empty-state">
+          <span class="marketplace-empty-icon" aria-hidden="true">T</span>
+          <p class="eyebrow">Tamu Express Marketplace</p>
+          <h3>${marketLoadError ? "We are preparing the marketplace." : "Local shops are on their way."}</h3>
+          <p class="marketplace-empty-copy">${message}</p>
+          ${marketLoadError ? '<button class="button button-primary button-small" data-retry-marketplace type="button">Try again</button>' : '<a class="button button-primary button-small" href="./index.html">Explore Tamu Express</a>'}
         </div>
       `;
+      container.querySelector("[data-retry-marketplace]")?.addEventListener("click", async (event) => {
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = "Checking...";
+        await loadMarketData();
+        renderMarket();
+      });
       return;
     }
-
     const grouped = allStores.reduce((map, store) => {
       const key = String(store.location || store.county || "Unknown location");
       const current = map.get(key) || [];
