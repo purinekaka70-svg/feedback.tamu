@@ -50,7 +50,7 @@ const adminViewMeta = {
   },
   reports: {
     title: "Reports.",
-    subtitle: "A clean operational summary for the marketplace."
+    subtitle: "Marketplace overview"
   }
 };
 let activeAdminView = "overview";
