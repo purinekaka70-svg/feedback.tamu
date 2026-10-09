@@ -1,4 +1,4 @@
-const CACHE_NAME = "tamu-seller-shell-v1";
+const CACHE_NAME = "tamu-seller-shell-v2";
 const SELLER_SHELL = [
   "./seller.html",
   "./seller.css",

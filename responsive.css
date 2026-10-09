@@ -3678,8 +3678,8 @@ input[type="search"]:focus,
 #productList,
 #offerList {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important;
-  gap: 7px !important;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important;
+  gap: 16px !important;
   align-items: stretch !important;
   justify-content: stretch !important;
   width: 100% !important;
@@ -3707,10 +3707,10 @@ input[type="search"]:focus,
   flex: initial !important;
   flex-basis: auto !important;
   align-content: start !important;
-  gap: 4px !important;
-  padding: 6px !important;
+  gap: 10px !important;
+  padding: 12px !important;
   border: 1px solid rgba(15, 23, 42, 0.08) !important;
-  border-radius: 8px !important;
+  border-radius: 14px !important;
   background: #ffffff !important;
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06) !important;
   overflow: hidden !important;
@@ -3748,10 +3748,10 @@ input[type="search"]:focus,
   display: grid !important;
   place-items: center !important;
   width: 100% !important;
-  height: 72px !important;
+  height: auto !important;
   min-height: 0 !important;
-  aspect-ratio: auto !important;
-  border-radius: 7px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 10px !important;
   background: #f8fafc !important;
   overflow: hidden !important;
 }
@@ -3775,7 +3775,7 @@ input[type="search"]:focus,
 .supermarket-product-card .product-head,
 .seller-catalog-copy {
   display: grid !important;
-  gap: 3px !important;
+  gap: 6px !important;
   min-width: 0 !important;
   padding: 0 !important;
 }
@@ -3802,9 +3802,9 @@ input[type="search"]:focus,
   overflow: hidden !important;
   color: #111827 !important;
   font-family: "Manrope", Aptos, "Segoe UI", sans-serif !important;
-  font-size: 0.7rem !important;
+  font-size: 0.92rem !important;
   font-weight: 900 !important;
-  line-height: 1.12 !important;
+  line-height: 1.25 !important;
   letter-spacing: 0 !important;
   word-break: normal !important;
   overflow-wrap: normal !important;
@@ -3829,11 +3829,11 @@ input[type="search"]:focus,
   margin: 0 !important;
   overflow: hidden !important;
   color: #64748b !important;
-  font-size: 0.54rem !important;
-  line-height: 1.14 !important;
+  font-size: 0.74rem !important;
+  line-height: 1.4 !important;
   letter-spacing: 0 !important;
   text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  white-space: normal !important;
   word-break: normal !important;
   overflow-wrap: normal !important;
 }
@@ -3854,14 +3854,14 @@ input[type="search"]:focus,
 .seller-catalog-price {
   margin: 0 !important;
   color: #ef4444 !important;
-  font-size: 0.78rem !important;
+  font-size: 1.05rem !important;
   font-weight: 950 !important;
-  line-height: 1.05 !important;
+  line-height: 1.2 !important;
 }
 
 .product-price-before {
   color: #94a3b8 !important;
-  font-size: 0.52rem !important;
+  font-size: 0.68rem !important;
   line-height: 1 !important;
 }
 
@@ -3873,11 +3873,11 @@ input[type="search"]:focus,
 .seller-catalog-badge,
 .status-pill,
 .summary-chip {
-  min-height: 15px !important;
+  min-height: 23px !important;
   max-width: 100% !important;
-  padding: 1px 5px !important;
+  padding: 3px 8px !important;
   border-radius: 999px !important;
-  font-size: 0.5rem !important;
+  font-size: 0.68rem !important;
   font-weight: 900 !important;
   line-height: 1.1 !important;
   letter-spacing: 0 !important;
@@ -3898,7 +3898,7 @@ input[type="search"]:focus,
 .seller-catalog-card .button-row {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 4px !important;
+  gap: 8px !important;
   width: 100% !important;
   min-width: 0 !important;
   margin-top: 2px !important;
@@ -3913,10 +3913,10 @@ input[type="search"]:focus,
 .business-open-button,
 .business-cart-button,
 .seller-catalog-card .button {
-  min-height: 21px !important;
-  padding: 0 5px !important;
-  border-radius: 6px !important;
-  font-size: 0.55rem !important;
+  min-height: 38px !important;
+  padding: 0 10px !important;
+  border-radius: 9px !important;
+  font-size: 0.8rem !important;
   font-weight: 900 !important;
   line-height: 1 !important;
   letter-spacing: 0 !important;
@@ -3925,10 +3925,10 @@ input[type="search"]:focus,
 
 .shop-here-button {
   width: 100% !important;
-  min-height: 22px !important;
-  padding: 0 5px !important;
-  border-radius: 6px !important;
-  font-size: 0.55rem !important;
+  min-height: 38px !important;
+  padding: 0 10px !important;
+  border-radius: 9px !important;
+  font-size: 0.8rem !important;
   font-weight: 900 !important;
   line-height: 1 !important;
   letter-spacing: 0 !important;
@@ -3942,23 +3942,23 @@ input[type="search"]:focus,
 }
 
 .market-photo-card {
-  min-height: 118px !important;
+  min-height: 220px !important;
 }
 
 .market-photo-marquee {
-  min-height: 118px !important;
+  min-height: 220px !important;
 }
 
 .market-photo-track {
-  gap: 6px !important;
-  padding: 6px !important;
+  gap: 12px !important;
+  padding: 12px !important;
 }
 
 .market-photo-track img {
-  flex-basis: 150px !important;
-  width: 150px !important;
-  min-height: 102px !important;
-  border-radius: 8px !important;
+  flex-basis: 220px !important;
+  width: 220px !important;
+  min-height: 172px !important;
+  border-radius: 12px !important;
 }
 
 @media (max-width: 640px) {
@@ -3975,7 +3975,7 @@ input[type="search"]:focus,
   #productList,
   #offerList {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 6px !important;
+    gap: 10px !important;
   }
 
   .store-card,
@@ -3987,9 +3987,9 @@ input[type="search"]:focus,
   .deal-card,
   .deal-card.shop-standalone-offer-card,
   .seller-catalog-card {
-    padding: 5px !important;
-    gap: 3px !important;
-    border-radius: 7px !important;
+    padding: 10px !important;
+    gap: 8px !important;
+    border-radius: 12px !important;
   }
 
   .location-card-media,
@@ -3998,8 +3998,9 @@ input[type="search"]:focus,
   .product-visual,
   .deal-visual,
   .seller-product-media {
-    height: 62px !important;
-    border-radius: 6px !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 9px !important;
   }
 
   .business-card-title-row h3,
@@ -4009,7 +4010,7 @@ input[type="search"]:focus,
   .supermarket-product-card .product-head h3,
   .deal-head h4,
   .seller-catalog-copy strong {
-    font-size: 0.66rem !important;
+    font-size: 0.84rem !important;
   }
 
   .product-price,
@@ -4017,7 +4018,7 @@ input[type="search"]:focus,
   .deal-price,
   .price-current,
   .seller-catalog-price {
-    font-size: 0.74rem !important;
+    font-size: 0.9rem !important;
   }
 
   .category-open-button,
@@ -4029,8 +4030,8 @@ input[type="search"]:focus,
   .business-cart-button,
   .seller-catalog-card .button,
   .shop-here-button {
-    min-height: 20px !important;
-    font-size: 0.52rem !important;
+    min-height: 34px !important;
+    font-size: 0.72rem !important;
   }
 }
 
@@ -4045,7 +4046,7 @@ input[type="search"]:focus,
   #productBrowserSection .category-card-grid,
   #productList,
   #offerList {
-    grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
   }
 
   .location-card-media,
@@ -4054,7 +4055,8 @@ input[type="search"]:focus,
   .product-visual,
   .deal-visual,
   .seller-product-media {
-    height: 70px !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
   }
 }
 
@@ -4069,7 +4071,7 @@ input[type="search"]:focus,
   #productBrowserSection .category-card-grid,
   #productList,
   #offerList {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important;
   }
 }
 

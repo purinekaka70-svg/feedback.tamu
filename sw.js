@@ -1,4 +1,4 @@
-const CACHE_NAME = "tamu-public-shell-v1";
+const CACHE_NAME = "tamu-public-shell-v2";
 const PUBLIC_SHELL = ["./", "./index.html", "./index.css", "./responsive.css", "./categories.html", "./categories.css", "./categories.js"];
 
 self.addEventListener("install", (event) => {
