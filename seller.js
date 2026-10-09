@@ -333,6 +333,9 @@ async function searchSellerMapLocation() {
       `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${query}, Kenya`)}`,
       { headers: { Accept: "application/json" } }
     );
+    if (!response.ok) {
+      throw new Error("Location search unavailable.");
+    }
     const matches = await response.json();
     const match = Array.isArray(matches) ? matches[0] : null;
 
@@ -350,12 +353,88 @@ async function searchSellerMapLocation() {
   }
 }
 
+function countyOptionForLocation(value) {
+  const select = document.querySelector('select[name="county"]');
+  if (!select || !value) return "";
+  const normalize = (text) => String(text || "")
+    .toLowerCase()
+    .replace(/\s+county$/i, "")
+    .replace(/[^a-z]/g, "");
+  const wanted = normalize(value);
+  const option = [...select.options].find((item) => normalize(item.value || item.textContent) === wanted);
+  if (!option) return "";
+  select.value = option.value;
+  return option.textContent.trim();
+}
+
+async function labelCountyFromCoordinates(latitude, longitude) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}`;
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!response.ok) return "";
+    const data = await response.json();
+    const address = data.address || {};
+    return countyOptionForLocation(address.county || address.state_district || "");
+  } catch {
+    return "";
+  }
+}
+
 function initMap() {
   const defaultLat = -1.2921;
   const defaultLng = 36.8219;
+  const mapElement = document.getElementById("locationMap");
+  const searchButton = document.getElementById("sellerMapSearchButton");
+  const searchInput = document.getElementById("sellerMapSearchInput");
+  const coordinatesButton = document.getElementById("sellerUseCoordinatesButton");
 
-  if (!document.getElementById("locationMap") || typeof L === "undefined") {
+  if (!mapElement) return;
+
+  if (!mapElement.dataset.controlsBound) {
+    mapElement.dataset.controlsBound = "true";
+    searchButton?.addEventListener("click", searchSellerMapLocation);
+    searchInput?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        searchSellerMapLocation();
+      }
+    });
+    coordinatesButton?.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        setSellerMapStatus("This browser cannot access device location. You can still search for your town or landmark.");
+        return;
+      }
+
+      setSellerMapStatus("Getting your location. Allow location access when your browser asks.");
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setSellerCoordinates(latitude, longitude, { label: "Current device location", zoom: 16 });
+          const county = await labelCountyFromCoordinates(latitude, longitude);
+          setSellerMapStatus(county
+            ? `Location saved for ${county}. You can change the county above.`
+            : "Coordinates saved. Select your county above if it was not filled automatically.");
+        },
+        (error) => {
+          const reason = error.code === error.PERMISSION_DENIED
+            ? "Location permission was denied. Allow it in browser settings or search for your town."
+            : error.code === error.TIMEOUT
+              ? "Location lookup timed out. Try again or search for your town."
+              : "Could not get your location. Check device location services or search for your town.";
+          setSellerMapStatus(reason);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  if (typeof L === "undefined") {
     setSellerMapStatus("Map could not load. Check internet and refresh.");
+    return;
+  }
+
+  if (map) {
+    window.setTimeout(() => map?.invalidateSize(), 80);
     return;
   }
 
@@ -370,43 +449,6 @@ function initMap() {
     setSellerCoordinates(lat, lng);
   });
 
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(function (position) {
-      const { latitude, longitude } = position.coords;
-      map.setView([latitude, longitude], 15);
-    });
-  }
-
-  const searchButton = document.getElementById("sellerMapSearchButton");
-  const searchInput = document.getElementById("sellerMapSearchInput");
-  const coordinatesButton = document.getElementById("sellerUseCoordinatesButton");
-
-  searchButton?.addEventListener("click", searchSellerMapLocation);
-  searchInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      searchSellerMapLocation();
-    }
-  });
-
-  coordinatesButton?.addEventListener("click", () => {
-    if (!navigator.geolocation) {
-      setSellerMapStatus("Your browser does not support location access.");
-      return;
-    }
-
-    setSellerMapStatus("Getting your current coordinates...");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setSellerCoordinates(latitude, longitude, { label: "Current device location", zoom: 16 });
-      },
-      () => {
-        setSellerMapStatus("Could not get your coordinates. Allow location access or search manually.");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  });
 }
 
 function toggleForms(showRegistration) {
@@ -424,9 +466,8 @@ function toggleForms(showRegistration) {
     if (loginStatus) loginStatus.textContent = "";
     successPanel?.classList.add("is-hidden");
     window.setTimeout(() => {
-      if (map) {
-        map.invalidateSize();
-      }
+      initMap();
+      map?.invalidateSize();
     }, 80);
     return;
   }
@@ -575,14 +616,15 @@ function currentSeller() {
 async function loadSellerData() {
   const seller = currentSeller();
   try {
-    const [marketRes, orderRes] = await Promise.all([
-      fetch('./api/marketplace/list.php', { cache: 'no-store' }),
-      seller
-        ? fetch(`./api/orders/list.php?businessId=${encodeURIComponent(seller.id)}`, { cache: 'no-store' })
-        : Promise.resolve(null)
-    ]);
-    const marketData = await marketRes.json();
-    const orderData = orderRes ? await orderRes.json() : { orders: [] };
+    const marketRequest = fetch('./api/marketplace/list.php?limit=500', { cache: 'no-store' })
+      .then((response) => response.json().then((data) => ({ response, data })))
+      .catch(() => ({ response: { ok: false }, data: {} }));
+    const orderRequest = seller
+      ? fetch(`./api/orders/list.php?businessId=${encodeURIComponent(seller.id)}`, { cache: 'no-store' })
+        .then((response) => response.json().then((data) => ({ response, data })))
+        .catch(() => ({ response: { ok: false }, data: {} }))
+      : Promise.resolve({ response: null, data: { orders: [] } });
+    const [{ response: marketRes, data: marketData }, { response: orderRes, data: orderData }] = await Promise.all([marketRequest, orderRequest]);
     cachedProducts = marketRes.ok && marketData.ok ? (marketData.products || []) : [];
     cachedCategories = marketRes.ok && marketData.ok ? (marketData.categories || []) : [];
     cachedOffers = marketRes.ok && marketData.ok ? (marketData.offers || []) : [];
@@ -591,6 +633,20 @@ async function loadSellerData() {
     cachedProducts = [];
     cachedCategories = [];
     cachedOffers = [];
+    cachedOrders = [];
+  }
+}
+
+async function loadSellerOrders(seller = currentSeller()) {
+  if (!seller) {
+    cachedOrders = [];
+    return;
+  }
+  try {
+    const response = await fetch(`./api/orders/list.php?businessId=${encodeURIComponent(seller.id)}&limit=50`, { cache: "no-store" });
+    const data = await response.json();
+    cachedOrders = response.ok && data.ok ? (data.orders || []) : [];
+  } catch {
     cachedOrders = [];
   }
 }
@@ -1847,6 +1903,7 @@ function closeSellerMenu() {
   nav?.classList.remove("is-open");
   overlay?.classList.remove("is-open");
   toggle?.setAttribute("aria-expanded", "false");
+  toggle?.setAttribute("aria-label", "Open seller menu");
   document.body.classList.remove("seller-menu-open");
 }
 
@@ -1860,7 +1917,9 @@ function openSellerMenu() {
   nav.classList.add("is-open");
   overlay.classList.add("is-open");
   toggle.setAttribute("aria-expanded", "true");
+  toggle.setAttribute("aria-label", "Close seller menu");
   document.body.classList.add("seller-menu-open");
+  nav.focus({ preventScroll: true });
 }
 
 function closeOtherMenusForSeller() {
@@ -1900,6 +1959,12 @@ function toggleSellerMenu(event) {
   } else {
     openSellerMenu();
   }
+}
+
+function bindSellerMenuKeyboard() {
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSellerMenu();
+  });
 }
 
 function bindForms() {
@@ -1950,12 +2015,27 @@ function bindForms() {
     }
 
     const loginSeller = response.data.seller;
+    if (!loginSeller?.id) {
+      document.getElementById("loginStatus").textContent = "Login response was incomplete. Please try again.";
+      return;
+    }
     setCurrentSeller(loginSeller);
     window.tamuPushLogin?.(`business:${loginSeller.id}`, { role: "seller", business_id: String(loginSeller.id) });
-    await loadSellerData();
-    event.currentTarget.reset();
-    document.getElementById("loginStatus").textContent = "";
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    const loginForm = event.currentTarget;
+    submitButton.disabled = true;
+    submitButton.textContent = "Signing in…";
+    loginForm.reset();
+    document.getElementById("loginStatus").textContent = "Loading your seller workspace…";
     showDashboard();
+    try {
+      await loadSellerData();
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Login";
+    }
+    document.getElementById("loginStatus").textContent = "";
+    refreshSellerOrderViews();
     showToast("Login successful. You can now manage your store.", "success");
   });
 
@@ -2254,13 +2334,18 @@ function bindLiveOrderUpdates() {
   window.__tamuSellerLiveOrdersBound = true;
   const refresh = async () => {
     if (currentSeller()) {
-      await loadSellerData();
+      await loadSellerOrders();
       refreshSellerOrderViews();
     }
   };
   if (window.TamuRealtime?.subscribe) {
     window.TamuRealtime.subscribe("orders", refresh, { visibleMs: 5000, hiddenMs: 20000 });
-    window.TamuRealtime.subscribe("marketplace", refresh, { visibleMs: 7000, hiddenMs: 25000 });
+    window.TamuRealtime.subscribe("marketplace", async () => {
+      await loadSellerData();
+      renderCounts();
+      renderProducts();
+      renderOffers();
+    }, { visibleMs: 15000, hiddenMs: 30000 });
     return;
   }
   window.setInterval(refresh, 12000);
@@ -2272,9 +2357,9 @@ async function boot() {
   document.getElementById("sellerDashboard")?.classList.add("is-hidden");
   initReveal();
   initAdminTrigger();
-  initMap();
   bindForms();
   bindActions();
+  bindSellerMenuKeyboard();
   bindSmartCategorySearches();
   bindSellerOrderFilters();
   bindLiveOrderUpdates();
@@ -2290,8 +2375,8 @@ async function boot() {
       document.getElementById("loginStatus").textContent = "Please login again to continue managing your store.";
       return;
     }
-    await loadSellerData();
     showDashboard();
+    loadSellerOrders(seller).then(refreshSellerOrderViews);
   } else {
     hideDashboard();
     toggleForms(false);
