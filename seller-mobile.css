@@ -68,17 +68,42 @@
   }
 
   body.seller-dashboard-active .seller-workspace-nav {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 4202 !important;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     align-content: start !important;
     gap: 8px !important;
-    width: 100% !important;
-    height: auto !important;
-    max-height: min(64dvh, 470px) !important;
+    width: min(86vw, 340px) !important;
+    max-width: calc(100vw - 18px) !important;
+    height: 100dvh !important;
+    max-height: none !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 14px 12px calc(12px + env(safe-area-inset-bottom)) !important;
-    border-radius: 18px 18px 0 0 !important;
+    padding: calc(64px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) !important;
+    border: 1px solid #dce9df !important;
+    border-right: 0 !important;
+    border-radius: 18px 0 0 18px !important;
+    box-shadow: -18px 0 48px rgba(16, 44, 26, 0.17) !important;
+    transform: translate3d(110%, 0, 0) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: transform 240ms ease, visibility 240ms ease !important;
+    will-change: transform;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav.is-open {
+    transform: translate3d(0, 0, 0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay {
+    z-index: 4200 !important;
   }
 
   body.seller-dashboard-active .seller-workspace-nav::before {
@@ -143,4 +168,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .seller-loading-mark::before { animation-duration: 2.5s; }
+  body.seller-dashboard-active .seller-workspace-nav { transition: none !important; }
 }
