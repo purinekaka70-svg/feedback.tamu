@@ -11,23 +11,6 @@ async function verifySupabasePassword(password, hash) {
   return rows[0]?.ok === true;
 }
 
-async function ensureBusinessSubscriptionColumns() {
-  await query("alter table businesses add column if not exists subscription_started_at timestamptz").catch(() => {});
-  await query("alter table businesses add column if not exists subscription_expires_at timestamptz").catch(() => {});
-  await query("alter table businesses add column if not exists subscription_status text not null default 'inactive'").catch(() => {});
-  await query(
-    `update businesses
-        set subscription_started_at = coalesce(subscription_started_at, now()),
-            subscription_expires_at = coalesce(subscription_expires_at, now() + interval '1 month'),
-            subscription_status = case
-              when subscription_expires_at is not null and subscription_expires_at <= now() then 'expired'
-              else 'active'
-            end
-      where status = 'approved'
-        and (subscription_expires_at is null or coalesce(subscription_status, '') = '')`
-  ).catch(() => {});
-}
-
 const PASSWORD_COLUMNS = ["password", "password_hash", "password_digest", "hash"];
 const BUSINESS_EMAIL_COLUMNS = ["email", "business_email", "owner_email"];
 
@@ -96,7 +79,7 @@ function sellerSelect(businessColumns, userColumns, includeUser = true) {
   ].join(", ");
 }
 
-async function findBusinessForSeller(email, account, businessColumns, userColumns) {
+async function findBusinessForSeller(email, businessColumns, userColumns) {
   const select = sellerSelect(businessColumns, userColumns, true);
   const byEmail = businessEmailWhere(businessColumns, 1);
   if (byEmail) {
@@ -108,11 +91,10 @@ async function findBusinessForSeller(email, account, businessColumns, userColumn
         limit 1`,
       [email]
     );
-    if (rows[0]) return rows[0];
+    if (rows[0]) return { row: rows[0], account: null };
   }
-  if (!account?.id || !businessColumns.has("user_id")) {
-    return null;
-  }
+  const account = await findUserByEmail(email, "seller");
+  if (!account?.id || !businessColumns.has("user_id")) return { row: null, account };
   const rows = await query(
     `select ${sellerSelect(businessColumns, userColumns, false)}
        from businesses b
@@ -125,7 +107,7 @@ async function findBusinessForSeller(email, account, businessColumns, userColumn
     row.account_user_id = account.id;
     row.user_status = account.status || row.user_status;
   }
-  return row;
+  return { row, account };
 }
 
 module.exports = async function handler(req, res) {
@@ -135,11 +117,11 @@ module.exports = async function handler(req, res) {
     const payload = await body(req);
     const email = text(payload.email, 180).toLowerCase();
     const password = String(payload.password || "");
-    await ensureBusinessSubscriptionColumns();
-    const businessColumns = await tableColumns("businesses").catch(() => new Set());
-    const userColumns = await tableColumns("users").catch(() => new Set());
-    const fallbackAccount = await findUserByEmail(email, "seller");
-    const row = await findBusinessForSeller(email, fallbackAccount, businessColumns, userColumns);
+    const [businessColumns, userColumns] = await Promise.all([
+      tableColumns("businesses").catch(() => new Set()),
+      tableColumns("users").catch(() => new Set())
+    ]);
+    const { row, account: fallbackAccount } = await findBusinessForSeller(email, businessColumns, userColumns);
     const accountPassword = row?.account_password
       || row?.business_password
       || fallbackAccount?.password

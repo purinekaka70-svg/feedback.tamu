@@ -2061,6 +2061,18 @@ function bindSellerMenuKeyboard() {
   });
 }
 
+function setSellerLoading(active, title = "Signing in", message = "Checking your seller account…") {
+  const overlay = document.getElementById("sellerLoadingOverlay");
+  if (!overlay) return;
+  overlay.hidden = !active;
+  overlay.setAttribute("aria-hidden", active ? "false" : "true");
+  document.body.classList.toggle("seller-loading-active", active);
+  const heading = document.getElementById("sellerLoadingTitle");
+  const detail = document.getElementById("sellerLoadingMessage");
+  if (heading) heading.textContent = title;
+  if (detail) detail.textContent = message;
+}
+
 function bindForms() {
   document.getElementById("sellerRegistrationForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2100,40 +2112,52 @@ function bindForms() {
 
   document.getElementById("sellerLoginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const loginForm = event.currentTarget;
+    const submitButton = loginForm.querySelector('button[type="submit"]');
+    if (submitButton?.disabled) return;
+    const formData = new FormData(loginForm);
     const email = String(formData.get("email")).trim().toLowerCase();
     const password = String(formData.get("password"));
-    const response = await postJson('./api/sellers/login.php', { email, password });
-    if (!response.ok || response.data?.ok === false) {
-      const message = sellerAuthErrorMessage(response, "Invalid seller credentials.");
-      document.getElementById("loginStatus").textContent = message;
-      showToast(message, response.status === 403 ? "warn" : "error");
-      return;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Signing in…";
     }
-
-    const loginSeller = response.data.seller;
-    if (!loginSeller?.id) {
-      document.getElementById("loginStatus").textContent = "Login response was incomplete. Please try again.";
-      return;
-    }
-    setCurrentSeller(loginSeller);
-    window.tamuPushLogin?.(`business:${loginSeller.id}`, { role: "seller", business_id: String(loginSeller.id) });
-    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
-    const loginForm = event.currentTarget;
-    submitButton.disabled = true;
-    submitButton.textContent = "Signing in…";
-    loginForm.reset();
-    document.getElementById("loginStatus").textContent = "Loading your seller workspace…";
-    showDashboard();
+    setSellerLoading(true);
     try {
+      const response = await postJson('./api/sellers/login.php', { email, password });
+      if (!response.ok || response.data?.ok === false) {
+        const message = sellerAuthErrorMessage(response, "Invalid seller credentials.");
+        document.getElementById("loginStatus").textContent = message;
+        showToast(message, response.status === 403 ? "warn" : "error");
+        setSellerLoading(false);
+        return;
+      }
+
+      const loginSeller = response.data.seller;
+      if (!loginSeller?.id) {
+        document.getElementById("loginStatus").textContent = "Login response was incomplete. Please try again.";
+        setSellerLoading(false);
+        return;
+      }
+      setCurrentSeller(loginSeller);
+      window.tamuPushLogin?.(`business:${loginSeller.id}`, { role: "seller", business_id: String(loginSeller.id) });
+      loginForm.reset();
+      document.getElementById("loginStatus").textContent = "Loading your seller workspace…";
+      setSellerLoading(true, "Preparing your workspace", "Loading your products and orders…");
       await loadSellerData();
+      showDashboard();
+      document.getElementById("loginStatus").textContent = "";
+      showToast("Login successful. You can now manage your store.", "success");
+    } catch (error) {
+      document.getElementById("loginStatus").textContent = "Seller login could not finish. Please try again.";
+      showToast("Seller login could not finish. Please try again.", "error");
     } finally {
-      submitButton.disabled = false;
-      submitButton.textContent = "Login";
+      setSellerLoading(false);
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Login";
+      }
     }
-    document.getElementById("loginStatus").textContent = "";
-    refreshSellerOrderViews();
-    showToast("Login successful. You can now manage your store.", "success");
   });
 
   document.getElementById("productForm").addEventListener("submit", async (event) => {
@@ -2461,20 +2485,25 @@ async function boot() {
   bindSmartCategorySearches();
   bindSellerOrderFilters();
   bindLiveOrderUpdates();
-  await loadSellerData();
-  renderAllCategorySelects();
-
   const seller = currentSeller();
   if (seller) {
+    setSellerLoading(true, "Opening your workspace", "Verifying your seller session…");
     const hasSession = await verifySellerSession(seller);
     if (!hasSession) {
       setCurrentSeller(null);
       toggleForms(false);
       document.getElementById("loginStatus").textContent = "Please login again to continue managing your store.";
+      setSellerLoading(false);
       return;
     }
+    setSellerLoading(true, "Opening your workspace", "Loading your products and orders…");
+    await loadSellerData();
+    renderAllCategorySelects();
     showDashboard();
+    setSellerLoading(false);
   } else {
+    await loadSellerData();
+    renderAllCategorySelects();
     hideDashboard();
     toggleForms(false);
   }

@@ -1,0 +1,146 @@
+/* Focused fixes for the installed seller portal on narrow screens. */
+.seller-loading-overlay[hidden] {
+  display: none !important;
+}
+
+.seller-loading-overlay {
+  position: fixed;
+  z-index: 5000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(246, 250, 247, 0.9);
+  backdrop-filter: blur(5px);
+}
+
+.seller-loading-card {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  width: min(100%, 300px);
+  padding: 24px 20px;
+  border: 1px solid #dce9df;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(20, 62, 34, 0.14);
+  color: #173a24;
+  text-align: center;
+}
+
+.seller-loading-mark {
+  position: relative;
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+}
+
+.seller-loading-mark::before {
+  position: absolute;
+  inset: 0;
+  border: 3px solid #dcefe1;
+  border-top-color: #168344;
+  border-radius: 50%;
+  content: "";
+  animation: seller-logo-spin 0.9s linear infinite;
+}
+
+.seller-loading-mark img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.seller-loading-card strong { font-size: 1rem; }
+.seller-loading-card > span:last-child { color: #68766c; font-size: 0.84rem; }
+
+@keyframes seller-logo-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  body.seller-dashboard-active #sellerDashboard,
+  body.seller-dashboard-active #sellerDashboard > .dashboard-grid,
+  body.seller-dashboard-active #sellerDashboard > .stats-grid,
+  body.seller-dashboard-active .card[data-seller-panel] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-content: start !important;
+    gap: 8px !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: min(64dvh, 470px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 14px 12px calc(12px + env(safe-area-inset-bottom)) !important;
+    border-radius: 18px 18px 0 0 !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav::before {
+    grid-column: 1 / -1 !important;
+    margin: 0 0 3px !important;
+    font-size: 0.72rem !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav .button {
+    display: flex !important;
+    min-width: 0 !important;
+    min-height: 46px !important;
+    justify-content: flex-start !important;
+    padding: 8px 11px !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    text-align: left !important;
+    font-size: 0.78rem !important;
+    line-height: 1.25 !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav [data-seller-view="settings"],
+  body.seller-dashboard-active .seller-workspace-nav [data-seller-view="logout"] {
+    grid-column: 1 / -1 !important;
+  }
+
+  body.seller-dashboard-active .card[data-seller-panel="products"] {
+    padding: 10px !important;
+  }
+
+  body.seller-dashboard-active #productForm {
+    gap: 9px !important;
+    margin-top: 6px !important;
+    padding: 8px !important;
+    border-radius: 12px !important;
+  }
+
+  body.seller-dashboard-active #productForm .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body.seller-dashboard-active #productForm .field { min-width: 0; gap: 5px; }
+  body.seller-dashboard-active #productForm .field-label { font-size: 0.73rem; line-height: 1.25; }
+  body.seller-dashboard-active #productForm .input {
+    min-width: 0 !important;
+    min-height: 40px !important;
+    padding: 8px !important;
+    font-size: 0.88rem !important;
+  }
+
+  body.seller-dashboard-active #productForm .input-textarea { min-height: 76px !important; }
+}
+
+@media (max-width: 360px) {
+  body.seller-dashboard-active #productForm .field-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seller-loading-mark::before { animation-duration: 2.5s; }
+}
