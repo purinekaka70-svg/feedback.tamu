@@ -71,7 +71,8 @@ body.marketplace-landing .site-shell { width: min(calc(100% - 64px), 1320px); pa
 .home-market-heading h2 em { color:#15803d; font-family:Georgia,serif; font-weight:400; }
 .home-market-status { margin:8px 0 0; color:#657469; font-size:.7rem; }
 .home-market-window { overflow:hidden; padding:3px 0 12px; mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent); }
-.home-market-track { display:flex; width:max-content; gap:14px; animation:home-market-scroll 44s linear infinite; }
+.home-market-track { display:flex; width:max-content; gap:0; animation:home-market-scroll 44s linear infinite; }
+.home-market-group { display:flex; flex:0 0 auto; gap:14px; padding-right:14px; }
 .home-market-window:hover .home-market-track { animation-play-state:paused; }
 .home-market-card { width:235px; overflow:hidden; flex:0 0 auto; border:1px solid #dce9df; border-radius:13px; background:#fff; box-shadow:0 8px 24px rgba(22,101,52,.07); transition:transform .18s ease,box-shadow .18s ease; }
 .home-market-card:hover { transform:translateY(-3px); box-shadow:0 14px 28px rgba(22,101,52,.13); }

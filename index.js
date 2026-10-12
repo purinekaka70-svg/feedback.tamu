@@ -135,10 +135,10 @@ function initHomeMarketplace() {
   if (!track || !status) return;
 
   const editorialItems = [
-    { name: "Fresh produce", category: "Everyday groceries", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=560&q=78" },
-    { name: "Pantry favourites", category: "Stock up locally", image: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=560&q=78" },
-    { name: "Made for your home", category: "Household essentials", image: "https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=560&q=78" },
-    { name: "Discover nearby shops", category: "Local businesses", image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=560&q=78" }
+    { name: "Fresh produce", category: "Shop a category", kind: "category", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=560&q=78" },
+    { name: "Pantry favourites", category: "Shop a category", kind: "category", image: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=560&q=78" },
+    { name: "Household essentials", category: "Shop a category", kind: "category", image: "https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=560&q=78" },
+    { name: "Discover nearby shops", category: "Local businesses", kind: "business", image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=560&q=78" }
   ];
 
   function render(items, live) {
@@ -148,12 +148,14 @@ function initHomeMarketplace() {
       const name = escapeMarkup(item.name || item.productName || "Marketplace find");
       const category = escapeMarkup(item.categoryName || item.category || item.productCategory || item.businessName || "Local shop");
       const price = Number(item.price ?? item.productPrice);
-      return `<a class="home-market-card" href="./categories.html" aria-label="Browse ${name} from the marketplace"><img src="${image}" alt="" loading="lazy"><span class="home-market-card-copy"><small>${category}</small><strong>${name}</strong>${live && Number.isFinite(price) && price > 0 ? `<b>KSh ${price.toLocaleString("en-KE")}</b>` : ""}</span></a>`;
+      const kind = escapeMarkup(item.kind || (live ? "product" : "discover"));
+      const label = kind === "product" ? category : kind === "business" ? "Approved local shop" : kind === "category" ? "Shop by category" : category;
+      return `<a class="home-market-card home-market-card--${kind}" href="./categories.html" aria-label="Browse ${name} in the marketplace"><img src="${image}" alt="" loading="lazy"><span class="home-market-card-copy"><small>${label}</small><strong>${name}</strong>${kind === "product" && Number.isFinite(price) && price > 0 ? `<b>KSh ${price.toLocaleString("en-KE")}</b>` : ""}</span></a>`;
     }).join("");
-    track.innerHTML = cards + cards;
+    track.innerHTML = `<div class="home-market-group">${cards}</div><div class="home-market-group" aria-hidden="true" inert>${cards}</div>`;
     track.classList.toggle("home-market-track--editorial", !live);
     status.textContent = live
-      ? `Showing ${displayItems.length} products from approved local sellers.`
+      ? `Explore ${items.filter((item) => item.kind === "product").length} products, ${items.filter((item) => item.kind === "category").length} categories, and ${items.filter((item) => item.kind === "business").length} approved shops.`
       : "A preview of what you can discover from local shops. Live product availability appears when the marketplace service is connected.";
   }
 
@@ -164,8 +166,31 @@ function initHomeMarketplace() {
     .then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error("Marketplace unavailable");
-      const products = (data.products || []).filter((product) => product && (product.name || product.productName));
-      if (products.length) render(products, true);
+      const products = (data.products || [])
+        .filter((product) => product && (product.name || product.productName))
+        .map((product) => ({ ...product, kind: "product" }));
+      const categoryImages = [
+        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=560&q=78",
+        "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=560&q=78",
+        "https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=560&q=78"
+      ];
+      const categories = (data.categories || [])
+        .filter((category) => category && category.name)
+        .filter((category, index, all) => all.findIndex((candidate) => String(candidate.name).trim().toLowerCase() === String(category.name).trim().toLowerCase()) === index)
+        .slice(0, 6)
+        .map((category, index) => ({ name: category.name, category: "Shop by category", image: category.image || categoryImages[index % categoryImages.length], kind: "category" }));
+      const businesses = (data.businesses || [])
+        .filter((business) => business && (business.name || business.storeName))
+        .slice(0, 6)
+        .map((business, index) => ({ name: business.name || business.storeName, category: business.location || business.county || "Nearby", image: business.logoImage || business.logo || categoryImages[(index + 1) % categoryImages.length], kind: "business" }));
+      const variety = [];
+      const maxLength = Math.max(products.length, categories.length, businesses.length);
+      for (let index = 0; index < maxLength && variety.length < 12; index += 1) {
+        if (products[index]) variety.push(products[index]);
+        if (categories[index] && variety.length < 12) variety.push(categories[index]);
+        if (businesses[index] && variety.length < 12) variety.push(businesses[index]);
+      }
+      if (variety.length) render(variety, true);
     })
     .catch(() => {})
     .finally(() => window.clearTimeout(timeout));

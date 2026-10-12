@@ -1,0 +1,154 @@
+/* Mobile storefront layout. Keep this file after the shared portal styles. */
+@media (max-width: 640px) {
+  body.marketplace-landing .site-shell {
+    width: min(100% - 20px, 520px);
+    padding: 0 0 20px;
+  }
+
+  body.marketplace-landing .store-utility-bar {
+    min-height: 30px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0.58rem;
+  }
+
+  body.marketplace-landing .store-utility-bar > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+  }
+
+  body.marketplace-landing .store-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  body.marketplace-landing .store-wordmark { gap: 8px; }
+  body.marketplace-landing .store-mark { width: 36px; height: 36px; }
+  body.marketplace-landing .store-wordmark strong { font-size: 1.08rem; }
+  body.marketplace-landing .store-wordmark small { font-size: 0.48rem; }
+
+  body.marketplace-landing .store-header-actions {
+    grid-column: 2;
+    grid-row: 1;
+    flex-wrap: nowrap;
+    gap: 7px;
+  }
+
+  body.marketplace-landing .store-header-actions > a:not(.button) { display: none; }
+  body.marketplace-landing .store-header-actions .button {
+    min-height: 40px;
+    padding: 0 11px;
+    font-size: 0.7rem;
+  }
+
+  body.marketplace-landing .store-cart-link {
+    min-height: 40px;
+    padding: 0 9px;
+    border: 1px solid #dce9df;
+    border-radius: 7px;
+    font-size: 0.72rem;
+  }
+
+  body.marketplace-landing .store-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 44px;
+    margin: 0;
+  }
+
+  body.marketplace-landing .store-search input { font-size: 16px !important; }
+  body.marketplace-landing .store-search button { min-height: 36px; }
+  body.marketplace-landing .storefront-main { gap: 16px; padding-top: 14px; }
+
+  body.marketplace-landing .storefront-hero {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: 15px;
+  }
+
+  body.marketplace-landing .storefront-hero-copy { padding: 25px 20px 20px; }
+  body.marketplace-landing .storefront-hero-copy .store-kicker { margin-bottom: 11px; font-size: 0.56rem; }
+  body.marketplace-landing .storefront-hero h1 {
+    max-width: 12ch;
+    font-size: clamp(2.45rem, 11vw, 3.55rem);
+    line-height: 0.98;
+    overflow-wrap: normal;
+  }
+
+  body.marketplace-landing .storefront-hero h1 br { display: none; }
+  body.marketplace-landing .storefront-hero-copy > p:not(.store-kicker) {
+    max-width: 34rem;
+    margin: 12px 0 16px;
+    font-size: 0.83rem;
+    line-height: 1.6;
+  }
+
+  body.marketplace-landing .storefront-cta {
+    min-height: 46px;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 0 15px;
+    font-size: 0.78rem;
+  }
+
+  body.marketplace-landing .storefront-proof { margin-top: 15px; font-size: 0.65rem; }
+  body.marketplace-landing .storefront-hero-art { min-height: 210px; max-height: 250px; }
+  body.marketplace-landing .hero-art-orbit { width: 180px; height: 180px; top: 8%; left: 24%; }
+  body.marketplace-landing .hero-art-note { left: 12px; bottom: 12px; padding: 9px 11px; }
+  body.marketplace-landing .hero-art-label { top: 14px; right: 14px; }
+
+  body.marketplace-landing .storefront-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  body.marketplace-landing .storefront-shortcuts > a {
+    min-width: 0;
+    min-height: 76px;
+    gap: 9px;
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  body.marketplace-landing .storefront-shortcuts > a:first-child { grid-column: 1 / -1; }
+  body.marketplace-landing .shortcut-icon { flex-basis: 34px; height: 34px; border-radius: 9px; }
+  body.marketplace-landing .storefront-shortcuts > a > span:nth-child(2) { min-width: 0; gap: 3px; }
+  body.marketplace-landing .storefront-shortcuts strong { font-size: 0.7rem; }
+  body.marketplace-landing .storefront-shortcuts small { font-size: 0.59rem; line-height: 1.35; }
+  body.marketplace-landing .storefront-shortcuts b { font-size: 0.9rem; }
+
+  body.marketplace-landing .home-market-section { gap: 12px; padding-top: 14px; }
+  body.marketplace-landing .home-market-heading { gap: 9px; padding: 0 2px; }
+  body.marketplace-landing .home-market-heading h2 { font-size: clamp(1.55rem, 7.5vw, 2rem); }
+  body.marketplace-landing .home-market-heading .text-link { font-size: 0.68rem; }
+  body.marketplace-landing .home-market-card { width: min(44vw, 190px); }
+  body.marketplace-landing .home-market-card img { height: 112px; }
+  body.marketplace-landing .home-market-group { gap: 10px; padding-right: 10px; }
+  body.marketplace-landing .home-market-track { animation-duration: 32s; }
+
+  body.marketplace-landing .storefront-section { gap: 10px; padding: 26px 4px 8px; }
+  body.marketplace-landing .storefront-section h2,
+  body.marketplace-landing .seller-invitation h2 { font-size: clamp(1.65rem, 8vw, 2.2rem); }
+  body.marketplace-landing .storefront-process article { padding: 16px; }
+  body.marketplace-landing .seller-invitation { min-height: 0; padding: 24px 18px; }
+  body.marketplace-landing .seller-invitation-art { right: -25%; opacity: 0.7; }
+  body.marketplace-landing .storefront-footer { gap: 10px; padding: 20px 2px 4px; }
+}
+
+@media (max-width: 360px) {
+  body.marketplace-landing .site-shell { width: min(100% - 16px, 520px); }
+  body.marketplace-landing .store-utility-bar > span:first-child { display: none; }
+  body.marketplace-landing .store-utility-bar > span:last-child { width: 100%; text-align: center; }
+  body.marketplace-landing .store-header { gap: 9px; padding: 9px; }
+  body.marketplace-landing .store-wordmark strong { font-size: 1rem; }
+  body.marketplace-landing .store-header-actions { gap: 5px; }
+  body.marketplace-landing .store-header-actions .button { padding: 0 8px; font-size: 0.65rem; }
+  body.marketplace-landing .store-cart-link { padding: 0 7px; font-size: 0.66rem; }
+  body.marketplace-landing .storefront-hero-copy { padding: 22px 16px 18px; }
+  body.marketplace-landing .storefront-hero h1 { font-size: clamp(2.25rem, 11vw, 2.8rem); }
+}
