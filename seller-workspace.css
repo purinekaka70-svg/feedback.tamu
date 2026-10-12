@@ -19,6 +19,24 @@
   margin-block: 3px 0;
 }
 
+body.seller-dashboard-active #sellerDashboard {
+  gap: 6px 10px;
+}
+
+body.seller-dashboard-active #sellerDashboard > .stats-grid,
+body.seller-dashboard-active #sellerDashboard > .dashboard-grid {
+  gap: 8px;
+}
+
+body.seller-dashboard-active .card[data-seller-panel] {
+  padding: 12px;
+}
+
+body.seller-dashboard-active .card[data-seller-panel] > .section-head {
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+}
+
 .seller-main-actions {
   display: flex;
   flex: 0 0 auto;
@@ -142,6 +160,27 @@ body.seller-dashboard-active #footerTrigger {
   .seller-bottom-nav-item[aria-current="page"] {
     background: #e8f6ec;
     color: #08783b;
+  }
+}
+
+@media (max-width: 520px) {
+  body.seller-dashboard-active #sellerDashboard > .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.seller-dashboard-active .seller-main-toolbar {
+    gap: 8px;
+  }
+
+  body.seller-dashboard-active .seller-main-toolbar h1 {
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+  }
+
+  body.seller-dashboard-active .seller-main-actions .seller-install-app {
+    max-width: 126px;
+    white-space: normal;
+    line-height: 1.15;
   }
 }
 

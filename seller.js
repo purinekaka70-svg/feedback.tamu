@@ -2043,11 +2043,6 @@ function toggleSellerMenu(event) {
   const toggle = document.getElementById("sellerWorkspaceToggle");
   if (!nav || !overlay || !toggle) return;
 
-  if (window.matchMedia("(min-width: 901px)").matches) {
-    closeSellerMenu();
-    return;
-  }
-
   if (nav.classList.contains("is-open")) {
     closeSellerMenu();
   } else {
@@ -2401,7 +2396,7 @@ function bindActions() {
   });
 
   window.addEventListener("resize", () => {
-    if (window.matchMedia("(min-width: 901px)").matches) {
+    if (window.matchMedia("(min-width: 901px)").matches && document.body.classList.contains("seller-menu-open")) {
       closeSellerMenu();
     }
   });

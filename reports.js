@@ -104,19 +104,29 @@
   async function loadWidget(widget) {
     const status = widget.querySelector("[data-report-status]");
     const select = widget.querySelector("[data-report-period]");
+    const summary = widget.querySelector("[data-report-summary]");
     const period = PERIODS.some(([value]) => value === select?.value) ? select.value : "daily";
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
     if (status) status.textContent = "Loading report…";
     try {
       const response = await fetch(`./api/reports/analytics.php?period=${encodeURIComponent(period)}`, {
         cache: "no-store",
-        credentials: "same-origin"
+        credentials: "same-origin",
+        signal: controller.signal
       });
       const report = await response.json();
       if (!response.ok || !report.ok) throw new Error(report.message || "Report could not be loaded.");
       renderWidget(widget, report);
       if (status) status.textContent = "Report updated.";
     } catch (error) {
-      if (status) status.textContent = error.message || "Report could not be loaded.";
+      const message = error.name === "AbortError"
+        ? "The report request timed out. Select Refresh to try again."
+        : error.message || "Report could not be loaded. Select Refresh to try again.";
+      if (summary) summary.textContent = "Sales data is currently unavailable.";
+      if (status) status.textContent = message;
+    } finally {
+      window.clearTimeout(timeout);
     }
   }
 
