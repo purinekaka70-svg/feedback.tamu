@@ -1,4 +1,4 @@
-const CACHE_NAME = "tamu-app-shell-v9";
+const CACHE_NAME = "tamu-app-shell-v10";
 const APP_SHELL = [
   "./seller.html",
   "./seller.css",

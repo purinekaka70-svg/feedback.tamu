@@ -1,10 +1,10 @@
 /* Employee workspace layout, kept separate from the shared storefront styles. */
 .employee-app {
   grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
-  gap: 18px;
+  gap: 12px;
   width: min(100%, 1600px);
   margin-inline: auto;
-  padding: 18px;
+  padding: 12px;
 }
 
 .employee-sidebar,
@@ -31,17 +31,17 @@
 
 .employee-workspace {
   width: 100%;
-  gap: 16px;
+  gap: 10px;
 }
 
 .employee-topbar {
-  min-height: 132px;
-  padding: 22px 24px;
+  min-height: 90px;
+  padding: 14px 18px;
   flex-wrap: wrap;
 }
 
 .employee-topbar h1 {
-  font-size: clamp(2.15rem, 3.7vw, 3.5rem);
+  font-size: clamp(1.9rem, 3vw, 2.8rem);
   line-height: 1;
 }
 
@@ -65,12 +65,12 @@
 
 #employeeStats.stats-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 14px !important;
+  gap: 10px !important;
 }
 
 #employeeStats .stat-card {
-  min-height: 112px;
-  padding: 18px;
+  min-height: 84px;
+  padding: 13px;
   overflow-wrap: anywhere;
 }
 
@@ -82,7 +82,7 @@
 
 .employee-panel[data-employee-panel="dashboard"] > .dashboard-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 16px !important;
+  gap: 10px !important;
   align-items: stretch;
 }
 
@@ -90,7 +90,7 @@
 .employee-panel:not([data-employee-panel="dashboard"]) > .card {
   width: 100%;
   min-width: 0;
-  padding: 20px;
+  padding: 14px;
   overflow-wrap: anywhere;
 }
 
@@ -127,12 +127,12 @@
 
 @media (max-width: 760px) {
   .employee-app {
-    padding: 76px 14px 16px;
+    padding: 68px 12px 14px;
   }
 
   .employee-topbar {
     min-height: 0;
-    padding: 18px;
+    padding: 14px;
   }
 
   .employee-topbar .topbar-actions {
@@ -156,8 +156,8 @@
   }
 
   #employeeStats .stat-card {
-    min-height: 96px;
-    padding: 14px;
+    min-height: 76px;
+    padding: 10px;
   }
 
   .employee-topbar h1 {
@@ -166,7 +166,7 @@
 
   .employee-panel[data-employee-panel="dashboard"] > .dashboard-grid > .card,
   .employee-panel:not([data-employee-panel="dashboard"]) > .card {
-    padding: 15px;
+    padding: 12px;
   }
 }
 

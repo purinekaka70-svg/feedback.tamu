@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="./responsive.css?v=20261009-password-visibility">
   <link rel="stylesheet" href="./notifications.css">
   <link rel="stylesheet" href="./header-menu-fix.css?v=20260512-login-center">
-  <link rel="stylesheet" href="./seller-app.css?v=20261009-workspace-v2">
+  <link rel="stylesheet" href="./seller-app.css?v=20261009-workspace-v3">
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script src="./onesignal-client.js?v=20260512-hide-enabled-button" defer></script>
 </head>
@@ -450,7 +450,7 @@
           <article class="card" data-seller-panel="orders">
             <div class="section-head">
               <h2>Order Management</h2>
-              <span class="tiny">View and manage customer orders</span>
+              <span id="sellerOrderRangeLabel" class="tiny">View and manage customer orders</span>
             </div>
 
             <div class="order-toolbar seller-order-toolbar">
@@ -588,7 +588,7 @@
           <article class="card" data-seller-panel="overview">
             <div class="section-head">
               <h2>Analytics</h2>
-              <span class="tiny">Sales, orders, and product activity</span>
+              <span class="tiny">Sales and activity from loaded recent orders</span>
             </div>
             <div id="sellerAnalyticsStats" class="stats-grid"></div>
           </article>
@@ -659,7 +659,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="./realtime-sync.js"></script>
-  <script src="./seller.js?v=20261009-seller-app"></script>
+  <script src="./seller.js?v=20261009-seller-scale-v1"></script>
   <script src="./security-client.js?v=20261009-password-visibility"></script>
   <script src="./seller-pwa.js" defer></script>
 </body>

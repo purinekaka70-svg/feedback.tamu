@@ -16,10 +16,10 @@ body.admin-dashboard-active .content-shell {
 }
 
 body.admin-dashboard-active .admin-app-shell {
-  width: min(100%, 1600px);
-  max-width: 1600px;
+  width: min(100%, 1540px);
+  max-width: 1540px;
   grid-template-columns: minmax(225px, 260px) minmax(0, 1fr);
-  gap: 18px;
+  gap: 12px;
 }
 
 body.admin-dashboard-active .admin-workspace,
@@ -31,24 +31,24 @@ body.admin-dashboard-active .admin-workspace > * {
 }
 
 body.admin-dashboard-active .admin-sidebar {
-  padding: 18px 12px;
+  padding: 12px;
   border-radius: 18px;
 }
 
 body.admin-dashboard-active .admin-dashboard-hero {
-  min-height: 150px;
-  padding: 24px;
+  min-height: 106px;
+  padding: 16px 18px;
   border-radius: 20px;
 }
 
 body.admin-dashboard-active #adminOverviewStats.stats-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 12px !important;
+  gap: 9px !important;
 }
 
 body.admin-dashboard-active .admin-panel[data-admin-panel="overview"] > .dashboard-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 14px !important;
+  gap: 10px !important;
   align-items: start;
 }
 
@@ -56,7 +56,7 @@ body.admin-dashboard-active .admin-panel[data-admin-panel="overview"] > .dashboa
 body.admin-dashboard-active .admin-panel > .card {
   width: 100%;
   min-width: 0;
-  padding: 18px;
+  padding: 14px;
   border-radius: 16px;
   overflow-wrap: anywhere;
 }
@@ -140,6 +140,6 @@ body.admin-dashboard-active .admin-panel .order-card p {
 
   body.admin-dashboard-active .admin-dashboard-hero {
     min-height: 0;
-    padding: 18px;
+    padding: 14px;
   }
 }

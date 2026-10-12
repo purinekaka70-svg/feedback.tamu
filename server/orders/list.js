@@ -17,7 +17,9 @@ function publicOrder(row, items = [], routes = []) {
   const displayStatus = ["paid", "confirmed"].includes(rawPaymentStatus) && ["pending", "pending_payment", "paid"].includes(rawStatus)
     ? "paid"
     : rawStatus;
-  const paymentStoreIds = new Set(businessPayments.map((payment) => String(payment.storeId || payment.businessId || "")));
+  const deliveryPaymentRecord = businessPayments.find((payment) => payment.isDelivery) || null;
+  const sellerPayments = businessPayments.filter((payment) => !payment.isDelivery);
+  const paymentStoreIds = new Set(sellerPayments.map((payment) => String(payment.storeId || payment.businessId || "")));
   items.forEach((item) => {
     const storeId = String(item.storeId || item.businessId || "");
     if (!storeId || paymentStoreIds.has(storeId)) return;
@@ -26,7 +28,7 @@ function publicOrder(row, items = [], routes = []) {
       businessId: storeId,
       storeName: item.storeName || "Business",
       method: row.payment_method || "Business direct payment",
-      reference: row.mpesa_reference || "",
+      reference: "",
       amount: items
         .filter((entry) => String(entry.storeId || entry.businessId || "") === storeId)
         .reduce((sum, entry) => sum + Number(entry.lineTotal || 0), 0),
@@ -34,7 +36,7 @@ function publicOrder(row, items = [], routes = []) {
     });
     paymentStoreIds.add(storeId);
   });
-  const sellerPaymentStatus = businessPayments.reduce((statusMap, payment) => {
+  const sellerPaymentStatus = sellerPayments.reduce((statusMap, payment) => {
     statusMap[String(payment.storeId || payment.businessId || "")] = payment.status || "pending_payment";
     return statusMap;
   }, {});
@@ -50,10 +52,10 @@ function publicOrder(row, items = [], routes = []) {
     buyerLatitude: Number(row.buyer_latitude || 0),
     buyerLongitude: Number(row.buyer_longitude || 0),
     paymentMethod: row.payment_method,
-    paymentStatus: row.payment_status,
+    paymentStatus: row.payment_status === "pending" ? "pending_payment" : row.payment_status,
     mpesaName: row.mpesa_name || "",
     mpesaNumber: row.mpesa_number || "",
-    mpesaReference: row.mpesa_reference || "",
+    mpesaReference: "",
     note: row.notes || "",
     storeName: row.store_summary || "",
     subtotal: Number(row.subtotal || 0),
@@ -63,15 +65,14 @@ function publicOrder(row, items = [], routes = []) {
     deliveryStatus: rawStatus,
     createdAt: row.created_at || "",
     items,
-    routeBreakdown: routes
-    ,
-    businessPayments,
+    routeBreakdown: routes,
+    businessPayments: sellerPayments,
     sellerPaymentStatus,
     deliveryPayment: {
       tillNumber: "7312380",
       amount: Number(row.delivery_fee || 0),
-      reference: row.mpesa_reference || "",
-      status: row.mpesa_reference ? (["paid", "confirmed"].includes(rawPaymentStatus) ? "paid" : "submitted") : "pending_payment"
+      reference: deliveryPaymentRecord?.reference || "",
+      status: deliveryPaymentRecord?.status || "pending_payment"
     }
   };
 }
@@ -86,7 +87,7 @@ module.exports = async function handler(req, res) {
     const normalizedPhone = phoneDigits(phone);
     const normalizedPhoneTail = phoneTail(phone);
     const params = [];
-    let sql = "select distinct o.* from orders o";
+    let fromWhere = "from orders o";
     if (businessId) {
       if (!["admin", "seller"].includes(String(session?.role || ""))) {
         send(res, 403, { ok: false, message: "Authenticated seller or admin access is required." });
@@ -96,21 +97,43 @@ module.exports = async function handler(req, res) {
         send(res, 403, { ok: false, message: "Unauthorized seller order access." });
         return;
       }
-      sql += " join order_items oi on oi.order_id = o.id where (oi.business_id = $1 or oi.store_public_id = $2)";
+      fromWhere += " join order_items oi on oi.order_id = o.id where (oi.business_id = $1 or oi.store_public_id = $2)";
       params.push(businessId, String(businessId));
     } else if (session?.role !== "admin") {
       if (!normalizedPhone) {
         send(res, 200, { ok: true, orders: [] });
         return;
       }
-      sql += ` where (
+      fromWhere += ` where (
         right(regexp_replace(coalesce(o.customer_phone, ''), '\\D', '', 'g'), 12) = $1
         or right(regexp_replace(coalesce(o.customer_phone, ''), '\\D', '', 'g'), 9) = $2
       )`;
       params.push(normalizedPhone, normalizedPhoneTail);
     }
-    sql += " order by o.created_at desc";
-    const orders = await query(sql, params);
+    const requestedLimit = Number.parseInt(url.searchParams.get("limit") || "50", 10);
+    const paginated = session?.role === "seller" || url.searchParams.has("limit");
+    const limit = Math.min(200, Math.max(1, Number.isFinite(requestedLimit) ? requestedLimit : 50));
+    const requestedOffset = Number.parseInt(url.searchParams.get("offset") || "0", 10);
+    const offset = Math.max(0, Number.isFinite(requestedOffset) ? requestedOffset : 0);
+    const countRows = paginated
+      ? await query(
+        `select count(*)::int as total,
+                count(*) filter (where coalesce(status, 'pending') not in ('delivered', 'cancelled'))::int as active,
+                count(*) filter (where status = 'processing')::int as processing,
+                count(*) filter (where payment_status = 'paid')::int as paid,
+                coalesce(sum(total), 0) as revenue,
+                coalesce(sum(delivery_fee), 0) as delivery
+           from (select distinct o.id, o.status::text as status, o.payment_status, o.total, o.delivery_fee ${fromWhere}) scoped_orders`,
+        params
+      )
+      : [];
+    let sql = `select distinct o.* ${fromWhere} order by o.created_at desc, o.id desc`;
+    const queryParams = [...params];
+    if (paginated) {
+      queryParams.push(limit, offset);
+      sql += ` limit $${queryParams.length - 1} offset $${queryParams.length}`;
+    }
+    const orders = await query(sql, queryParams);
     const ids = orders.map((order) => order.id);
     const items = ids.length
       ? await query("select * from order_items where order_id = any($1::bigint[]) order by id asc", [ids])
@@ -157,26 +180,44 @@ module.exports = async function handler(req, res) {
         Number(item.order_id || 0) === Number(order?.id || 0)
         && Number(item.business_id || 0) === Number(payment.business_id || 0)
       );
+      const isDeliveryPayment = String(payment.method || "").toLowerCase().includes("delivery");
       list.push({
         id: payment.id,
-        storeId: String(payment.business_id || matchingItem?.store_public_id || ""),
-        businessId: String(payment.business_id || matchingItem?.store_public_id || ""),
-        storeName: matchingItem?.store_name || "Business",
+        storeId: String(payment.business_id || matchingItem?.store_public_id || (isDeliveryPayment ? "delivery" : "")),
+        businessId: String(payment.business_id || matchingItem?.store_public_id || (isDeliveryPayment ? "delivery" : "")),
+        storeName: isDeliveryPayment ? "Tamu Express Delivery" : matchingItem?.store_name || "Business",
         method: payment.method || "Direct payment",
         reference: payment.reference || "",
         amount: Number(payment.amount || 0),
-        status: payment.status === "pending" ? "pending_payment" : payment.status || "pending_payment"
+        status: payment.status === "pending" ? "pending_payment" : payment.status || "pending_payment",
+        isDelivery: isDeliveryPayment
       });
       paymentsByPublicOrder.set(payment.order_public_id, list);
     });
-    send(res, 200, {
+    const payload = {
       ok: true,
       orders: orders.map((order) => publicOrder(
         { ...order, business_payments: paymentsByPublicOrder.get(order.public_id || String(order.id)) || [] },
         itemsByOrder.get(order.id) || [],
         routesByOrder.get(order.id) || []
       ))
-    });
+    };
+    if (paginated) {
+      const total = Number(countRows[0]?.total || 0);
+      payload.page = {
+        limit,
+        offset,
+        returned: orders.length,
+        total,
+        active: Number(countRows[0]?.active || 0),
+        processing: Number(countRows[0]?.processing || 0),
+        paid: Number(countRows[0]?.paid || 0),
+        revenue: Number(countRows[0]?.revenue || 0),
+        delivery: Number(countRows[0]?.delivery || 0),
+        hasMore: offset + orders.length < total
+      };
+    }
+    send(res, 200, payload);
   } catch {
     send(res, 500, { ok: false, message: "Failed to load orders." });
   }

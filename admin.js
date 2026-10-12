@@ -6,6 +6,8 @@ let cachedOffers = [];
 let cachedLocations = [];
 let cachedPayments = [];
 let cachedUsers = [];
+const ADMIN_ORDER_PAGE_SIZE = 50;
+let adminOrderPage = { limit: ADMIN_ORDER_PAGE_SIZE, offset: 0, total: 0, active: 0, processing: 0, paid: 0, revenue: 0, delivery: 0, hasMore: false, loading: false };
 const STORAGE_KEYS = {
   adminSession: "tamu_market_admin_session"
 };
@@ -342,7 +344,7 @@ async function loadData() {
   const results = await Promise.allSettled([
     readEndpoint('./api/admin/applications.php'),
     readEndpoint('./api/marketplace/list.php'),
-    readEndpoint('./api/orders/list.php'),
+    readEndpoint(`./api/orders/list.php?limit=${ADMIN_ORDER_PAGE_SIZE}&offset=0`),
     readEndpoint('./api/payments/index.php'),
     readEndpoint('./api/users/index.php')
   ]);
@@ -355,6 +357,18 @@ async function loadData() {
   cachedOffers = marketResult?.response.ok && marketResult.data.ok ? (marketResult.data.offers || []) : [];
   cachedLocations = marketResult?.response.ok && marketResult.data.ok ? (marketResult.data.locations || []) : [];
   cachedOrders = ordersResult?.response.ok && ordersResult.data.ok ? (ordersResult.data.orders || []) : [];
+  adminOrderPage = {
+    limit: ordersResult?.data?.page?.limit || ADMIN_ORDER_PAGE_SIZE,
+    offset: (ordersResult?.data?.page?.offset || 0) + (ordersResult?.data?.page?.returned || cachedOrders.length),
+    total: Number(ordersResult?.data?.page?.total ?? cachedOrders.length),
+    active: Number(ordersResult?.data?.page?.active || 0),
+    processing: Number(ordersResult?.data?.page?.processing || 0),
+    paid: Number(ordersResult?.data?.page?.paid || 0),
+    revenue: Number(ordersResult?.data?.page?.revenue || 0),
+    delivery: Number(ordersResult?.data?.page?.delivery || 0),
+    hasMore: Boolean(ordersResult?.data?.page?.hasMore),
+    loading: false
+  };
   cachedPayments = paymentsResult?.response.ok && paymentsResult.data.ok ? (paymentsResult.data.payments || []) : [];
   cachedUsers = usersResult?.response.ok && usersResult.data.ok ? (usersResult.data.users || []) : [];
 
@@ -547,10 +561,9 @@ async function adminDeleteRecord(entity, id, label = "record", options = {}) {
 
 function renderOverview() {
   const allApplications = applications();
-  const allOrders = orders();
   const pendingApprovals = allApplications.filter((item) => item.status === "pending").length;
-  const activeOrders = allOrders.filter((item) => !["delivered", "cancelled"].includes(item.status)).length;
-  const dispatchOrders = allOrders.filter((item) => item.status === "processing").length;
+  const activeOrders = adminOrderPage.active;
+  const dispatchOrders = adminOrderPage.processing;
   const activeBusinesses = allApplications.filter(isBusinessActive).length;
   const blockedBusinesses = allApplications.filter((item) => item.status === "blocked").length;
 
@@ -1023,15 +1036,17 @@ function filteredAdminOrders() {
 function renderOrderList() {
   const container = document.getElementById("orderList");
   if (!container) return;
-  const allOrders = orders();
   const list = filteredAdminOrders().slice().reverse();
   const summary = document.getElementById("orderCountSummary");
   if (summary) {
-    summary.textContent = `${list.length}/${allOrders.length} order${allOrders.length === 1 ? "" : "s"}`;
+    summary.textContent = `${list.length} shown · ${adminOrderPage.total} total`;
   }
 
   if (!list.length) {
-    container.innerHTML = '<div class="list-card">No orders match the current filters. Orders from checkout will appear here immediately.</div>';
+    container.innerHTML = '<div class="list-card">No orders match the current filters.</div>' + (adminOrderPage.hasMore
+      ? '<button class="button button-outline button-small" data-load-admin-orders type="button">Load older orders</button>'
+      : "");
+    bindAdminLoadMoreOrders(container);
     return;
   }
 
@@ -1089,9 +1104,49 @@ function renderOrderList() {
         <button class="button button-ghost button-small" data-delete-order="${order.id}" type="button">Delete</button>
       </div>
     </article>
-  `; }).join("");
+  `; }).join("") + (adminOrderPage.hasMore
+    ? '<button class="button button-outline button-small" data-load-admin-orders type="button">Load older orders</button>'
+    : "");
 
   bindOrderActionButtons(container);
+  bindAdminLoadMoreOrders(container);
+}
+
+function bindAdminLoadMoreOrders(container) {
+  container.querySelector("[data-load-admin-orders]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (adminOrderPage.loading) return;
+    adminOrderPage.loading = true;
+    button.disabled = true;
+    button.textContent = "Loading orders…";
+    try {
+      const response = await fetch(`./api/orders/list.php?limit=${ADMIN_ORDER_PAGE_SIZE}&offset=${adminOrderPage.offset}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || "Older orders could not be loaded.");
+      const received = data.orders || [];
+      cachedOrders = [...cachedOrders, ...received];
+      adminOrderPage = {
+        limit: data.page?.limit || ADMIN_ORDER_PAGE_SIZE,
+        offset: (data.page?.offset || adminOrderPage.offset) + (data.page?.returned || received.length),
+        total: Number(data.page?.total ?? cachedOrders.length),
+        active: Number(data.page?.active || adminOrderPage.active),
+        processing: Number(data.page?.processing || adminOrderPage.processing),
+        paid: Number(data.page?.paid || adminOrderPage.paid),
+        revenue: Number(data.page?.revenue || adminOrderPage.revenue),
+        delivery: Number(data.page?.delivery || adminOrderPage.delivery),
+        hasMore: Boolean(data.page?.hasMore),
+        loading: false
+      };
+      renderOrderList();
+      renderNotifications();
+      renderAdminUtilityPanels();
+    } catch (error) {
+      adminOrderPage.loading = false;
+      button.disabled = false;
+      button.textContent = "Try loading older orders again";
+      showToast(error.message || "Older orders could not be loaded.", "warn");
+    }
+  });
 }
 
 function renderNotifications() {
@@ -1135,16 +1190,16 @@ function renderNotifications() {
 }
 
 function renderAdminUtilityPanels() {
-  const allOrders = orders();
+  const loadedOrders = orders();
   const allApplications = applications();
   const sellerProducts = cachedProducts;
-  const customers = [...new Map(allOrders.map((order) => [
+  const customers = [...new Map(loadedOrders.map((order) => [
     `${order.phone || ""}-${order.customer || ""}`,
     order
   ])).values()];
-  const paidOrders = allOrders.filter((order) => order.paymentStatus === "paid");
-  const deliveryTotal = allOrders.reduce((sum, order) => sum + Number(order.deliveryFee || 0), 0);
-  const salesTotal = allOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const paidOrderCount = adminOrderPage.paid;
+  const deliveryTotal = adminOrderPage.delivery;
+  const salesTotal = adminOrderPage.revenue;
 
   const usersContainer = document.getElementById("adminUserList");
   if (usersContainer) {
@@ -1175,8 +1230,8 @@ function renderAdminUtilityPanels() {
 
   const deliveryContainer = document.getElementById("adminDeliveryList");
   if (deliveryContainer) {
-    deliveryContainer.innerHTML = allOrders.length
-      ? allOrders.slice().reverse().map((order) => `
+    deliveryContainer.innerHTML = loadedOrders.length
+      ? loadedOrders.slice().reverse().map((order) => `
           <article class="list-card">
             <div class="section-head">
               <strong>${order.id}</strong>
@@ -1194,7 +1249,7 @@ function renderAdminUtilityPanels() {
 
   const paymentContainer = document.getElementById("adminPaymentList");
   if (paymentContainer) {
-    const paymentRows = allOrders.flatMap((order) => [
+    const paymentRows = loadedOrders.flatMap((order) => [
       ...asArray(order.businessPayments).map((payment) => ({
         id: payment.id || payment.reference || order.id,
         order,
@@ -1273,7 +1328,7 @@ function renderAdminUtilityPanels() {
   if (analyticsContainer) {
     analyticsContainer.innerHTML = `
       <article class="card stat-card"><span class="stat-label">Total sales</span><strong>${currency(salesTotal)}</strong></article>
-      <article class="card stat-card"><span class="stat-label">Paid orders</span><strong>${paidOrders.length}</strong></article>
+      <article class="card stat-card"><span class="stat-label">Paid orders</span><strong>${paidOrderCount}</strong></article>
       <article class="card stat-card"><span class="stat-label">Delivery fees</span><strong>${currency(deliveryTotal)}</strong></article>
       <article class="card stat-card"><span class="stat-label">Approved businesses</span><strong>${allApplications.filter(isBusinessActive).length}</strong></article>
       <article class="card stat-card"><span class="stat-label">Listed products</span><strong>${sellerProducts.length}</strong></article>
@@ -1283,7 +1338,7 @@ function renderAdminUtilityPanels() {
   const reportContainer = document.getElementById("adminReportList");
   if (reportContainer) {
     reportContainer.innerHTML = `
-      <article class="list-card"><strong>Orders</strong><p class="tiny">${allOrders.length} total, ${allOrders.filter((order) => order.status === "pending").length} pending, ${allOrders.filter((order) => order.status === "processing").length} processing, ${allOrders.filter((order) => order.status === "delivered").length} delivered.</p></article>
+      <article class="list-card"><strong>Orders</strong><p class="tiny">${adminOrderPage.total} total, ${adminOrderPage.active} active, ${adminOrderPage.processing} processing, ${adminOrderPage.paid} paid. Delivery and sales summaries cover all orders.</p></article>
       <article class="list-card"><strong>Businesses</strong><p class="tiny">${allApplications.length} registered, ${allApplications.filter(isBusinessActive).length} approved, ${allApplications.filter((item) => businessStatus(item) === "pending").length} pending approval.</p></article>
       <article class="list-card"><strong>Payments</strong><p class="tiny">${currency(salesTotal)} total order value and ${currency(deliveryTotal)} delivery fees routed to till 7312380.</p></article>
     `;

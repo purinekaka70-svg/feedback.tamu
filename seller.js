@@ -21,6 +21,9 @@ let cachedProducts = [];
 let cachedOrders = [];
 let cachedCategories = [];
 let cachedOffers = [];
+const SELLER_PAGE_SIZE = 50;
+let sellerProductPage = { limit: SELLER_PAGE_SIZE, offset: 0, total: 0, hasMore: false, loading: false };
+let sellerOrderPage = { limit: SELLER_PAGE_SIZE, offset: 0, total: 0, active: 0, hasMore: false, loading: false };
 let sellerNotificationsPrimed = false;
 let sellerNotificationIds = new Set();
 const sellerOrderFilters = {
@@ -615,39 +618,65 @@ function currentSeller() {
 
 async function loadSellerData() {
   const seller = currentSeller();
-  try {
-    const marketRequest = fetch('./api/marketplace/list.php?limit=500', { cache: 'no-store' })
-      .then((response) => response.json().then((data) => ({ response, data })))
-      .catch(() => ({ response: { ok: false }, data: {} }));
-    const orderRequest = seller
-      ? fetch(`./api/orders/list.php?businessId=${encodeURIComponent(seller.id)}`, { cache: 'no-store' })
-        .then((response) => response.json().then((data) => ({ response, data })))
-        .catch(() => ({ response: { ok: false }, data: {} }))
-      : Promise.resolve({ response: null, data: { orders: [] } });
-    const [{ response: marketRes, data: marketData }, { response: orderRes, data: orderData }] = await Promise.all([marketRequest, orderRequest]);
-    cachedProducts = marketRes.ok && marketData.ok ? (marketData.products || []) : [];
-    cachedCategories = marketRes.ok && marketData.ok ? (marketData.categories || []) : [];
-    cachedOffers = marketRes.ok && marketData.ok ? (marketData.offers || []) : [];
-    cachedOrders = orderRes && orderRes.ok && orderData.ok ? (orderData.orders || []) : [];
-  } catch (error) {
+  if (!seller) {
     cachedProducts = [];
+    cachedOrders = [];
     cachedCategories = [];
     cachedOffers = [];
-    cachedOrders = [];
+    sellerProductPage = { limit: SELLER_PAGE_SIZE, offset: 0, total: 0, hasMore: false, loading: false };
+    sellerOrderPage = { limit: SELLER_PAGE_SIZE, offset: 0, total: 0, active: 0, hasMore: false, loading: false };
+    return;
+  }
+
+  try {
+    const catalogRequest = fetch(`./api/sellers/catalog.php?limit=${SELLER_PAGE_SIZE}&offset=0`, { cache: "no-store" })
+      .then(async (response) => ({ response, data: await response.json() }))
+      .catch(() => ({ response: { ok: false }, data: {} }));
+    const [catalogResult] = await Promise.all([catalogRequest, loadSellerOrders(seller)]);
+    const { response, data } = catalogResult;
+    if (!response.ok || !data.ok) throw new Error(data.message || "Seller catalog unavailable.");
+    cachedProducts = data.products || [];
+    cachedCategories = data.categories || [];
+    cachedOffers = data.offers || [];
+    sellerProductPage = {
+      limit: data.page?.limit || SELLER_PAGE_SIZE,
+      offset: (data.page?.offset || 0) + (data.page?.returned || cachedProducts.length),
+      total: Number(data.page?.total ?? cachedProducts.length),
+      hasMore: Boolean(data.page?.hasMore),
+      loading: false
+    };
+  } catch (error) {
+    cachedProducts = [];
+    cachedCategories = DEFAULT_BUSINESS_CATEGORIES.map((name) => ({ name, businessId: "" }));
+    cachedOffers = [];
+    sellerProductPage = { limit: SELLER_PAGE_SIZE, offset: 0, total: 0, hasMore: false, loading: false };
   }
 }
 
-async function loadSellerOrders(seller = currentSeller()) {
+async function loadSellerOrders(seller = currentSeller(), { append = false } = {}) {
   if (!seller) {
     cachedOrders = [];
+    sellerOrderPage = { limit: SELLER_PAGE_SIZE, offset: 0, total: 0, active: 0, hasMore: false, loading: false };
     return;
   }
   try {
-    const response = await fetch(`./api/orders/list.php?businessId=${encodeURIComponent(seller.id)}&limit=50`, { cache: "no-store" });
+    const offset = append ? sellerOrderPage.offset : 0;
+    const response = await fetch(`./api/orders/list.php?businessId=${encodeURIComponent(seller.id)}&limit=${SELLER_PAGE_SIZE}&offset=${offset}`, { cache: "no-store" });
     const data = await response.json();
-    cachedOrders = response.ok && data.ok ? (data.orders || []) : [];
+    if (!response.ok || !data.ok) throw new Error(data.message || "Seller orders unavailable.");
+    const received = data.orders || [];
+    cachedOrders = append ? [...cachedOrders, ...received] : received;
+    sellerOrderPage = {
+      limit: data.page?.limit || SELLER_PAGE_SIZE,
+      offset: (data.page?.offset || offset) + (data.page?.returned || received.length),
+      total: Number(data.page?.total ?? cachedOrders.length),
+      active: Number(data.page?.active ?? cachedOrders.filter((order) => !["delivered", "cancelled"].includes(normalizeOrderStatus(order.status))).length),
+      hasMore: Boolean(data.page?.hasMore),
+      loading: false
+    };
   } catch {
-    cachedOrders = [];
+    if (!append) cachedOrders = [];
+    sellerOrderPage.loading = false;
   }
 }
 
@@ -674,7 +703,7 @@ function products() {
   const seller = currentSeller();
   return cachedProducts
     .map(normalizeProductRecord)
-    .filter((product) => !seller || product.storeId === seller.id || product.businessId === seller.id);
+    .filter((product) => seller && (product.storeId === seller.id || product.businessId === seller.id));
 }
 
 function offers() {
@@ -861,11 +890,9 @@ function renderCounts() {
   const sellerOffers = offers().filter((offer) => offer.sellerId === seller.id);
   const sellerOrderList = sellerOrders(seller);
 
-  document.getElementById("productCount").textContent = sellerProducts.length;
+  document.getElementById("productCount").textContent = sellerProductPage.total || sellerProducts.length;
   document.getElementById("offerCount").textContent = sellerOffers.length;
-  document.getElementById("orderCount").textContent = sellerOrderList.filter((order) =>
-    !["delivered", "cancelled"].includes(normalizeOrderStatus(order.status))
-  ).length;
+  document.getElementById("orderCount").textContent = sellerOrderPage.active;
 }
 
 function renderProducts() {
@@ -878,9 +905,15 @@ function renderProducts() {
     return;
   }
 
-  const sellerProducts = products().filter((product) => product.sellerId === seller.id).slice().reverse();
+  const sellerProducts = products().filter((product) => product.sellerId === seller.id);
   if (!sellerProducts.length) {
-    container.innerHTML = '<div class="list-card">No products yet. Add your first product above.</div>';
+    container.innerHTML = (sellerProductPage.hasMore
+      ? '<div class="list-card">No products on this page.</div>'
+      : '<div class="list-card">No products yet. Add your first product above.</div>')
+      + (sellerProductPage.hasMore
+        ? `<button class="button button-outline button-small seller-load-more" data-load-seller-products type="button">Load more products (${Math.max(0, sellerProductPage.total - sellerProductPage.offset)} remaining)</button>`
+        : "");
+    bindSellerLoadMoreProducts(container);
     return;
   }
 
@@ -904,7 +937,11 @@ function renderProducts() {
         </div>
       </article>
     `)
-    .join("");
+    .join("") + (sellerProductPage.hasMore
+      ? `<button class="button button-outline button-small seller-load-more" data-load-seller-products type="button">Load more products (${Math.max(0, sellerProductPage.total - sellerProductPage.offset)} remaining)</button>`
+      : "");
+
+  bindSellerLoadMoreProducts(container);
 
   container.querySelectorAll("[data-edit-product]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -937,6 +974,34 @@ function renderProducts() {
       notifyRealtime("marketplace", "product-deleted");
       showToast("Product deleted.", "warn");
     });
+  });
+}
+
+function bindSellerLoadMoreProducts(container) {
+  container.querySelector("[data-load-seller-products]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (sellerProductPage.loading) return;
+    sellerProductPage.loading = true;
+    button.disabled = true;
+    button.textContent = "Loading products…";
+    const offset = sellerProductPage.offset;
+    try {
+      const response = await fetch(`./api/sellers/catalog.php?limit=${SELLER_PAGE_SIZE}&offset=${offset}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || "More products could not be loaded.");
+      cachedProducts = [...cachedProducts, ...(data.products || [])];
+      sellerProductPage.offset = (data.page?.offset || offset) + (data.page?.returned || data.products?.length || 0);
+      sellerProductPage.total = Number(data.page?.total ?? sellerProductPage.total);
+      sellerProductPage.hasMore = Boolean(data.page?.hasMore);
+      sellerProductPage.loading = false;
+      renderProducts();
+      renderCounts();
+    } catch (error) {
+      sellerProductPage.loading = false;
+      button.disabled = false;
+      button.textContent = "Try loading products again";
+      showToast(error.message || "Products could not be loaded.", "warn");
+    }
   });
 }
 
@@ -1057,10 +1122,14 @@ function renderOrders() {
     return;
   }
 
-  const allSellerOrders = sellerOrders(seller);
-  const sellerOrderList = filteredSellerOrders(seller).slice().reverse();
+  const sellerOrderList = filteredSellerOrders(seller);
+  const rangeLabel = document.getElementById("sellerOrderRangeLabel");
+  if (rangeLabel) rangeLabel.textContent = `Showing ${cachedOrders.length} of ${sellerOrderPage.total} orders`;
   if (!sellerOrderList.length) {
-    container.innerHTML = '<div class="list-card">No orders match the current filters for your store.</div>';
+    container.innerHTML = '<div class="list-card">No orders match the current filters for your store.</div>' + (sellerOrderPage.hasMore
+      ? '<button class="button button-outline button-small" data-load-seller-orders type="button">Load older orders</button>'
+      : "");
+    bindSellerLoadMoreOrders(container);
     return;
   }
 
@@ -1109,7 +1178,11 @@ function renderOrders() {
       </article>
     `;
     })
-    .join("");
+    .join("") + (sellerOrderPage.hasMore
+      ? '<button class="button button-outline button-small" data-load-seller-orders type="button">Load older orders</button>'
+      : "");
+
+  bindSellerLoadMoreOrders(container);
 
   container.querySelectorAll("[data-view-seller-order]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1186,6 +1259,18 @@ function renderOrders() {
     });
   });
 
+}
+
+function bindSellerLoadMoreOrders(container) {
+  container.querySelector("[data-load-seller-orders]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (sellerOrderPage.loading) return;
+    sellerOrderPage.loading = true;
+    button.disabled = true;
+    button.textContent = "Loading orders…";
+    await loadSellerOrders(currentSeller(), { append: true });
+    refreshSellerOrderViews();
+  });
 }
 
 function sellerOrderDistance(order, sellerId) {
@@ -2376,7 +2461,6 @@ async function boot() {
       return;
     }
     showDashboard();
-    loadSellerOrders(seller).then(refreshSellerOrderViews);
   } else {
     hideDashboard();
     toggleForms(false);
