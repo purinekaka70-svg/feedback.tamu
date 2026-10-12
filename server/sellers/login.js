@@ -180,7 +180,8 @@ module.exports = async function handler(req, res) {
       email: row.email
     });
     send(res, 200, { ok: true, seller: sellerFromBusiness(row) });
-  } catch {
+  } catch (error) {
+    console.error("Seller login failed:", String(error?.code || error?.message || error).slice(0, 180));
     send(res, 500, { ok: false, message: "Seller login failed." });
   }
 };

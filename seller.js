@@ -186,6 +186,9 @@ function sellerAuthErrorMessage(response, fallback) {
   if (response?.status === 422) {
     return "Check the form details and try again.";
   }
+  if (Number(response?.status || 0) >= 500) {
+    return "Seller account service cannot reach its database. Please contact support after the database connection is updated.";
+  }
   return fallback;
 }
 
