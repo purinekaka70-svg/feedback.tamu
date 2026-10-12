@@ -26,7 +26,7 @@ body.marketplace-landing [data-shop-results] .product-grid--shelf {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)) !important;
   align-items: stretch !important;
   gap: 11px !important;
   overflow: visible !important;
@@ -149,7 +149,7 @@ body.marketplace-landing .supermarket-product-card .product-visual {
   width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
-  max-height: 184px !important;
+  max-height: 150px !important;
   aspect-ratio: 1 / 1 !important;
   overflow: hidden !important;
   border-radius: 10px !important;
@@ -219,7 +219,7 @@ body.marketplace-landing .supermarket-product-card .product-card-actions {
   }
 
   body.marketplace-landing .supermarket-product-card .product-visual {
-    max-height: 156px !important;
+    max-height: 126px !important;
   }
 
   body.marketplace-landing .compact-card-footer .button,
