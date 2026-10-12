@@ -1029,7 +1029,22 @@ function closeEmployeeMenu() {
     toggle.setAttribute("aria-expanded", "false");
     toggle.setAttribute("aria-label", "Open employee menu");
   }
+  document.getElementById("employeeBottomMenuToggle")?.setAttribute("aria-expanded", "false");
   document.body.classList.remove("employee-menu-open");
+}
+
+function toggleEmployeeMenu() {
+  const sidebar = document.getElementById("employeeSidebar");
+  const overlay = document.getElementById("employeeSidebarOverlay");
+  if (!sidebar || !overlay) return;
+  closeOtherMenusForEmployee();
+  const isOpen = sidebar.classList.toggle("is-open");
+  overlay.classList.toggle("is-open", isOpen);
+  const label = isOpen ? "Close employee menu" : "Open employee menu";
+  document.getElementById("employeeMenuToggle")?.setAttribute("aria-expanded", String(isOpen));
+  document.getElementById("employeeMenuToggle")?.setAttribute("aria-label", label);
+  document.getElementById("employeeBottomMenuToggle")?.setAttribute("aria-expanded", String(isOpen));
+  document.body.classList.toggle("employee-menu-open", isOpen);
 }
 
 function closeOtherMenusForEmployee() {
@@ -1054,7 +1069,9 @@ function setEmployeeView(view) {
     panel.classList.toggle("is-hidden", panel.dataset.employeePanel !== activeEmployeeView);
   });
   document.querySelectorAll("[data-employee-view]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.employeeView === activeEmployeeView);
+    const isActive = button.dataset.employeeView === activeEmployeeView;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-current", isActive ? "page" : "false");
   });
   closeEmployeeMenu();
   if (activeEmployeeView === "maps") {
@@ -1073,14 +1090,8 @@ function bindNavigation() {
   if (toggle) {
     toggle.dataset.bound = "true";
   }
-  toggle?.addEventListener("click", () => {
-    closeOtherMenusForEmployee();
-    const isOpen = sidebar?.classList.toggle("is-open");
-    overlay?.classList.toggle("is-open", Boolean(isOpen));
-    toggle.setAttribute("aria-expanded", String(isOpen));
-    toggle.setAttribute("aria-label", isOpen ? "Close employee menu" : "Open employee menu");
-    document.body.classList.toggle("employee-menu-open", isOpen);
-  });
+  toggle?.addEventListener("click", toggleEmployeeMenu);
+  document.getElementById("employeeBottomMenuToggle")?.addEventListener("click", toggleEmployeeMenu);
   closeButton?.addEventListener("click", closeEmployeeMenu);
   overlay?.addEventListener("click", closeEmployeeMenu);
   document.addEventListener("keydown", (event) => {

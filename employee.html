@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="./header-menu-fix.css?v=20260512-login-center">
   <link rel="stylesheet" href="./employee-app.css?v=20261009-dashboard-v4">
   <link rel="stylesheet" href="./device.css?v=20261012-touch-layout">
+  <link rel="stylesheet" href="./employee-mobile.css?v=20261012-employee-pwa-v2">
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script src="./onesignal-client.js?v=20260512-hide-enabled-button" defer></script>
 </head>
@@ -102,7 +103,7 @@
           <div class="topbar-actions">
             <span id="employeeActiveBadge" class="summary-chip">0 active</span>
             <button id="employeeRefreshButton" class="button button-outline button-small" type="button">Refresh</button>
-            <button id="employeeInstallApp" class="button button-primary button-small" type="button" hidden>Install App</button>
+            <button id="employeeInstallApp" class="button button-primary button-small" type="button" hidden>Install Employee App</button>
             <p id="employeeInstallStatus" class="employee-install-status" role="status" aria-live="polite"></p>
           </div>
         </header>
@@ -225,6 +226,25 @@
           </article>
         </section>
       </section>
+
+      <nav id="employeeBottomNav" class="employee-bottom-nav" aria-label="Employee quick navigation">
+        <button class="employee-bottom-nav-item" type="button" data-employee-view="dashboard" aria-label="Dashboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z"/></svg>
+          <span>Home</span>
+        </button>
+        <button class="employee-bottom-nav-item" type="button" data-employee-view="orders" aria-label="Orders">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM8 9h8M8 13h8M8 17h5"/></svg>
+          <span>Orders</span>
+        </button>
+        <button class="employee-bottom-nav-item" type="button" data-employee-view="maps" aria-label="Maps">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg>
+          <span>Maps</span>
+        </button>
+        <button id="employeeBottomMenuToggle" class="employee-bottom-nav-item" type="button" aria-label="Open employee menu" aria-controls="employeeSidebar" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <span>Menu</span>
+        </button>
+      </nav>
     </main>
   </div>
 
@@ -236,8 +256,8 @@
   <script src="./firebase-config.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="./realtime-sync.js"></script>
-  <script src="./employee.js?v=20260512-county-business-orders"></script>
-  <script src="./employee-pwa.js?v=20261009-employee-pwa-v1" defer></script>
+  <script src="./employee.js?v=20261012-employee-pwa-v2"></script>
+  <script src="./employee-pwa.js?v=20261012-employee-pwa-v2" defer></script>
   <script src="./security-client.js?v=20261009-password-visibility"></script>
 </body>
 </html>
