@@ -1803,10 +1803,17 @@ function renderStores() {
   const summary = document.getElementById("browseSummary");
   const list = visibleStores();
   const products = sellerProducts();
+  const productsByStore = new Map();
+  products.forEach((product) => {
+    const storeProducts = productsByStore.get(product.storeId);
+    if (storeProducts) storeProducts.push(product);
+    else productsByStore.set(product.storeId, [product]);
+  });
+  const storeProductsFor = (storeId) => productsByStore.get(storeId) || [];
   const allStores = approvedStores().filter((store) => {
     const matchesType = state.selectedType === "all" || store.businessType === state.selectedType;
     const businessQuery = state.businessSearch.trim().toLowerCase();
-    const storeProducts = products.filter((product) => product.storeId === store.id);
+    const storeProducts = storeProductsFor(store.id);
     return matchesType &&
       storeMatchesSearch(store, storeProducts, state.search) &&
       storeMatchesSearch(store, storeProducts, businessQuery);
@@ -1966,7 +1973,7 @@ function renderStores() {
             : "Payment details pending";
       const phoneLabel = store.phone || store.mpesaNumber || store.pochiNumber || "Phone pending";
       const image = store.logoImage || store.businessImage || store.image || storePrimaryImage(store.id) || fallbackBusinessImageFor(store);
-      const storeProducts = sellerProducts().filter((product) => product.storeId === store.id);
+      const storeProducts = storeProductsFor(store.id);
       const productCount = storeProducts.length;
       const deliveryLabel = store.deliveryAvailability || store.deliveryStatus || "Delivery available";
       const categories = [...new Set(storeProducts.map((product) => product.productCategory).filter(Boolean))];

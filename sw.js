@@ -1,5 +1,5 @@
-const CACHE_NAME = "tamu-public-shell-v3";
-const PUBLIC_SHELL = ["./", "./index.html", "./index.css", "./responsive.css", "./device.css", "./categories.html", "./categories.css", "./categories.js"];
+const CACHE_NAME = "tamu-public-shell-v4";
+const PUBLIC_SHELL = ["./", "./index.html", "./index.css", "./responsive.css", "./device.css", "./categories.html", "./categories.css", "./marketplace-cards.css", "./categories.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
