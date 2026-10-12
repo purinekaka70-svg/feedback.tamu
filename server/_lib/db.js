@@ -4,17 +4,20 @@ let pool;
 
 function connectionString() {
   if (process.env.SUPABASE_DB_URL) return process.env.SUPABASE_DB_URL;
-  // Prefer the explicit Supabase connection fields when present. This lets an
-  // operator rotate SUPABASE_DB_PASS without an older DATABASE_URL overriding it.
-  if (process.env.SUPABASE_DB_HOST) return "";
+  if (splitDatabaseConfigAvailable()) return "";
   return process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
+}
+
+function splitDatabaseConfigAvailable() {
+  return Boolean(process.env.SUPABASE_DB_HOST && process.env.SUPABASE_DB_PASS);
 }
 
 function connectionSource() {
   if (process.env.SUPABASE_DB_URL) return "SUPABASE_DB_URL";
-  if (process.env.SUPABASE_DB_HOST) return "SUPABASE_DB_HOST";
+  if (splitDatabaseConfigAvailable()) return "SUPABASE_DB_HOST";
   if (process.env.DATABASE_URL) return "DATABASE_URL";
   if (process.env.POSTGRES_URL) return "POSTGRES_URL";
+  if (process.env.SUPABASE_DB_HOST) return "SUPABASE_DB_HOST";
   return "none";
 }
 
@@ -49,10 +52,23 @@ function connectionSummary() {
 
 function getPool() {
   if (!pool) {
-    const url = connectionString();
-    if (url) {
+    if (process.env.SUPABASE_DB_URL) {
       pool = new Pool({
-        connectionString: url,
+        connectionString: process.env.SUPABASE_DB_URL,
+        ssl: { rejectUnauthorized: false }
+      });
+    } else if (splitDatabaseConfigAvailable()) {
+      pool = new Pool({
+        host: process.env.SUPABASE_DB_HOST,
+        port: Number(process.env.SUPABASE_DB_PORT || 5432),
+        database: process.env.SUPABASE_DB_NAME || "postgres",
+        user: process.env.SUPABASE_DB_USER || "postgres",
+        password: process.env.SUPABASE_DB_PASS,
+        ssl: { rejectUnauthorized: false }
+      });
+    } else if (connectionString()) {
+      pool = new Pool({
+        connectionString: connectionString(),
         ssl: { rejectUnauthorized: false }
       });
     } else {

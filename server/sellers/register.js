@@ -6,8 +6,8 @@ const { rateLimit } = require("../_lib/security");
 
 async function tableColumns(client, table) {
   const result = await client.query(
-    `select column_name, data_type
-            , is_nullable, column_default
+    `select column_name, data_type, is_nullable, column_default,
+            is_identity, identity_generation
        from information_schema.columns
       where table_schema = 'public'
         and table_name = $1`,
@@ -26,7 +26,7 @@ function addColumn(columns, names, field, value, cast = "") {
 
 function needsManualId(columns) {
   const id = columns.get("id");
-  return id && id.is_nullable === "NO" && !id.column_default;
+  return id && id.is_nullable === "NO" && !id.column_default && id.is_identity !== "YES";
 }
 
 function passwordColumn(columns) {
@@ -34,6 +34,7 @@ function passwordColumn(columns) {
 }
 
 async function nextId(client, table) {
+  await client.query("select pg_advisory_xact_lock(hashtext($1))", [`seller-registration:${table}`]);
   const result = await client.query(`select coalesce(max(id), 0) + 1 as id from ${table}`);
   return Number(result.rows[0]?.id || 1);
 }

@@ -1527,6 +1527,7 @@ async function startDashboard() {
   showAdminDashboard();
   seedStorage();
   await loadData();
+  window.TamuReports?.mount();
   bindAdminNavigation();
   bindAdminOrderFilters();
   bindLiveOrderUpdates();

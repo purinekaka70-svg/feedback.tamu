@@ -27,6 +27,7 @@ const routes = {
   "products/delete": () => require("../server/products/delete"),
   "products/save": () => require("../server/products/save"),
   "realtime/state": () => require("../server/realtime/state"),
+  "reports/analytics": () => require("../server/reports/analytics"),
   "sellers/login": () => require("../server/sellers/login"),
   "sellers/catalog": () => require("../server/sellers/catalog"),
   "sellers/register": () => require("../server/sellers/register"),

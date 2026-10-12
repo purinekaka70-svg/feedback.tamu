@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="./header-menu-fix.css?v=20260512-login-center">
   <link rel="stylesheet" href="./admin-app.css?v=20261009-admin-app-v3">
   <link rel="stylesheet" href="./device.css?v=20261012-touch-layout">
+  <link rel="stylesheet" href="./reports.css?v=20261012-reports-v1">
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script src="./onesignal-client.js?v=20260512-hide-enabled-button" defer></script>
 </head>
@@ -113,6 +114,20 @@
 
             <section class="admin-panel" data-admin-panel="overview">
               <div id="adminOverviewStats" class="stats-grid"></div>
+
+              <article class="card report-widget" data-report-widget>
+                <div class="section-head">
+                  <div><p class="eyebrow">Sales trend</p><h2 class="section-title">Orders and sales</h2></div>
+                  <button class="button button-outline button-small" data-report-print type="button">Print</button>
+                </div>
+                <form class="report-toolbar" data-report-form>
+                  <label class="field"><span class="field-label">View period</span><select class="input" data-report-period></select></label>
+                  <button class="button button-primary button-small" type="submit">Refresh</button>
+                </form>
+                <p class="report-summary" data-report-summary>Loading report…</p>
+                <div class="report-chart" data-report-chart role="img" aria-label="Sales by period"></div>
+                <p class="report-status" data-report-status aria-live="polite"></p>
+              </article>
 
               <section class="dashboard-grid">
                 <article class="card">
@@ -298,6 +313,17 @@
                   </div>
                 </div>
                 <div id="adminReportList" class="item-list"></div>
+                <section class="report-widget" data-report-widget aria-label="Printable marketplace report">
+                  <form class="report-toolbar" data-report-form>
+                    <label class="field"><span class="field-label">Report interval</span><select class="input" data-report-period></select></label>
+                    <button class="button button-primary button-small" type="submit">Generate report</button>
+                    <button class="button button-outline button-small" data-report-print type="button">Print report</button>
+                  </form>
+                  <p class="report-summary" data-report-summary>Loading report…</p>
+                  <div class="report-chart" data-report-chart role="img" aria-label="Marketplace sales chart"></div>
+                  <div data-report-table></div>
+                  <p class="report-status" data-report-status aria-live="polite"></p>
+                </section>
               </article>
             </section>
           </section>
@@ -318,7 +344,8 @@
   <div id="toastContainer" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
 
   <script src="./realtime-sync.js"></script>
-  <script src="./admin.js"></script>
+  <script src="./reports.js?v=20261012-reports-v1"></script>
+  <script src="./admin.js?v=20261012-reports-v1"></script>
   <script src="./security-client.js?v=20261009-password-visibility"></script>
 </body>
 </html>

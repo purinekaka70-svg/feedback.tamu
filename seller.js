@@ -518,6 +518,7 @@ function showDashboard() {
   renderSellerCustomers();
   renderSellerHomeSummary();
   renderSellerAnalytics();
+  window.TamuReports?.mount();
   fillSellerSettingsForms();
   primeSellerNotifications();
   setSellerView("overview");

@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="./header-menu-fix.css?v=20260512-login-center">
   <link rel="stylesheet" href="./seller-app.css?v=20261009-workspace-v3">
   <link rel="stylesheet" href="./device.css?v=20261012-touch-layout">
+  <link rel="stylesheet" href="./reports.css?v=20261012-reports-v1">
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script src="./onesignal-client.js?v=20260512-hide-enabled-button" defer></script>
 </head>
@@ -257,6 +258,7 @@
             <button class="button button-ghost button-small" type="button" data-seller-view="categories">Categories</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="offers">Offers</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="payments">Payments</button>
+            <button class="button button-ghost button-small" type="button" data-seller-view="reports">Reports</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="notifications">Notifications</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="settings">Business Settings</button>
             <button class="button button-ghost button-small" type="button" data-seller-view="logout">Logout</button>
@@ -589,9 +591,38 @@
           <article class="card" data-seller-panel="overview">
             <div class="section-head">
               <h2>Analytics</h2>
-              <span class="tiny">Sales and activity from loaded recent orders</span>
+              <span class="tiny">Business sales trend</span>
             </div>
             <div id="sellerAnalyticsStats" class="stats-grid"></div>
+          </article>
+
+          <article class="card report-widget" data-report-widget data-seller-panel="overview">
+            <div class="section-head">
+              <div><p class="eyebrow">Sales trend</p><h2>Orders and sales</h2></div>
+              <button class="button button-outline button-small" data-report-print type="button">Print</button>
+            </div>
+            <form class="report-toolbar" data-report-form>
+              <label class="field"><span class="field-label">View period</span><select class="input" data-report-period></select></label>
+              <button class="button button-primary button-small" type="submit">Refresh</button>
+            </form>
+            <p class="report-summary" data-report-summary>Loading report…</p>
+            <div class="report-chart" data-report-chart role="img" aria-label="Store sales by period"></div>
+            <p class="report-status" data-report-status aria-live="polite"></p>
+          </article>
+
+          <article class="card report-widget" data-report-widget data-seller-panel="reports">
+            <div class="section-head">
+              <div><p class="eyebrow">Business reports</p><h2>Sales and order report</h2></div>
+            </div>
+            <form class="report-toolbar" data-report-form>
+              <label class="field"><span class="field-label">Report interval</span><select class="input" data-report-period></select></label>
+              <button class="button button-primary button-small" type="submit">Generate report</button>
+              <button class="button button-outline button-small" data-report-print type="button">Print report</button>
+            </form>
+            <p class="report-summary" data-report-summary>Loading report…</p>
+            <div class="report-chart" data-report-chart role="img" aria-label="Seller sales chart"></div>
+            <div data-report-table></div>
+            <p class="report-status" data-report-status aria-live="polite"></p>
           </article>
 
           <article class="card" data-seller-panel="logout">
@@ -660,7 +691,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="./realtime-sync.js"></script>
-  <script src="./seller.js?v=20261009-seller-scale-v1"></script>
+  <script src="./reports.js?v=20261012-reports-v1"></script>
+  <script src="./seller.js?v=20261012-reports-v1"></script>
   <script src="./security-client.js?v=20261009-password-visibility"></script>
   <script src="./seller-pwa.js" defer></script>
 </body>
