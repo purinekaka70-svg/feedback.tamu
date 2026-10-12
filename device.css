@@ -1,0 +1,70 @@
+/* Touch and narrow-screen defaults shared by the storefront and portals. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  button.button,
+  a.button,
+  .store-search button,
+  .employee-install-button,
+  .seller-install-app {
+    min-height: 44px;
+  }
+
+  .store-header-actions {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .store-header-actions > a,
+  .store-header-actions > button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .admin-side-nav button,
+  .seller-side-nav button,
+  .employee-side-nav button,
+  .admin-nav-button,
+  .seller-nav-button,
+  .employee-nav-button {
+    min-height: 44px;
+  }
+
+  .storefront-shortcuts > a,
+  .list-card,
+  .order-card,
+  .mini-list-card {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a {
+    -webkit-tap-highlight-color: rgba(21, 128, 61, 0.16);
+  }
+
+  .storefront-shortcuts > a:hover,
+  .home-market-card:hover {
+    transform: none;
+  }
+}

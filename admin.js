@@ -202,6 +202,7 @@ function showAdminDashboard() {
   document.body.classList.remove("admin-auth-only");
   document.getElementById("adminLoginView")?.classList.add("is-hidden");
   document.getElementById("adminDashboardView")?.classList.remove("is-hidden");
+  document.querySelectorAll("#adminDashboardView .reveal").forEach((item) => item.classList.add("is-visible"));
 }
 
 function bindAdminLogin() {

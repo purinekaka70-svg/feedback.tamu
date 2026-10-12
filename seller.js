@@ -499,6 +499,7 @@ function showDashboard() {
   document.body.classList.remove("seller-register-active");
   document.getElementById("sellerAuthSection").classList.add("is-hidden");
   document.getElementById("sellerDashboard").classList.remove("is-hidden");
+  document.querySelectorAll("#sellerDashboard .reveal").forEach((item) => item.classList.add("is-visible"));
   document.getElementById("registrationForm").classList.add("is-hidden");
   document.getElementById("loginForm").classList.add("is-hidden");
   document.getElementById("formTitle").textContent = "Seller Dashboard";
