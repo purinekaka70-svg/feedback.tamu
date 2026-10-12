@@ -17,7 +17,7 @@
     rel="stylesheet"
   >
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="./seller.css?v=20261009-seller-app-v2">
+  <link rel="stylesheet" href="./seller.css?v=20261012-seller-workspace-v1">
   <link rel="stylesheet" href="./storefront-commerce.css">
   <link rel="stylesheet" href="./responsive.css?v=20261009-password-visibility">
   <link rel="stylesheet" href="./notifications.css">
@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="./seller-app.css?v=20261009-workspace-v3">
   <link rel="stylesheet" href="./device.css?v=20261012-touch-layout">
   <link rel="stylesheet" href="./reports.css?v=20261012-reports-v1">
+  <link rel="stylesheet" href="./seller-workspace.css?v=20261012-workspace-v1">
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script src="./onesignal-client.js?v=20260512-hide-enabled-button" defer></script>
 </head>
@@ -646,6 +647,25 @@
             </div>
           </article>
         </section>
+
+        <nav id="sellerBottomNav" class="seller-bottom-nav" aria-label="Seller quick navigation">
+          <button class="seller-bottom-nav-item" type="button" data-seller-view="overview" aria-label="Dashboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z"/></svg>
+            <span>Home</span>
+          </button>
+          <button class="seller-bottom-nav-item" type="button" data-seller-view="orders" aria-label="Orders">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM8 9h8M8 13h8M8 17h5"/></svg>
+            <span>Orders</span>
+          </button>
+          <button class="seller-bottom-nav-item" type="button" data-seller-view="products" aria-label="Products">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></svg>
+            <span>Products</span>
+          </button>
+          <button id="sellerBottomMenuToggle" class="seller-bottom-nav-item" type="button" aria-label="Open seller menu" aria-controls="sellerWorkspaceNav" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <span>Menu</span>
+          </button>
+        </nav>
       </div>
     </main>
 

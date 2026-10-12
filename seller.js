@@ -1994,6 +1994,8 @@ function closeSellerMenu() {
   overlay?.classList.remove("is-open");
   toggle?.setAttribute("aria-expanded", "false");
   toggle?.setAttribute("aria-label", "Open seller menu");
+  document.getElementById("sellerBottomMenuToggle")?.setAttribute("aria-expanded", "false");
+  if (overlay) overlay.setAttribute("aria-hidden", "true");
   document.body.classList.remove("seller-menu-open");
 }
 
@@ -2008,6 +2010,8 @@ function openSellerMenu() {
   overlay.classList.add("is-open");
   toggle.setAttribute("aria-expanded", "true");
   toggle.setAttribute("aria-label", "Close seller menu");
+  document.getElementById("sellerBottomMenuToggle")?.setAttribute("aria-expanded", "true");
+  overlay.setAttribute("aria-hidden", "false");
   document.body.classList.add("seller-menu-open");
   nav.focus({ preventScroll: true });
 }
@@ -2353,6 +2357,7 @@ function bindActions() {
   document.getElementById("sellerPanelLogoutBtn").addEventListener("click", logoutSeller);
 
   document.getElementById("sellerWorkspaceToggle").addEventListener("click", toggleSellerMenu);
+  document.getElementById("sellerBottomMenuToggle")?.addEventListener("click", toggleSellerMenu);
   const sellerMenuOverlay = document.getElementById("sellerMenuOverlay");
   sellerMenuOverlay.addEventListener("click", closeSellerMenu);
   sellerMenuOverlay.addEventListener("pointerdown", closeSellerMenu);

@@ -1,0 +1,147 @@
+/* Seller workspace: compact overview and persistent mobile navigation. */
+.seller-main-toolbar {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 12px 16px;
+}
+
+.seller-main-toolbar h1 {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.2vw, 1.8rem);
+  line-height: 1.12;
+}
+
+.seller-main-toolbar p {
+  margin-block: 3px 0;
+}
+
+.seller-main-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.seller-main-actions .seller-install-app {
+  margin: 0;
+}
+
+#sellerDashboard[data-active-seller-view="overview"] > .dashboard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+#sellerDashboard[data-active-seller-view="overview"] > .dashboard-grid > .report-widget[data-seller-panel="overview"] {
+  grid-column: 1 / -1;
+}
+
+.seller-bottom-nav {
+  display: none;
+}
+
+body.seller-dashboard-active #footerTrigger {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .seller-main-toolbar {
+    grid-column: 1;
+  }
+
+  #sellerDashboard[data-active-seller-view="overview"] > .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  body.seller-dashboard-active #sellerDashboard {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  body.seller-dashboard-active .seller-main-toolbar {
+    align-items: flex-start;
+    padding: 10px 12px;
+  }
+
+  body.seller-dashboard-active .seller-main-toolbar > div:first-child {
+    min-width: 0;
+  }
+
+  body.seller-dashboard-active .seller-main-toolbar .tiny {
+    font-size: 0.74rem;
+  }
+
+  body.seller-dashboard-active .seller-main-actions {
+    align-items: flex-end;
+  }
+
+  body.seller-dashboard-active .seller-main-actions .seller-install-app {
+    min-height: 36px;
+    padding-inline: 9px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  body.seller-dashboard-active #sellerDashboard[data-active-seller-view="overview"] > .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.seller-dashboard-active #sellerDashboard[data-active-seller-view="overview"] > .dashboard-grid > .report-widget[data-seller-panel="overview"] {
+    grid-column: auto;
+  }
+
+  body.seller-dashboard-active .seller-bottom-nav {
+    position: fixed;
+    z-index: 1399;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid #dce9df;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 -8px 24px rgba(17, 44, 26, 0.1);
+    backdrop-filter: blur(14px);
+  }
+
+  .seller-bottom-nav-item {
+    display: grid;
+    min-width: 0;
+    min-height: 48px;
+    justify-items: center;
+    align-content: center;
+    gap: 3px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #59655d;
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .seller-bottom-nav-item svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .seller-bottom-nav-item[aria-current="page"] {
+    background: #e8f6ec;
+    color: #08783b;
+  }
+}
+
