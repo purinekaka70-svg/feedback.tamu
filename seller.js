@@ -1989,6 +1989,7 @@ function closeSellerMenu() {
   const nav = document.getElementById("sellerWorkspaceNav");
   const overlay = document.getElementById("sellerMenuOverlay");
   const toggle = document.getElementById("sellerWorkspaceToggle");
+  const wasOpen = nav?.classList.contains("is-open");
 
   nav?.classList.remove("is-open");
   overlay?.classList.remove("is-open");
@@ -1997,6 +1998,9 @@ function closeSellerMenu() {
   document.getElementById("sellerBottomMenuToggle")?.setAttribute("aria-expanded", "false");
   if (overlay) overlay.setAttribute("aria-hidden", "true");
   document.body.classList.remove("seller-menu-open");
+  if (wasOpen && toggle && !toggle.closest(".is-hidden")) {
+    toggle.focus({ preventScroll: true });
+  }
 }
 
 function openSellerMenu() {
@@ -2379,8 +2383,6 @@ function bindActions() {
   document.getElementById("sellerBottomMenuToggle")?.addEventListener("click", toggleSellerMenu);
   const sellerMenuOverlay = document.getElementById("sellerMenuOverlay");
   sellerMenuOverlay.addEventListener("click", closeSellerMenu);
-  sellerMenuOverlay.addEventListener("pointerdown", closeSellerMenu);
-  sellerMenuOverlay.addEventListener("touchstart", closeSellerMenu, { passive: true });
   document.getElementById("sellerWorkspaceNav")?.addEventListener("click", (event) => {
     event.stopPropagation();
   });

@@ -170,3 +170,25 @@
   .seller-loading-mark::before { animation-duration: 2.5s; }
   body.seller-dashboard-active .seller-workspace-nav { transition: none !important; }
 }
+
+/* Keep the drawer's parent stacking context above the backdrop on touch devices. */
+@media (max-width: 979px) {
+  body.seller-dashboard-active.seller-menu-open .seller-workspace-bar {
+    position: sticky !important;
+    z-index: 4800 !important;
+    overflow: visible !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-overlay {
+    z-index: 4500 !important;
+  }
+
+  body.seller-dashboard-active .seller-workspace-nav {
+    z-index: 4900 !important;
+  }
+
+  body.seller-dashboard-active .seller-menu-toggle {
+    z-index: 5000 !important;
+    touch-action: manipulation;
+  }
+}
