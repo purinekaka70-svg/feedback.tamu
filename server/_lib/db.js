@@ -3,17 +3,18 @@ const { Pool } = require("pg");
 let pool;
 
 function connectionString() {
-  return process.env.SUPABASE_DB_URL ||
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    "";
+  if (process.env.SUPABASE_DB_URL) return process.env.SUPABASE_DB_URL;
+  // Prefer the explicit Supabase connection fields when present. This lets an
+  // operator rotate SUPABASE_DB_PASS without an older DATABASE_URL overriding it.
+  if (process.env.SUPABASE_DB_HOST) return "";
+  return process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
 }
 
 function connectionSource() {
   if (process.env.SUPABASE_DB_URL) return "SUPABASE_DB_URL";
+  if (process.env.SUPABASE_DB_HOST) return "SUPABASE_DB_HOST";
   if (process.env.DATABASE_URL) return "DATABASE_URL";
   if (process.env.POSTGRES_URL) return "POSTGRES_URL";
-  if (process.env.SUPABASE_DB_HOST) return "SUPABASE_DB_HOST";
   return "none";
 }
 
