@@ -37,6 +37,38 @@ body.seller-dashboard-active .card[data-seller-panel] > .section-head {
   padding-bottom: 7px;
 }
 
+/* Keep the desktop overview rows explicit so the sidebar cannot create tall empty tracks. */
+@media (min-width: 1101px) {
+  body.seller-dashboard-active .seller-workspace-bar {
+    grid-row: 1 / span 3 !important;
+  }
+
+  body.seller-dashboard-active .seller-main-toolbar {
+    grid-row: 1 !important;
+  }
+
+  body.seller-dashboard-active #sellerDashboard > .stats-grid {
+    grid-row: 2 !important;
+  }
+
+  body.seller-dashboard-active #sellerDashboard > .dashboard-grid {
+    grid-row: 3 !important;
+  }
+
+  body.seller-dashboard-active #sellerDashboard:not([data-active-seller-view="overview"]) > .dashboard-grid {
+    grid-row: 2 !important;
+  }
+
+  body.seller-dashboard-active #sellerDashboard > .dashboard-grid > [data-seller-panel="overview"]:has(#sellerHomeSummary),
+  body.seller-dashboard-active #sellerDashboard > .dashboard-grid > [data-seller-panel="overview"]:has(#sellerAnalyticsStats) {
+    grid-column: span 6 !important;
+  }
+
+  body.seller-dashboard-active #sellerAnalyticsStats.stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
 .seller-main-actions {
   display: flex;
   flex: 0 0 auto;
@@ -73,6 +105,13 @@ body.seller-dashboard-active #footerTrigger {
 
   #sellerDashboard[data-active-seller-view="overview"] > .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  body.seller-dashboard-active #sellerDashboard > .dashboard-grid > [data-seller-panel="overview"]:has(#sellerHomeSummary),
+  body.seller-dashboard-active #sellerDashboard > .dashboard-grid > [data-seller-panel="overview"]:has(#sellerAnalyticsStats) {
+    grid-column: span 6;
   }
 }
 
