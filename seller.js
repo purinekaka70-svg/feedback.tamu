@@ -2081,11 +2081,14 @@ function bindForms() {
     toggleForms(false);
     notifyRealtime("marketplace", "seller-registered");
     const successMessage = response.data?.message || "Successfully registered. Please wait for admin approval.";
-    const pendingMessage = "Registered successful. Account pending for admin approval.";
+    const pendingMessage = "Registration submitted. Please wait for admin approval before logging in.";
     const successPanel = document.getElementById("sellerRegistrationSuccess");
     if (successPanel) {
       successPanel.classList.remove("is-hidden");
-      successPanel.innerHTML = "<strong>Registered successful.</strong><span>Account pending for admin approval.</span>";
+      const heading = successPanel.querySelector("strong");
+      const message = successPanel.querySelector("span");
+      if (heading) heading.textContent = "Registration submitted";
+      if (message) message.textContent = "Your seller account is awaiting admin approval. You can log in after it has been approved.";
     }
     document.getElementById("loginStatus").textContent = pendingMessage;
     showToast(successMessage, "success");
